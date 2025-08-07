@@ -60,3 +60,10 @@ input {
   width: 100%;
   max-width: 300px;
 }
+
+#auth {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* volledige hoogte van scherm */
+}
