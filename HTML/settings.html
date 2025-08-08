@@ -2,18 +2,30 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Instellingen</title>
   <link rel="stylesheet" href="../CSS/style.css" />
 </head>
 <body>
+  <!-- AUTH -->
   <div id="auth">
     <button id="login-btn">🔐 Inloggen met Google</button>
   </div>
+
+  <!-- APP -->
   <div id="app" style="display:none;">
-    <h2>Post-it instellingen</h2>
+    <header>
+      <h1>⚙️ Instellingen</h1>
+    </header>
+
+    <p>Stel hier per post-it de bijhorende categorie en kleur in.</p>
+
     <div id="categorySelectors"></div>
+
     <button id="saveSettings">💾 Instellingen opslaan</button>
   </div>
+
+  <!-- Scripts -->
   <script type="module" src="../Script/Javascript/settings.js"></script>
 </body>
 </html>
