@@ -6,6 +6,13 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 
+// 🔧 Vul hieronder je eigen Firebase-config in
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
@@ -20,7 +27,9 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
+const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth();
 
@@ -83,13 +92,11 @@ let categories = {};
 
 function listenToTodos() {
   onSnapshot(collection(db, "todos"), (snapshot) => {
-    allTodos = [];
-    snapshot.forEach((doc) => allTodos.push({ id: doc.id, ...doc.data() }));
-    renderTodos();
-    updateCategorySuggestions(); // ✅ Zorg dat dit wordt aangeroepen
+    const todos = [];
+    snapshot.forEach((doc) => todos.push({ id: doc.id, ...doc.data() }));
+    renderTodos(todos);
   });
 }
-
 
 function renderTodos(todos) {
   postits.innerHTML = "";
@@ -170,18 +177,3 @@ document.getElementById("addTodo").onclick = async () => {
   document.getElementById("category").value = "";
   document.getElementById("formContainer").style.display = "none";
 };
-
-function updateCategorySuggestions() {
-  const datalist = document.getElementById("categoryList");
-  datalist.innerHTML = "";
-  const unique = new Set();
-  allTodos.forEach(todo => {
-    if (todo.category) unique.add(todo.category);
-  });
-  unique.forEach(cat => {
-    const option = document.createElement("option");
-    option.value = cat;
-    datalist.appendChild(option);
-  });
-}
-
