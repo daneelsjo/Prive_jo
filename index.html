@@ -2,25 +2,16 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Persoonlijke To-do App</title>
+  <title>To-Do App</title>
   <link rel="stylesheet" href="CSS/style.css" />
-  <script type="module" src="Script/Javascript/main.js"></script>
 </head>
 <body>
   <div id="auth">
     <button id="login-btn">🔐 Inloggen met Google</button>
   </div>
-
-  <div id="app" style="display:none">
-    <div class="header">
-      <h1>📝 Mijn To-do App</h1>
-      <button id="logout-btn">Afmelden</button>
-      <button id="toggleForm">➕ Nieuwe taak</button>
-      <a href="HTML/settings.html"><button>⚙️ Instellingen</button></a>
-    </div>
-
-    <div id="formContainer" style="display:none">
+  <div id="app" style="display:none;">
+    <button id="newTaskBtn">+ Nieuwe taak</button>
+    <div id="formContainer" style="display:none;">
       <input id="name" placeholder="Taaknaam" />
       <input id="start" type="date" />
       <input id="end" type="date" />
@@ -28,11 +19,9 @@
       <datalist id="categoryList"></datalist>
       <button id="addTodo">Opslaan</button>
     </div>
-
-    <div class="columns">
-      <div id="postits" class="colums"></div>
-      <div id="uncategorized"></div>
-    </div>
+    <div id="postits" class="columns"></div>
+    <div id="uncategorized"></div>
   </div>
+  <script type="module" src="Script/Javascript/main.js"></script>
 </body>
 </html>
