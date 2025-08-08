@@ -2,26 +2,45 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>To-Do App</title>
   <link rel="stylesheet" href="CSS/style.css" />
 </head>
 <body>
+  <!-- AUTH -->
   <div id="auth">
     <button id="login-btn">🔐 Inloggen met Google</button>
   </div>
+
+  <!-- APP -->
   <div id="app" style="display:none;">
+    <header>
+      <h1>📝 Mijn To-Do's</h1>
+    </header>
+
+    <!-- Nieuwe taak knop -->
     <button id="newTaskBtn">+ Nieuwe taak</button>
+
+    <!-- Formulier voor nieuwe taak -->
     <div id="formContainer" style="display:none;">
       <input id="name" placeholder="Taaknaam" />
-      <input id="start" type="date" />
-      <input id="end" type="date" />
+      <input id="start" type="date" placeholder="Startdatum" />
+      <input id="end" type="date" placeholder="Einddatum" />
       <input id="category" list="categoryList" placeholder="Categorie" />
       <datalist id="categoryList"></datalist>
-      <button id="addTodo">Opslaan</button>
+      <button id="addTodo">✔️ Toevoegen</button>
     </div>
+
+    <!-- Post-it weergave -->
     <div id="postits" class="columns"></div>
-    <div id="uncategorized"></div>
+
+    <!-- Overige taken zonder categorie -->
+    <div id="uncategorized">
+      <h3>📌 Zonder categorie</h3>
+    </div>
   </div>
+
+  <!-- Scripts -->
   <script type="module" src="Script/Javascript/main.js"></script>
 </body>
 </html>
