@@ -83,11 +83,13 @@ let categories = {};
 
 function listenToTodos() {
   onSnapshot(collection(db, "todos"), (snapshot) => {
-    const todos = [];
-    snapshot.forEach((doc) => todos.push({ id: doc.id, ...doc.data() }));
-    renderTodos(todos);
+    allTodos = [];
+    snapshot.forEach((doc) => allTodos.push({ id: doc.id, ...doc.data() }));
+    renderTodos();
+    updateCategorySuggestions(); // ✅ Zorg dat dit wordt aangeroepen
   });
 }
+
 
 function renderTodos(todos) {
   postits.innerHTML = "";
@@ -182,3 +184,4 @@ function updateCategorySuggestions() {
     datalist.appendChild(option);
   });
 }
+
