@@ -36,7 +36,10 @@ const endInput = document.getElementById("end");
 const categoryInput = document.getElementById("category");
 const categoryList = document.getElementById("categoryList");
 const postits = document.getElementById("postits");
-const uncategorizedList = document.getElementById("uncategorized-list");
+const uncategorizedList = document.getElementById("uncategorized-list");const description = document.getElementById("description").value.trim();
+const link = document.getElementById("link").value.trim();
+
+
 
 let currentUser = null;
 let allTodos = [];
@@ -80,11 +83,14 @@ addTodoBtn.onclick = async () => {
   const start = startInput.value;
   const end = endInput.value;
   const category = categoryInput.value.trim();
+  const description = document.getElementById("description").value.trim();
+const link = document.getElementById("link").value.trim();
+
 
   if (!name) return alert("Vul een naam in");
 
   await addDoc(collection(db, "todos"), {
-    name, start, end, category, done: false
+    name, start, end, category, description, link, done: false
   });
 
   nameInput.value = "";
@@ -117,12 +123,16 @@ function renderTodos() {
 
     grouped[setting.category].forEach(todo => {
       const div = document.createElement("div");
-      div.textContent = `• ${todo.name}`;
+      div.innerHTML = `• ${todo.name} (${todo.start || "?"} - ${todo.end || "?"}) 
+  <button style="float:right;" onclick="markDone('${todo.id}', ${!todo.done})">
+    ${todo.done ? "✅" : "☐"}
+  </button>`;
+
       if (todo.done) {
         div.style.textDecoration = "line-through";
         div.style.opacity = "0.6";
       }
-      div.onclick = () => toggleDone(todo.id, !todo.done);
+      div.onclick = () => showTaskDetail(todo);
       box.appendChild(div);
     });
 
@@ -181,4 +191,38 @@ async function loadSettings() {
     postitSettings = settingsDoc.data().postits || {};
     renderTodos();
   }
+}
+function showTaskDetail(todo) {
+  const panel = document.getElementById("taskDetailPanel");
+  panel.style.display = "block";
+
+  panel.innerHTML = `
+    <h3>${todo.name}</h3>
+    <label>Omschrijving:</label>
+    <textarea id="editDesc">${todo.description || ""}</textarea>
+    <label>Link:</label>
+    <input id="editLink" value="${todo.link || ""}" />
+    <br/>
+    <button onclick="saveTask('${todo.id}')">💾 Opslaan</button>
+    <button onclick="closeTaskDetail()">❌ Sluiten</button>
+  `;
+}
+
+window.saveTask = async function(id) {
+  const newDesc = document.getElementById("editDesc").value;
+  const newLink = document.getElementById("editLink").value;
+  await setDoc(doc(db, "todos", id), {
+    description: newDesc,
+    link: newLink
+  }, { merge: true });
+  alert("Wijzigingen opgeslagen!");
+}
+
+window.closeTaskDetail = function() {
+  const panel = document.getElementById("taskDetailPanel");
+  panel.style.display = "none";
+  panel.innerHTML = "";
+}
+window.markDone = async function(id, status) {
+  await setDoc(doc(db, "todos", id), { done: status }, { merge: true });
 }
