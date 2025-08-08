@@ -7,10 +7,6 @@
   <link rel="stylesheet" href="CSS/style.css" />
 </head>
 <body>
-  <nav>
-  <a href="HTML/settings.html">⚙️ Instellingen</a>
-</nav>
-
   <!-- AUTH -->
   <div id="auth">
     <button id="login-btn">🔐 Inloggen met Google</button>
@@ -20,6 +16,9 @@
   <div id="app" style="display:none;">
     <header>
       <h1>📝 Mijn To-Do's</h1>
+      <nav>
+        <a href="HTML/settings.html">⚙️ Instellingen</a>
+      </nav>
     </header>
 
     <!-- Nieuwe taak knop -->
@@ -35,12 +34,13 @@
       <button id="addTodo">✔️ Toevoegen</button>
     </div>
 
-    <!-- Post-it weergave -->
+    <!-- Post-its weergave -->
     <div id="postits" class="columns"></div>
 
     <!-- Overige taken zonder categorie -->
     <div id="uncategorized">
       <h3>📌 Zonder categorie</h3>
+      <div id="uncategorized-list"></div>
     </div>
   </div>
 
