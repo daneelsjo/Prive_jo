@@ -168,3 +168,17 @@ document.getElementById("addTodo").onclick = async () => {
   document.getElementById("category").value = "";
   document.getElementById("formContainer").style.display = "none";
 };
+
+function updateCategorySuggestions() {
+  const datalist = document.getElementById("categoryList");
+  datalist.innerHTML = "";
+  const unique = new Set();
+  allTodos.forEach(todo => {
+    if (todo.category) unique.add(todo.category);
+  });
+  unique.forEach(cat => {
+    const option = document.createElement("option");
+    option.value = cat;
+    datalist.appendChild(option);
+  });
+}
