@@ -64,24 +64,46 @@ function listenToTodos() {
   });
 }
 
-function renderCategorySelectors() {
+ function renderCategorySelectors() {
   categorySelectors.innerHTML = "";
   const uniqueCats = [...new Set(allTodos.map(t => t.category).filter(Boolean))];
+
   for (let i = 0; i < 4; i++) {
+    const wrapper = document.createElement("div");
+    wrapper.style.marginBottom = "1em";
+
     const select = document.createElement("select");
     select.innerHTML = `<option value="">(leeg)</option>` + uniqueCats.map(c => {
-      return `<option value="${c}" ${postitSettings[i] === c ? "selected" : ""}>${c}</option>`;
+      return `<option value="${c}" ${postitSettings[i]?.category === c ? "selected" : ""}>${c}</option>`;
     }).join("");
     select.dataset.index = i;
-    categorySelectors.appendChild(select);
+
+    const colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.value = postitSettings[i]?.color || "#FFEB3B";
+    colorInput.dataset.index = i;
+    colorInput.style.marginLeft = "10px";
+
+    wrapper.innerHTML = `<label>Post-it ${i + 1}</label><br>`;
+    wrapper.appendChild(select);
+    wrapper.appendChild(colorInput);
+    categorySelectors.appendChild(wrapper);
   }
 }
 
+
+
 saveSettingsBtn.onclick = async () => {
   const selects = categorySelectors.querySelectorAll("select");
-  selects.forEach(sel => {
-    postitSettings[sel.dataset.index] = sel.value;
+  const colors = categorySelectors.querySelectorAll("input[type='color']");
+  const newSettings = {};
+
+  selects.forEach((sel, i) => {
+    const cat = sel.value;
+    const color = colors[i].value;
+    newSettings[sel.dataset.index] = { category: cat, color: color };
   });
-  await setDoc(doc(db, "settings", currentUser.uid), { postits: postitSettings });
+
+  await setDoc(doc(db, "settings", currentUser.uid), { postits: newSettings });
   alert("Instellingen opgeslagen!");
 };
