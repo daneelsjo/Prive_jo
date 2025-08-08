@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 import {
-  getFirestore, doc, setDoc, getDoc
+  getFirestore, doc, setDoc, getDoc, collection, getDocs
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
@@ -33,6 +33,7 @@ let postitSettings = {};
 const colors = ["#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688", "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"];
 
 loginBtn.onclick = () => signInWithPopup(auth, provider);
+
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     currentUser = user;
@@ -45,13 +46,9 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function loadTodos() {
-  const snap = await getDoc(doc(db, "todos", "dummy")); // om de structuur te activeren
-  const q = await getDoc(doc(db, "settings", "dummy"));
-  // dit stuk wordt normaal vervangen door snapshotlistener
-  const coll = collection(db, "todos");
-  const snapshot = await getDocs(coll);
+  const snap = await getDocs(collection(db, "todos"));
   allTodos = [];
-  snapshot.forEach((doc) => allTodos.push(doc.data()));
+  snap.forEach((doc) => allTodos.push(doc.data()));
 }
 
 async function loadSettings() {
