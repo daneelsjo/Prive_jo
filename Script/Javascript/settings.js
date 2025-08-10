@@ -147,47 +147,102 @@ window.archiveCategory = async function (id) {
   await updateDoc(doc(db, "categories", id), { active: false });
 };
 
-/* ModeSlots (4 slots per modus) */
+/* ModeSlots (6 slots per modus) */
+/* ModeSlots (6 slots per modus) — met live kleur-preview op de rij */
 function renderModeSlots() {
   if (!modeSlotsDiv) return;
   modeSlotsDiv.innerHTML = "";
 
   const slots = (settings.modeSlots?.[currentMode] || Array(4).fill({})).slice(0, 4);
-  for (let i = 0; i < 4; i++) {
+
+  for (let i = 0; i < 6; i++) {
     const slot = slots[i] || {};
     const row = document.createElement("div");
-    row.style.display = "flex";
+    row.style.display = "grid";
+    row.style.gridTemplateColumns = "110px 1fr 160px 40px";
     row.style.alignItems = "center";
-    row.style.gap = ".5rem";
-    row.style.marginBottom = ".5rem";
+    row.style.gap = ".6rem";
+    row.style.borderRadius = "10px";
+    row.style.padding = ".5rem .6rem";
+    row.style.marginBottom = ".6rem";
 
+    const initialColor = slot.color || fixedColors[i % fixedColors.length];
+    row.style.background = initialColor;
+    row.style.color = getContrast(initialColor);
+
+    // label
     const label = document.createElement("span");
     label.textContent = `Post-it ${i + 1}:`;
+    label.style.fontWeight = "500";
 
+    // categorie
     const catSelect = document.createElement("select");
     catSelect.innerHTML = `<option value="">-- Geen --</option>`;
-    categories.filter(c => c.type === currentMode).forEach(c => {
-      const opt = document.createElement("option");
-      opt.value = c.id; opt.textContent = c.name;
-      if (c.id === slot.categoryId) opt.selected = true;
-      catSelect.appendChild(opt);
-    });
+    categories
+      .filter(c => c.type === currentMode)
+      .forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name;
+        if (c.id === slot.categoryId) opt.selected = true;
+        catSelect.appendChild(opt);
+      });
+    catSelect.dataset.slotIndex = i;
 
+    // kleur (beperkte set)
     const colorSelect = document.createElement("select");
     fixedColors.forEach(col => {
       const opt = document.createElement("option");
-      opt.value = col; opt.textContent = col;
-      opt.style.backgroundColor = col; opt.style.color = getContrast(col);
-      if ((slot.color || fixedColors[i % fixedColors.length]) === col) opt.selected = true;
+      opt.value = col;
+      opt.textContent = col;
+      // wat extra styling op de optie — niet elke browser toont dit, maar kan geen kwaad
+      opt.style.backgroundColor = col;
+      opt.style.color = getContrast(col);
+      if (initialColor === col) opt.selected = true;
       colorSelect.appendChild(opt);
     });
+    colorSelect.dataset.slotIndex = i;
 
+    // klein swatchje rechts (altijd zichtbaar)
+    const swatch = document.createElement("div");
+    swatch.className = "swatch";
+    swatch.style.width = "28px";
+    swatch.style.height = "28px";
+    swatch.style.borderRadius = "8px";
+    swatch.style.border = "1px solid rgba(0,0,0,.15)";
+    swatch.style.background = initialColor;
+
+    // kleurwijziging → rij + swatch updaten
+    colorSelect.addEventListener("change", () => {
+      const col = colorSelect.value;
+      row.style.background = col;
+      row.style.color = getContrast(col);
+      swatch.style.background = col;
+      // lokaal in het 'slots' array bijhouden (handig als je meteen wilt saven)
+      slots[i] = { ...(slots[i] || {}), categoryId: catSelect.value || null, color: col };
+    });
+
+    // cat wijziging lokaal bijhouden
+    catSelect.addEventListener("change", () => {
+      slots[i] = { ...(slots[i] || {}), categoryId: catSelect.value || null, color: colorSelect.value };
+    });
+
+    // opbouw
     row.appendChild(label);
     row.appendChild(catSelect);
     row.appendChild(colorSelect);
+    row.appendChild(swatch);
+
+    // bewaar refs voor je save-functie (optioneel)
+    row.dataset.slotIndex = i;
     modeSlotsDiv.appendChild(row);
   }
+
+  // Zorg dat de in‑memory slots meegaan met wat er nu gerenderd staat
+  settings.modeSlots = settings.modeSlots || {};
+  settings.modeSlots[currentMode] = slots;
 }
+
 
 /* Opslaan van slots */
 saveModeSlotsBtn && (saveModeSlotsBtn.onclick = async () => {

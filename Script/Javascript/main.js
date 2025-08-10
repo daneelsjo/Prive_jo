@@ -188,8 +188,8 @@ function renderTodos() {
     return acc;
   }, {});
 
-  // 4 post‑its volgens slots
-  for (let i = 0; i < 4; i++) {
+  // 6 post‑its volgens slots
+  for (let i = 0; i < 6; i++) {
     const slot = slots[i];
     if (!slot?.categoryId) continue;
     const catDoc = categories.find(c => c.id === slot.categoryId && c.type === currentMode);
