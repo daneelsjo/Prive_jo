@@ -2,88 +2,41 @@
 <html lang="nl">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>To‑Do App</title>
-  <link rel="stylesheet" href="CSS/style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-do App</title>
+  <link rel="stylesheet" href="CSS/style.css">
 </head>
 
 <body>
-  <!-- AUTH -->
-  <div id="auth">
-    <button id="login-btn">🔐 Inloggen met Google</button>
-  </div>
 
-  <!-- gedeelde header (hamburger + topmenu) -->
-  <div data-include="partials/header.html"></div>
+  <!-- AUTH -->
+  <div id="auth" style="text-align:center; padding:2rem;">
+    <h2>Welkom</h2>
+    <p>Log in met je Google-account om je taken te beheren</p>
+    <button id="login-btn" class="primary">Google login</button>
+  </div>
 
   <!-- APP -->
   <div id="app" style="display:none;">
-    <div class="page">
-      <main class="content">
+    <!-- Topbar -->
+    <header class="topbar">
+      <button class="icon-btn" id="menuBtn">☰</button>
+      <div class="mainnav">
+        <ul>
+          <li><a href="#" class="menu-link">Home</a></li>
+          <li><a href="#" class="menu-link">Overzicht</a></li>
+        </ul>
+      </div>
+      <div>
+        <input type="checkbox" id="modeSwitch" />
+        <label for="modeSwitch" class="switch icon-only">
+          <span class="icon icon-work">💼</span>
+          <span class="icon icon-prive">🏠</span>
+          <span class="knob"></span>
+        </label>
+      </div>
+    </header>
 
-        <!-- Werk/Privé icon-toggle -->
-        <div class="mode-toggle">
-          <input type="checkbox" id="modeSwitch" aria-label="Schakel tussen werk en privé" />
-          <label for="modeSwitch" class="switch icon-only">
-            <span class="knob" aria-hidden="true"></span>
-            <span class="icon icon-work" title="Werk">🧰</span>
-            <span class="icon icon-prive" title="Privé">🏠</span>
-          </label>
-        </div>
-
-        <div class="workspace">
-          <div id="postits" class="postits-row"></div>
-        </div>
-      </main>
-
-      <aside class="rightcol">
-        <button id="newTaskBtn" class="primary">＋ NIEUW</button>
-
-        <!-- Nieuw taak formulier -->
-        <div id="formContainer" class="card" style="display:none;">
-          <input id="name" placeholder="Taaknaam" />
-          <input id="start" type="date" placeholder="Startdatum" />
-          <input id="end" type="date" placeholder="Einddatum" />
-          <label>Categorie</label>
-          <input id="category" list="categoryList" placeholder="bv. Algemeen (werk)" />
-          <datalist id="categoryList"></datalist>
-          <textarea id="description" placeholder="Omschrijving (optioneel)"></textarea>
-          <input id="link" placeholder="Link naar bestand (optioneel)" />
-          <button id="addTodo" class="primary">✔️ Toevoegen</button>
-        </div>
-
-        <!-- Overige taken -->
-        <div id="uncategorized" class="card">
-          <h3>📌 Overige taken</h3>
-          <div id="uncategorized-list"></div>
-        </div>
-      </aside>
-    </div>
-  </div>
-
-  <!-- ===== Modal overlay + card voor taakdetails ===== -->
-  <div id="taskBackdrop" class="modal-backdrop" style="display:none;"></div>
-
-  <div id="taskModal" class="modal" style="display:none;">
-    <div class="modal-header">
-      <h3 id="taskModalTitle"></h3>
-      <button class="modal-close" title="Sluiten" onclick="closeTaskDetail()">✕</button>
-    </div>
-
-    <div class="modal-body" id="taskModalBody">
-      <!-- dynamisch gevuld door main.js -->
-    </div>
-
-    <div class="modal-footer" id="taskModalFooter">
-      <!-- dynamische knoppen -->
-    </div>
-  </div>
-
-  <!-- scripts: eerst menu, dan include, dan app -->
-  <script src="Script/Javascript/menu.js"></script>
-  <script src="Script/Javascript/include-partials.js"></script>
-  <script type="module" src="Script/Javascript/main.js"></script>
-</body>
-
-</html>
+    <main class="page">
+      <!-- Content -->
