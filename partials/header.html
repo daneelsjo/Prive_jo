@@ -1,12 +1,12 @@
 <header class="topbar">
+    <!-- Hamburger -->
     <button id="hamburger" aria-label="Menu" class="icon-btn">☰</button>
 
+    <!-- Hoofdmenu (optioneel) -->
     <nav class="mainnav">
         <ul>
-            <li class="has-submenu"><a class="menu-link" href="https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox"
-                    target="_blank">Mail</a>
-            </li>
-            <li class="has-submenu"><a class="menu-link" href="#">Verdi</a>
+            <li><a class="menu-link" href="https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox">Mail</a></li>
+            <li><a class="menu-link" href="#">Verdi</a>
                 <ul class="submenu">
                     <li><a href="https://disparant.verdi.cloud/" target="_blank">Productie</a></li>
                     <li><a href="https://disparant-staging.verdi.cloud/home" target="_blank">Staging</a></li>
@@ -15,14 +15,15 @@
                             staging</a></li>
                 </ul>
             </li>
-            <li class="has-submenu"><a class="menu-link" href="#">Abi</a>
+
+            <li><a class="menu-link" href="#">Abi</a>
                 <ul class="submenu">
                     <li><a href="https://www.ambuweb.be/" target="_blank">Ambuweb</a></li>
                     <li><a href="https://abiweb.zonerand.be/" target="_blank">Abiweb</a></li>
                     <li><a href="https://testabiweb.zonerand.be/" target="_blank">Abiweb‑TEST</a></li>
                 </ul>
             </li>
-            <li class="has-submenu"><a class="menu-link" href="#">INA</a>
+            <li><a class="menu-link" href="#">INA</a>
                 <ul class="submenu">
                     <li><a href="https://hvzrand.ina.gemsotec.com" target="_blank">Productie</a></li>
                     <li><a href="https://hvzrandacc.ina.gemsotec.com" target="_blank">ACC‑omgeving</a></li>
@@ -33,7 +34,7 @@
                             ACC</a></li>
                 </ul>
             </li>
-            <li class="has-submenu"><a class="menu-link" href="#">Ticketing</a>
+            <li><a class="menu-link" href="#">Ticketing</a>
                 <ul class="submenu">
                     <li><a href="https://brandweerzonerand.freshservice.com/a/dashboard/default"
                             target="_blank">Optech</a>
@@ -44,8 +45,8 @@
         </ul>
     </nav>
 
-    <!-- settingsLink: op settings‑pagina wordt dit automatisch een 'terug' link -->
-    <a id="settingsLink" class="settings-icon icon-btn" href="HTML/settings.html" title="Instellingen">⚙️</a>
+    <!-- Settings / Terug -->
+    <a id="settingsLink" class="icon-btn" href="HTML/settings.html" title="Instellingen">⚙️</a>
 </header>
 
 <!-- Drawer (zijmenu) -->
@@ -79,4 +80,6 @@
         </ul>
     </div>
 </aside>
+
+<!-- Donkere achtergrond achter de drawer -->
 <div id="backdrop" class="backdrop"></div>

@@ -399,82 +399,6 @@ textarea {
 }
 
 
-/* ========== DRAWER (zijmenu) + BACKDROP ========== */
-.sidemenu {
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: 300px;
-  background: var(--card);
-  color: var(--fg);
-  transform: translateX(-100%);
-  transition: transform .25s ease;
-  z-index: 1200;
-  border-right: 1px solid var(--border);
-  padding: 1rem;
-  overflow-y: auto;
-}
-
-.sidemenu.open {
-  transform: translateX(0);
-}
-
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, .35);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .2s ease;
-  z-index: 1100;
-}
-
-.backdrop.open {
-  opacity: 1;
-  pointer-events: all;
-}
-
-/* zijmenu: geen bullets, alles gecentreerd, accordion */
-.sidemenu-section h4 {
-  margin: .6rem 0;
-  cursor: pointer;
-  text-align: center;
-  display: block;
-  font-weight: 700;
-}
-
-
-.sidemenu-section ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: none;
-}
-
-.sidemenu-section.open ul {
-  display: block;
-}
-
-.sidemenu-section ul li {
-  text-align: center;
-}
-
-.sidemenu-section a {
-  text-decoration: none;
-  color: var(--fg);
-}
-
-/* optioneel pijltje rechts van title */
-.sidemenu-section h4::after {
-  content: "▸";
-  margin-left: .4rem;
-  opacity: .6;
-  transition: transform .2s ease;
-}
-
-.sidemenu-section.open h4::after {
-  transform: rotate(90deg);
-}
-
 /* ========== SETTINGS-PAGINA ========== */
 .settings-page .page {
   grid-template-columns: 1fr;
@@ -530,4 +454,123 @@ textarea {
     width: 100%;
     min-width: 0;
   }
+}
+
+/* ---------- Topbar ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1400;
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  background: var(--card, #fff);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  padding: .5rem .75rem;
+}
+
+.icon-btn {
+  background: transparent;
+  border: 0;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* hoofdmenu gecentreerd */
+.mainnav {
+  display: flex;
+  justify-content: center;
+}
+
+.mainnav>ul {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.menu-link {
+  position: relative;
+  display: inline-block;
+  padding: .35rem .6rem;
+  border-radius: .5rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ---------- Drawer + Backdrop ---------- */
+.sidemenu {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 300px;
+  background: var(--card, #fff);
+  color: inherit;
+  transform: translateX(-100%);
+  transition: transform .25s ease;
+  z-index: 1200;
+  border-right: 1px solid var(--border, #e5e7eb);
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.sidemenu.open {
+  transform: translateX(0);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+  z-index: 1100;
+}
+
+.backdrop.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ---------- Accordion in zijmenu ---------- */
+.sidemenu-section h4 {
+  margin: .6rem 0;
+  cursor: pointer;
+  text-align: center;
+  display: block;
+  font-weight: 700;
+}
+
+.sidemenu-section h4::after {
+  content: "▸";
+  margin-left: .4rem;
+  opacity: .6;
+  transition: transform .2s ease;
+}
+
+.sidemenu-section.open h4::after {
+  transform: rotate(90deg);
+}
+
+.sidemenu-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: none;
+}
+
+.sidemenu-section.open ul {
+  display: block;
+}
+
+.sidemenu-section ul li {
+  text-align: center;
+}
+
+.sidemenu-section a {
+  text-decoration: none;
+  color: inherit;
 }

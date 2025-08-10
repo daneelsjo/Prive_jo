@@ -1,57 +1,65 @@
 // Script/Javascript/menu.js
+// Zorgt voor: drawer open/dicht, settings → terug op /HTML/settings.html,
+// accordion in zijmenu, init zowel direct als na include.
 
-// init wordt geroepen nadat header partial is ingeladen
-window.initMenu = function () {
-    const hamb = document.getElementById("hamburger");
-    const menu = document.getElementById("sideMenu");
-    const backdrop = document.getElementById("backdrop");
+(function () {
+    let inited = false;
 
-    const openDrawer = () => { menu?.classList.add("open"); backdrop?.classList.add("open"); };
-    const closeDrawer = () => { menu?.classList.remove("open"); backdrop?.classList.remove("open"); };
+    window.initMenu = function () {
+        if (inited) return; // voorkom dubbele listeners als init 2x wordt geroepen
+        inited = true;
 
-    hamb?.addEventListener("click", openDrawer);
-    backdrop?.addEventListener("click", closeDrawer);
+        const hamb = document.getElementById("hamburger");
+        const menu = document.getElementById("sideMenu");
+        const backdrop = document.getElementById("backdrop");
 
-    // settings-icoon → terugknop op settings-pagina
-    const settingsLink = document.getElementById("settingsLink");
-    if (settingsLink) {
-        const onSettings = location.pathname.toLowerCase().includes("/html/settings");
-        if (onSettings) {
-            settingsLink.textContent = "⬅️";
-            settingsLink.title = "Terug naar overzicht";
-            settingsLink.href = "../index.html";
+        const openDrawer = () => { menu?.classList.add("open"); backdrop?.classList.add("open"); };
+        const closeDrawer = () => { menu?.classList.remove("open"); backdrop?.classList.remove("open"); };
+
+        hamb?.addEventListener("click", openDrawer);
+        backdrop?.addEventListener("click", closeDrawer);
+
+        // settings-icoon → terugpijl op settings pagina
+        const settingsLink = document.getElementById("settingsLink");
+        if (settingsLink) {
+            const onSettings = location.pathname.toLowerCase().includes("/html/settings");
+            if (onSettings) {
+                settingsLink.textContent = "⬅️";
+                settingsLink.title = "Terug naar overzicht";
+                settingsLink.href = "../index.html";
+            }
         }
+
+        // Accordion (standaard: dicht, localStorage onthoudt 'open')
+        const sections = document.querySelectorAll(".sidemenu-section");
+        sections.forEach((sec, i) => {
+            const title = sec.querySelector("h4");
+            const key = "drawer_sec_" + i;
+            const state = localStorage.getItem(key);
+
+            if (state === "open") sec.classList.add("open");
+            else sec.classList.remove("open");
+
+            title?.addEventListener("click", () => {
+                sec.classList.toggle("open");
+                localStorage.setItem(key, sec.classList.contains("open") ? "open" : "closed");
+            });
+        });
+
+        // Klik op link in menu → sluit drawer
+        menu?.addEventListener("click", (e) => {
+            const a = e.target.closest("a");
+            if (a && a.getAttribute("href")) setTimeout(closeDrawer, 50);
+        });
+    };
+
+    // Init direct als header al aanwezig is
+    if (document.getElementById("hamburger")) {
+        try { window.initMenu(); } catch { }
     }
 
-    // Accordion (standaard: dicht; localStorage onthoudt)
-    const sections = document.querySelectorAll(".sidemenu-section");
-    sections.forEach((sec, i) => {
-        const title = sec.querySelector("h4");
-        const key = "drawer_sec_" + i;
-        const state = localStorage.getItem(key);
-
-        if (state === "open") sec.classList.add("open");
-        else sec.classList.remove("open");
-
-        title?.addEventListener("click", () => {
-            sec.classList.toggle("open");
-            localStorage.setItem(key, sec.classList.contains("open") ? "open" : "closed");
-        });
+    // En opnieuw wanneer partials geladen zijn
+    document.addEventListener("partials:loaded", () => {
+        try { window.initMenu(); } catch { }
     });
-
-    // Klik op link → drawer dicht (optioneel)
-    menu?.addEventListener("click", (e) => {
-        const a = e.target.closest("a");
-        if (a && a.getAttribute("href")) setTimeout(closeDrawer, 50);
-    });
-};
-
-// 1) Init meteen als header er al staat
-if (document.getElementById("hamburger")) {
-    try { window.initMenu(); } catch { }
-}
-
-// 2) Init wanneer partials klaar zijn (include script vuurt dit event af)
-document.addEventListener("partials:loaded", () => {
-    try { window.initMenu(); } catch { }
-});
+})();

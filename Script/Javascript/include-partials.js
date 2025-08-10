@@ -1,10 +1,8 @@
 /**
  * include-partials.js
- * Laadt HTML-partials (bijv. header, footer, zijmenu) in pagina's via
- * <div data-include="pad/naar/bestand.html"></div>
- * en stuurt een event 'partials:loaded' uit zodra alles geladen is.
+ * Laadt HTML-partials via <div data-include="..."></div>
+ * en dispatcht het event 'partials:loaded' wanneer alles klaar is.
  */
-
 (async function () {
     const includeNodes = document.querySelectorAll("[data-include]");
 
@@ -13,27 +11,22 @@
         if (!src) continue;
 
         try {
-            const response = await fetch(src);
-            if (!response.ok) {
-                console.error(`Fout bij laden van include: ${src}`, response.status);
+            const res = await fetch(src);
+            if (!res.ok) {
+                console.error(`Fout bij include: ${src} (${res.status})`);
                 continue;
             }
-            const html = await response.text();
-            el.innerHTML = html;
-        } catch (error) {
-            console.error(`Include mislukt: ${src}`, error);
+            el.innerHTML = await res.text();
+        } catch (err) {
+            console.error(`Include mislukt: ${src}`, err);
         }
     }
 
-    // Laat weten dat alles geladen is
+    // Laat andere scripts weten dat de partials in de DOM staan
     document.dispatchEvent(new CustomEvent("partials:loaded"));
 
-    // Als initMenu bestaat, meteen uitvoeren (bv. hamburger-menu activeren)
+    // Start menu als de init aanwezig is
     if (typeof window.initMenu === "function") {
-        try {
-            window.initMenu();
-        } catch (err) {
-            console.error("Fout bij uitvoeren initMenu:", err);
-        }
+        try { window.initMenu(); } catch (e) { console.error(e); }
     }
 })();
