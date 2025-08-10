@@ -1,9 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, query, where
+  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut
+  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 
 /** Firebase config (jouw gegevens) */
@@ -71,28 +71,25 @@ onAuthStateChanged(auth, async (user) => {
 /* Mode helpers */
 function setMode(mode) {
   currentMode = mode;
-  // vink radiobuttons consistent aan
   document.querySelectorAll('input[name="mode"]').forEach(r => (r.checked = r.value === mode));
-  // opslaan als voorkeur
-  if (currentUser) {
-    setDoc(doc(db, "settings", currentUser.uid), { preferredMode: mode }, { merge: true });
-  }
+  if (currentUser) setDoc(doc(db, "settings", currentUser.uid), { preferredMode: mode }, { merge: true });
   renderTodos();
 }
 
-/* Listeners */
+/* CATEGORIES listener – FIX: geen where(...in,[true,undefined]) */
 function listenCategories() {
-  onSnapshot(
-    query(collection(db, "categories"), where("active", "in", [true, undefined])),
-    (snap) => {
-      categories = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // vul datalist voor categorie bij task-creation
-      updateCategoryDatalist();
-      renderTodos();
-    }
-  );
+  onSnapshot(collection(db, "categories"), (snap) => {
+    // client-side filter: toon alles behalve active === false
+    categories = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(c => c.active !== false);
+
+    updateCategoryDatalist();
+    renderTodos();
+  });
 }
 
+/* TODOS listener */
 function listenTodos() {
   onSnapshot(collection(db, "todos"), (snapshot) => {
     allTodos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -143,7 +140,6 @@ function renderTodos() {
   }, {});
 
   postits.innerHTML = "";
-  // bouw 4 post-its per gekozen modus
   for (let i = 0; i < 4; i++) {
     const slot = slots[i];
     if (!slot?.categoryId) continue;
@@ -172,9 +168,9 @@ function renderTodos() {
     postits.appendChild(box);
   }
 
-  // overige taken die niet in de 4 slots vallen of geen categorie hebben
+  // overige taken niet in slots of zonder categorie
   const slotCatNames = new Set(
-    slots
+    (settings.modeSlots[currentMode] || [])
       .map(s => s?.categoryId)
       .map(id => categories.find(c => c.id === id)?.name)
       .filter(Boolean)
