@@ -604,3 +604,98 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* === Task modal === */
+.task-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .4);
+  z-index: 3000;
+  display: none;
+}
+
+.task-modal-backdrop.open {
+  display: block;
+}
+
+.task-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 3010;
+  padding: 1rem;
+}
+
+.task-modal.open {
+  display: flex;
+}
+
+.task-modal .panel {
+  width: min(520px, 92vw);
+  max-height: 88vh;
+  overflow: auto;
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+/* header met title center + close rechtsboven */
+.task-modal .header {
+  position: relative;
+  margin-bottom: .5rem;
+}
+
+.task-modal .header h3 {
+  margin: 0;
+  text-align: center;
+}
+
+.task-modal .close-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #6b7280;
+  color: #fff;
+  border: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* body & footer */
+.task-modal .body {
+  display: grid;
+  gap: .5rem;
+}
+
+.task-modal .footer {
+  display: flex;
+  gap: .5rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.task-modal .primary {
+  background: #2563eb;
+  color: #fff;
+  border: 0;
+  padding: .55rem .9rem;
+  border-radius: .6rem;
+  cursor: pointer;
+}
+
+.task-modal .danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.task-modal .success {
+  background: #16a34a;
+  color: #fff;
+}

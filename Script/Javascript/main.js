@@ -2,7 +2,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc
+  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
@@ -280,10 +280,18 @@ function updateCategoryDatalist() {
   });
 }
 
-/* ---------- DETAILPANEEL ---------- */
+/* ===== Modal: taakdetails ===== */
 window.showTaskDetail = function (todo) {
-  if (!taskDetailPanel) return;
-  taskDetailPanel.style.display = "block";
+  // backdrop
+  const bd = document.createElement("div");
+  bd.id = "taskBackdrop";
+  bd.className = "modal-backdrop open";
+  document.body.appendChild(bd);
+
+  // modal
+  const modal = document.createElement("div");
+  modal.id = "taskModal";
+  modal.className = "modal";
 
   let catDisplay = todo.category || "";
   if (todo.categoryId) {
@@ -291,9 +299,13 @@ window.showTaskDetail = function (todo) {
     if (cat) catDisplay = `${cat.name} (${cat.type})`;
   }
 
-  taskDetailPanel.innerHTML = `
-    <h3 style="margin-top:0">${escapeHtml(todo.name)}</h3>
-    <div style="display:grid;gap:.5rem;">
+  modal.innerHTML = `
+    <div class="modal-header">
+      <h3>${escapeHtml(todo.name)}</h3>
+      <button class="modal-close" title="Sluiten" onclick="closeTaskDetail()">✕</button>
+    </div>
+
+    <div class="modal-body">
       <label>Start</label>
       <input id="editStart" type="date" value="${todo.start || ""}">
       <label>Einde</label>
@@ -305,13 +317,44 @@ window.showTaskDetail = function (todo) {
       <label>Link</label>
       <input id="editLink" value="${todo.link ? escapeHtml(todo.link) : ""}">
     </div>
-    <div style="display:flex;gap:.5rem;margin-top:1rem;">
-      <button onclick="saveTask('${todo.id}')" class="primary">💾</button>
-      <button onclick="closeTaskDetail()" class="primary" style="background:#6b7280;">❌</button>
-      <button onclick="deleteTask('${todo.id}')" class="primary">🗑️</button>
+
+    <div class="modal-footer">
+      <button class="primary" onclick="saveTask('${todo.id}')">💾</button>
+      <button class="primary success" onclick="completeTask('${todo.id}')">✔️</button>
+      <button class="primary danger" onclick="deleteTask('${todo.id}')">🗑️</button>
     </div>
   `;
+  document.body.appendChild(modal);
+
+  // sluit bij klik buiten de modal
+  bd.addEventListener("click", closeTaskDetail);
 };
+
+window.closeTaskDetail = function () {
+  document.getElementById("taskModal")?.remove();
+  document.getElementById("taskBackdrop")?.remove();
+};
+
+/* Voltooien via knop */
+window.completeTask = async function (id) {
+  await setDoc(doc(db, "todos", id), { done: true }, { merge: true });
+  closeTaskDetail();
+};
+
+/* Verwijderen via knop */
+window.deleteTask = async function (id) {
+  const todo = todos.find(t => t.id === id);
+  const naam = todo ? todo.name : "onbekende taak";
+
+  if (!confirm(`⚠️ OPGELET!\n\nBen je zeker dat je volgende taak wenst te verwijderen:\n"${naam}"`)) {
+    return; // annuleren
+  }
+
+  await deleteDoc(doc(db, "todos", id));
+  closeTaskDetail();
+};
+
+
 
 window.saveTask = async function (id) {
   const raw = (document.getElementById("editCategory")?.value || "").trim();
@@ -327,12 +370,6 @@ window.saveTask = async function (id) {
   };
   await setDoc(doc(db, "todos", id), payload, { merge: true });
   closeTaskDetail();
-};
-
-window.closeTaskDetail = function () {
-  if (!taskDetailPanel) return;
-  taskDetailPanel.style.display = "none";
-  taskDetailPanel.innerHTML = "";
 };
 
 /* ---------- DONE TOGGLE ---------- */
