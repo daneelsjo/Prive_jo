@@ -415,3 +415,20 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+/* Vul de datalist met alle categorieën: "Naam (werk|prive)" */
+function updateCategoryDatalist() {
+  if (!categoryList) return;
+
+  // leegmaken
+  categoryList.innerHTML = "";
+
+  // alle actieve categorieën tonen, ongeacht modus
+  categories
+    .filter(c => c && c.name && c.type && c.active !== false)
+    .forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = `${c.name} (${c.type})`;  // bv. "Algemeen (werk)"
+      categoryList.appendChild(opt);
+    });
+}
