@@ -439,7 +439,9 @@ textarea {
   cursor: pointer;
   text-align: center;
   display: block;
+  font-weight: 700;
 }
+
 
 .sidemenu-section ul {
   list-style: none;
@@ -466,7 +468,6 @@ textarea {
   content: "▸";
   margin-left: .4rem;
   opacity: .6;
-  display: inline-block;
   transition: transform .2s ease;
 }
 
