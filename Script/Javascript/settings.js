@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc, query, where
+  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
@@ -36,7 +36,7 @@ const saveModeSlotsBtn = document.getElementById("saveModeSlots");
 const modeSlotsDiv = document.getElementById("modeSlots");
 
 let currentUser = null;
-let categories = [];
+let categories = []; // {id,name,type,active}
 let settings = {};
 let currentMode = "werk";
 const fixedColors = [
@@ -69,16 +69,17 @@ async function loadSettings() {
   document.querySelectorAll('input[name="mode"]').forEach(r => (r.checked = r.value === currentMode));
 }
 
-// --- Categorieën volgen ---
+// --- Categorieën live volgen (FIX: geen 'where(..., in, [true, undefined])') ---
 function listenCategories() {
-  onSnapshot(
-    query(collection(db, "categories"), where("active", "in", [true, undefined])),
-    (snap) => {
-      categories = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderCatList();
-      renderModeSlots();
-    }
-  );
+  onSnapshot(collection(db, "categories"), (snap) => {
+    // Filter client-side: toon alles behalve active === false
+    categories = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(c => c.active !== false);
+
+    renderCatList();
+    renderModeSlots();
+  });
 }
 
 // --- Nieuwe categorie toevoegen ---
@@ -90,7 +91,7 @@ addCatBtn.onclick = async () => {
   catName.value = "";
 };
 
-// --- Categorie lijst tonen ---
+// --- Categorie-lijst renderen ---
 function renderCatList() {
   catList.innerHTML = "";
   const grouped = { werk: [], prive: [] };
@@ -99,12 +100,13 @@ function renderCatList() {
   ["werk", "prive"].forEach(type => {
     const block = document.createElement("div");
     block.style.marginBottom = ".75rem";
-    block.innerHTML = `<h3>${type.toUpperCase()}</h3>`;
+    block.innerHTML = `<h3 style="margin:.25rem 0;">${type.toUpperCase()}</h3>`;
     grouped[type].forEach(c => {
       const row = document.createElement("div");
       row.style.display = "flex";
       row.style.justifyContent = "space-between";
       row.style.alignItems = "center";
+      row.style.gap = ".5rem";
       row.innerHTML = `
         <span>${c.name}</span>
         <button onclick="archiveCategory('${c.id}')">🗑️</button>
@@ -124,6 +126,7 @@ window.archiveCategory = async function (id) {
 function renderModeSlots() {
   modeSlotsDiv.innerHTML = "";
   const slots = (settings.modeSlots?.[currentMode] || Array(4).fill({})).slice(0, 4);
+
   for (let i = 0; i < 4; i++) {
     const slot = slots[i] || {};
     const row = document.createElement("div");
@@ -132,39 +135,63 @@ function renderModeSlots() {
     row.style.gap = ".5rem";
     row.style.marginBottom = ".5rem";
 
+    const label = document.createElement("span");
+    label.textContent = `Post-it ${i + 1}:`;
+
     const catSelect = document.createElement("select");
     catSelect.innerHTML = `<option value="">-- Geen --</option>`;
-    categories.filter(c => c.type === currentMode).forEach(c => {
+    categories
+      .filter(c => c.type === currentMode)
+      .forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name;
+        if (c.id === slot.categoryId) opt.selected = true;
+        catSelect.appendChild(opt);
+      });
+
+    // vaste kleuren (select) – als je liever color-picker wil: vervang door <input type="color">
+    const colorSelect = document.createElement("select");
+    fixedColors.forEach(col => {
       const opt = document.createElement("option");
-      opt.value = c.id;
-      opt.textContent = c.name;
-      if (c.id === slot.categoryId) opt.selected = true;
-      catSelect.appendChild(opt);
+      opt.value = col;
+      opt.textContent = col;
+      opt.style.backgroundColor = col;
+      opt.style.color = getContrast(col);
+      if ((slot.color || fixedColors[i % fixedColors.length]) === col) opt.selected = true;
+      colorSelect.appendChild(opt);
     });
 
-    const colorInput = document.createElement("input");
-    colorInput.type = "color";
-    colorInput.value = slot.color || fixedColors[i % fixedColors.length];
-
-    row.appendChild(document.createTextNode(`Post-it ${i + 1}:`));
+    row.appendChild(label);
     row.appendChild(catSelect);
-    row.appendChild(colorInput);
+    row.appendChild(colorSelect);
     modeSlotsDiv.appendChild(row);
   }
 }
 
 // --- Opslaan van slots ---
 saveModeSlotsBtn.onclick = async () => {
-  const slotRows = Array.from(modeSlotsDiv.children);
-  const newSlots = slotRows.map(row => {
-    const selects = row.querySelectorAll("select, input[type=color]");
+  const rows = Array.from(modeSlotsDiv.children);
+  const newSlots = rows.map(row => {
+    const selects = row.querySelectorAll("select");
     return {
       categoryId: selects[0].value || null,
       color: selects[1].value
     };
   });
+
   if (!settings.modeSlots) settings.modeSlots = {};
   settings.modeSlots[currentMode] = newSlots;
+
   await setDoc(doc(db, "settings", currentUser.uid), settings, { merge: true });
   alert("Opgeslagen!");
 };
+
+// --- Contrast helper ---
+function getContrast(hex) {
+  const r = parseInt(hex.substr(1, 2), 16);
+  const g = parseInt(hex.substr(3, 2), 16);
+  const b = parseInt(hex.substr(5, 2), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#000" : "#fff";
+}
