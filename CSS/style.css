@@ -378,24 +378,23 @@ textarea {
   margin: .25rem 0;
 }
 
-.task-item {
+.task-item label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  /* beetje ruimte tussen checkbox en tekst */
-  list-style: none;
-  /* geen puntjes */
-  padding: 2px 0;
+  gap: 0.4rem;
+  /* kleine ruimte tussen checkbox en tekst */
 }
 
-.task-item input[type="checkbox"] {
+.task-checkbox {
   margin: 0;
   transform: scale(1.1);
-  /* iets groter, optioneel */
+  /* iets groter vinkje, optioneel */
 }
 
-.task-item span {
-  line-height: 1.4;
+.task-text {
+  display: inline-block;
+  white-space: nowrap;
+  /* tekst blijft op 1 regel, indien mogelijk */
 }
 
 
