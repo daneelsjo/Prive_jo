@@ -46,12 +46,9 @@ const uncategorizedList = document.getElementById("uncategorized-list");
 
 const modeSwitchEl = document.getElementById("modeSwitch");
 
-/* Modal elements */
-const modal = document.getElementById("taskModal");
-const backdrop = document.getElementById("taskBackdrop");
-const modalTitle = document.getElementById("taskModalTitle");
-const modalBody = document.getElementById("taskModalBody");
-const modalFooter = document.getElementById("taskModalFooter");
+/* Modal (dynamisch aangemaakt) */
+let _modalBackdrop = null;
+let _modalCard = null;
 
 let currentUser = null;
 let allTodos = [];
@@ -230,10 +227,6 @@ function renderTodos() {
 function buildTaskRow(todo, inRest = false) {
   const row = document.createElement("label");
   row.className = "task-row" + (todo.done ? " done" : "");
-  row.style.display = "flex";
-  row.style.alignItems = "center";
-  row.style.gap = "6px";
-  row.style.cursor = "pointer";
 
   const cb = document.createElement("input");
   cb.type = "checkbox";
@@ -245,9 +238,6 @@ function buildTaskRow(todo, inRest = false) {
 
   const text = document.createElement("span");
   text.className = "task-text";
-  text.style.whiteSpace = "nowrap";
-  text.style.overflow = "hidden";
-  text.style.textOverflow = "ellipsis";
   const dates = `(${todo.start || "?"} - ${todo.end || "?"})`;
 
   if (inRest) {
@@ -262,18 +252,57 @@ function buildTaskRow(todo, inRest = false) {
   row.appendChild(text);
 
   row.addEventListener("click", (e) => {
-    if (e.target !== cb) openTaskDetail(todo);
+    if (e.target !== cb) showTaskDetail(todo);
   });
 
   return row;
 }
 
-/* ---------- MODAL: open/close + acties ---------- */
-function openTaskDetail(todo) {
-  // Titel
-  modalTitle.textContent = todo.name;
+/* ---------- MODAL helpers ---------- */
+function ensureModal() {
+  if (!_modalBackdrop) {
+    _modalBackdrop = document.createElement("div");
+    _modalBackdrop.className = "modal-backdrop";
+    document.body.appendChild(_modalBackdrop);
+  }
+  if (!_modalCard) {
+    _modalCard = document.createElement("div");
+    _modalCard.className = "modal-card";
+    _modalCard.innerHTML = `
+      <div class="modal-header">
+        <h3 id="modalTitle"></h3>
+        <button class="modal-close" title="Sluiten" onclick="closeTaskDetail()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    `;
+    document.body.appendChild(_modalCard);
+  }
+}
+function openModal() {
+  ensureModal();
+  _modalBackdrop.classList.add("open");
+  _modalBackdrop.style.display = "block";
+  _modalCard.style.display = "flex";
+  _modalBackdrop.onclick = (e) => { if (e.target === _modalBackdrop) closeTaskDetail(); };
+}
+function closeModal() {
+  if (_modalBackdrop) { _modalBackdrop.classList.remove("open"); _modalBackdrop.style.display = "none"; }
+  if (_modalCard) { _modalCard.style.display = "none"; }
+}
 
-  // Categorie-weergave
+/* ---------- MODAL: open/close + acties ---------- */
+window.showTaskDetail = function (todo) {
+  openModal();
+
+  const titleEl = _modalCard.querySelector("#modalTitle");
+  const bodyEl = _modalCard.querySelector("#modalBody");
+  const footEl = _modalCard.querySelector("#modalFooter");
+
+  // Title
+  titleEl.textContent = todo.name || "Taak";
+
+  // Categorie-weergave "Naam (type)"
   let catDisplay = todo.category || "";
   if (todo.categoryId) {
     const cat = categories.find(c => c.id === todo.categoryId);
@@ -281,7 +310,7 @@ function openTaskDetail(todo) {
   }
 
   // Body
-  modalBody.innerHTML = `
+  bodyEl.innerHTML = `
     <label>Start</label>
     <input id="editStart" type="date" value="${todo.start || ""}">
     <label>Einde</label>
@@ -295,54 +324,32 @@ function openTaskDetail(todo) {
   `;
 
   // Footer knoppen
-  modalFooter.innerHTML = "";
-  const btnSave = mkBtn("primary", "💾 Opslaan", () => saveTask(todo.id));
-  const btnDone = mkBtn("primary success", "✔️ Voltooid", () => completeTask(todo.id));
-  const btnDel = mkBtn("primary danger", "🗑️ Verwijderen", () => deleteTask(todo.id, todo.name));
-  modalFooter.append(btnSave, btnDone, btnDel);
-
-  // tonen
-  modal.style.display = "block";
-  backdrop.style.display = "block";
-
-  // klik buiten modal → sluiten
-  const closeOnBackdrop = (e) => {
-    if (e.target === backdrop) closeTaskDetail();
-  };
-  backdrop.addEventListener("click", closeOnBackdrop, { once: true });
-}
-
-window.closeTaskDetail = function () {
-  modal.style.display = "none";
-  backdrop.style.display = "none";
+  footEl.innerHTML = "";
+  footEl.append(
+    mkBtn("primary", "💾 Opslaan", () => saveTask(todo.id)),
+    mkBtn("primary success", "✔️ Voltooid", () => completeTask(todo.id)),
+    mkBtn("primary danger", "🗑️ Verwijderen", () => confirmDeleteTask(todo.id, todo.name))
+  );
 };
 
-/* helpers voor knoppen in footer */
+window.closeTaskDetail = function () { closeModal(); };
+
 function mkBtn(cls, text, onClick) {
   const b = document.createElement("button");
-  b.className = cls; b.textContent = text;
-  b.onclick = onClick; return b;
+  b.className = cls; b.textContent = text; b.onclick = onClick;
+  return b;
 }
 
 /* Voltooien via knop */
 async function completeTask(id) {
   await setDoc(doc(db, "todos", id), { done: true }, { merge: true });
-  closeTaskDetail();
-}
-
-/* Verwijderen met nette confirm in modal-stijl (eenvoudig) */
-async function deleteTask(id, name = "deze taak") {
-  const ok = confirm(`⚠️ OPGELET!\n\nBen je zeker dat je volgende taak wenst te verwijderen:\n"${name}"`);
-  if (!ok) return;
-  await deleteDoc(doc(db, "todos", id));
-  closeTaskDetail();
+  closeModal();
 }
 
 /* Opslaan uit modal */
 window.saveTask = async function (id) {
   const raw = (document.getElementById("editCategory")?.value || "").trim();
   const { categoryId, categoryName } = parseCategoryInput(raw);
-
   const payload = {
     start: document.getElementById("editStart")?.value || "",
     end: document.getElementById("editEnd")?.value || "",
@@ -352,8 +359,39 @@ window.saveTask = async function (id) {
     link: (document.getElementById("editLink")?.value || "").trim()
   };
   await setDoc(doc(db, "todos", id), payload, { merge: true });
-  closeTaskDetail();
-};
+  closeModal();
+}
+
+/* Mooie confirm in dezelfde modal-stijl */
+async function confirmDeleteTask(id, name = "deze taak") {
+  const ok = await askConfirm(
+    "Taak verwijderen",
+    `⚠️ OPGELET!<br>Ben je zeker dat je volgende taak wenst te verwijderen:<br><strong>“${escapeHtml(name)}”</strong>`
+  );
+  if (!ok) return;
+  await deleteDoc(doc(db, "todos", id));
+  closeModal();
+}
+
+/* Reusable confirm (Promise<boolean>) */
+function askConfirm(title, html) {
+  return new Promise((resolve) => {
+    openModal();
+    const titleEl = _modalCard.querySelector("#modalTitle");
+    const bodyEl = _modalCard.querySelector("#modalBody");
+    const footEl = _modalCard.querySelector("#modalFooter");
+
+    titleEl.textContent = title;
+    bodyEl.innerHTML = `<div style="padding-top:.3rem; text-align:center">${html}</div>`;
+    footEl.innerHTML = "";
+
+    const yes = mkBtn("primary danger", "✅ Ja, verwijderen", () => finish(true));
+    const no = mkBtn("primary", "❌ Annuleren", () => finish(false));
+    footEl.append(yes, no);
+
+    function finish(val) { resolve(val); closeModal(); }
+  });
+}
 
 /* ---------- DONE TOGGLE ---------- */
 window.markDone = async function (id, status) {

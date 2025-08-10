@@ -32,7 +32,7 @@ body {
 }
 
 /* link-kleuren + geen underline op icon-links */
-:root a {
+a {
   color: #2563eb;
   text-decoration: none;
 }
@@ -47,7 +47,7 @@ body {
   color: inherit;
 }
 
-/* ========== TOPBAR (centred nav + hover border anim) ========== */
+/* ========== TOPBAR (centred nav) ========== */
 .topbar {
   position: sticky;
   top: 0;
@@ -69,6 +69,11 @@ body {
 }
 
 /* BELANGRIJK: alleen hoofdmenu is flex, dropdowns NIET */
+.mainnav {
+  display: flex;
+  justify-content: center;
+}
+
 .mainnav>ul {
   display: flex;
   gap: 1rem;
@@ -77,89 +82,13 @@ body {
   padding: 0;
 }
 
-.mainnav li {
+.menu-link {
   position: relative;
-}
-
-/* nodig voor absolute submenu */
-.submenu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  min-width: 180px;
-  background: var(--card);
-  border: 1px solid var(--border);
+  display: inline-block;
+  padding: .35rem .6rem;
   border-radius: .5rem;
-  padding: .4rem 0;
-  display: none;
-  box-shadow: var(--shadow);
-  z-index: 1300;
-}
-
-.has-submenu:hover>.submenu {
-  display: block;
-}
-
-/* opent op hover */
-.submenu li {
-  display: block;
-}
-
-.submenu a {
-  display: block;
-  padding: .4rem .75rem;
   text-decoration: none;
   color: var(--fg);
-}
-
-
-/* verticaal stapelen */
-.submenu a {
-  display: block;
-  padding: .4rem .75rem;
-  color: var(--fg);
-  text-decoration: none;
-}
-
-.has-submenu:hover .submenu {
-  display: block;
-}
-
-/* hover “ladend vierkantje” */
-.menu-link::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: .5rem;
-  border: 2px solid transparent;
-  pointer-events: none;
-}
-
-.menu-link:hover::after {
-  border-color: #c7d2fe;
-  animation: spin-square 1s linear infinite;
-}
-
-@keyframes spin-square {
-  0% {
-    clip-path: inset(0 100% 100% 0)
-  }
-
-  25% {
-    clip-path: inset(0 0 100% 0)
-  }
-
-  50% {
-    clip-path: inset(0 0 0 0)
-  }
-
-  75% {
-    clip-path: inset(0 0 0 0)
-  }
-
-  100% {
-    clip-path: inset(0 100% 100% 0)
-  }
 }
 
 /* ========== LAYOUT ========== */
@@ -254,7 +183,6 @@ body {
   transition: opacity .15s ease;
 }
 
-/* schuiven + actief icoon voor index EN settings */
 #modeSwitch:checked+.switch.icon-only .knob,
 #modeSwitchSettings:checked+.switch.icon-only .knob {
   transform: translateX(calc(var(--w) - var(--pad)*2 - var(--knob)));
@@ -308,19 +236,6 @@ body {
 .postit strong {
   display: block;
   margin-bottom: .5rem;
-  text-align: center;
-  text-decoration: solid;
-}
-
-/* Detailpaneel */
-.detail-panel {
-  min-width: 320px;
-  max-width: 380px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: .75rem;
-  padding: 1rem;
-  box-shadow: var(--shadow);
 }
 
 /* ========== FORMS & BUTTONS ========== */
@@ -337,7 +252,12 @@ body {
   background: #1d4ed8;
 }
 
-input,
+textarea {
+  min-height: 100px;
+}
+
+/* Alles 100% breed behalve checkbox/radio */
+input:not([type="checkbox"]):not([type="radio"]),
 textarea,
 select {
   width: 100%;
@@ -349,20 +269,27 @@ select {
   color: var(--fg);
 }
 
-textarea {
-  min-height: 100px;
-}
-
 /* ========== TASK ROWS ========== */
 .task-row {
   display: flex;
   align-items: center;
-  gap: .5rem;
+  gap: 6px;
   cursor: pointer;
   padding: .2rem 0;
 }
 
+.task-row .task-text {
+  flex: 0 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
+.task-row input[type="checkbox"] {
+  width: auto !important;
+  min-width: 16px;
+  margin: 0;
+}
 
 .task-row.done .task-text {
   text-decoration: line-through;
@@ -376,27 +303,82 @@ textarea {
   margin: .25rem 0;
 }
 
-.task-item label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  /* kleine ruimte tussen checkbox en tekst */
+/* ========== DRAWER (zijmenu) + BACKDROP ========== */
+.sidemenu {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 300px;
+  background: var(--card);
+  color: var(--fg);
+  transform: translateX(-100%);
+  transition: transform .25s ease;
+  z-index: 1200;
+  border-right: 1px solid var(--border);
+  padding: 1rem;
+  overflow-y: auto;
 }
 
-.task-checkbox {
+.sidemenu.open {
+  transform: translateX(0);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+  z-index: 1100;
+}
+
+.backdrop.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* zijmenu: geen bullets, alles gecentreerd, accordion */
+.sidemenu-section h4 {
+  margin: .6rem 0;
+  cursor: pointer;
+  text-align: center;
+  display: block;
+  font-weight: 700;
+}
+
+.sidemenu-section ul {
+  list-style: none;
+  padding: 0;
   margin: 0;
-  transform: scale(1.1);
-  /* iets groter vinkje, optioneel */
+  display: none;
 }
 
-.task-text {
+.sidemenu-section.open ul {
+  display: block;
+}
+
+.sidemenu-section ul li {
+  text-align: center;
+}
+
+.sidemenu-section a {
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.sidemenu-section h4::after {
+  content: "▸";
+  margin-left: .4rem;
+  opacity: .6;
   display: inline-block;
-  white-space: nowrap;
-  /* tekst blijft op 1 regel, indien mogelijk */
+  transition: transform .2s ease;
 }
 
+.sidemenu-section.open h4::after {
+  transform: rotate(90deg);
+}
 
-/* ========== SETTINGS-PAGINA ========== */
+/* ========== SETTINGS-PAGINA (optioneel als je settings.html gebruikt) ========== */
 .settings-page .page {
   grid-template-columns: 1fr;
 }
@@ -429,7 +411,6 @@ textarea {
   margin-bottom: .75rem;
 }
 
-/* “Categorieën” – invoervelden even breed */
 .settings-page #catName {
   max-width: 260px;
 }
@@ -439,13 +420,6 @@ textarea {
   max-width: 260px;
 }
 
-/* “Post-its per modus” – label op 1 lijn houden */
-#modeSlots>div span:first-child {
-  white-space: nowrap;
-  min-width: 90px;
-  display: inline-block;
-}
-
 @media (max-width: 900px) {
   .settings-page .card {
     width: 100%;
@@ -453,235 +427,100 @@ textarea {
   }
 }
 
-/* ---------- Topbar ---------- */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 1400;
-  display: grid;
-  grid-template-columns: 40px 1fr 40px;
-  align-items: center;
-  background: var(--card, #fff);
-  border-bottom: 1px solid var(--border, #e5e7eb);
-  padding: .5rem .75rem;
-}
-
-.icon-btn {
-  background: transparent;
-  border: 0;
-  font-size: 1.25rem;
-  cursor: pointer;
-  color: inherit;
-  text-decoration: none;
-}
-
-/* hoofdmenu gecentreerd */
-.mainnav {
-  display: flex;
-  justify-content: center;
-}
-
-.mainnav>ul {
-  display: flex;
-  gap: 1rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.menu-link {
-  position: relative;
-  display: inline-block;
-  padding: .35rem .6rem;
-  border-radius: .5rem;
-  text-decoration: none;
-  color: inherit;
-}
-
-/* ---------- Drawer + Backdrop ---------- */
-.sidemenu {
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: 300px;
-  background: var(--card, #fff);
-  color: inherit;
-  transform: translateX(-100%);
-  transition: transform .25s ease;
-  z-index: 1200;
-  border-right: 1px solid var(--border, #e5e7eb);
-  padding: 1rem;
-  overflow-y: auto;
-}
-
-.sidemenu.open {
-  transform: translateX(0);
-}
-
-.backdrop {
+/* ========== MODAL (centrale card boven overlay) ========== */
+.modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, .35);
+  background: rgba(0, 0, 0, .55);
+  z-index: 2000;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .2s ease;
-  z-index: 1100;
+  transition: opacity .15s ease;
 }
 
-.backdrop.open {
+.modal-backdrop.open {
   opacity: 1;
-  pointer-events: all;
+  pointer-events: auto;
 }
 
-/* ---------- Accordion in zijmenu ---------- */
-.sidemenu-section h4 {
-  margin: .6rem 0;
-  cursor: pointer;
-  text-align: center;
-  display: block;
-  font-weight: 700;
-}
-
-.sidemenu-section h4::after {
-  content: "▸";
-  margin-left: .4rem;
-  opacity: .6;
-  transition: transform .2s ease;
-}
-
-.sidemenu-section.open h4::after {
-  transform: rotate(90deg);
-}
-
-.sidemenu-section ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: none;
-}
-
-.sidemenu-section.open ul {
-  display: block;
-}
-
-.sidemenu-section ul li {
-  text-align: center;
-}
-
-.sidemenu-section a {
-  text-decoration: none;
-  color: inherit;
-}
-
-/* Zorg dat checkbox + tekst netjes naast elkaar staan */
-.postit {
-  text-align: left;
-}
-
-/* geen right/center align voor rijen */
-.postit .task-row {
-  width: auto;
-}
-
-.task-row {
-  display: flex !important;
-  align-items: center;
-  justify-content: flex-start;
-  /* geen space-between */
-  gap: 6px;
-  /* kleine spatie tussen vinkje en tekst */
-  padding: .2rem 0;
-}
-
-.task-row input[type="checkbox"] {
-  margin: 0;
-}
-
-.task-row .task-text {
-  flex: 0 0 auto !important;
-  /* niet uitrekken */
-  white-space: nowrap;
-  /* 1 regel indien kan */
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* === Task modal === */
-.task-modal-backdrop {
+.modal-card {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, .4);
-  z-index: 3000;
-  display: none;
-}
-
-.task-modal-backdrop.open {
-  display: block;
-}
-
-.task-modal {
-  position: fixed;
-  inset: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 3010;
-  padding: 1rem;
-}
-
-.task-modal.open {
-  display: flex;
-}
-
-.task-modal .panel {
-  width: min(520px, 92vw);
-  max-height: 88vh;
-  overflow: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(90vw, 50rem);
+  /* ~50% breed */
+  height: min(90vh, 50rem);
+  /* ~50% hoog */
   background: var(--card);
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow);
-  padding: 16px;
+  z-index: 2100;
+  display: flex;
+  flex-direction: column;
 }
 
-/* header met title center + close rechtsboven */
-.task-modal .header {
+.modal-card .modal-header {
   position: relative;
-  margin-bottom: .5rem;
+  padding: 12px 48px 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.task-modal .header h3 {
+.modal-card .modal-header h3 {
   margin: 0;
   text-align: center;
 }
 
-.task-modal .close-btn {
+.modal-card .modal-close {
   position: absolute;
-  top: 0;
-  right: 0;
-  background: #6b7280;
-  color: #fff;
+  top: 8px;
+  right: 8px;
   border: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
   cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: #fff;
+  background: #6b7280;
 }
 
-/* body & footer */
-.task-modal .body {
+.modal-card .modal-body {
+  padding: 12px;
   display: grid;
   gap: .5rem;
+  overflow: auto;
+  flex: 1 1 auto;
 }
 
-.task-modal .footer {
+.modal-card .modal-body input,
+.modal-card .modal-body textarea {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .6rem .7rem;
+  background: var(--card);
+  color: var(--fg);
+}
+
+.modal-card .modal-body textarea {
+  min-height: 130px;
+}
+
+.modal-card .modal-footer {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
   display: flex;
-  gap: .5rem;
+  gap: .6rem;
   justify-content: center;
-  margin-top: 1rem;
 }
 
-.task-modal .primary {
+.modal-card .primary {
   background: #2563eb;
   color: #fff;
   border: 0;
@@ -690,142 +529,14 @@ textarea {
   cursor: pointer;
 }
 
-.task-modal .danger {
+.modal-card .primary:hover {
+  background: #1d4ed8;
+}
+
+.modal-card .success {
+  background: #10b981;
+}
+
+.modal-card .danger {
   background: #ef4444;
-  color: #fff;
-}
-
-.task-modal .success {
-  background: #16a34a;
-  color: #fff;
-}
-
-/* Modal achtergrond */
-.modal {
-  position: fixed;
-  z-index: 9999;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Inhoud */
-.modal-content {
-  background: var(--card-bg, #fff);
-  padding: 1.5rem;
-  border-radius: 10px;
-  max-width: 400px;
-  width: 100%;
-  text-align: center;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  position: relative;
-}
-
-/* Sluit knop */
-.modal-content .close {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  font-size: 1.5rem;
-  cursor: pointer;
-}
-
-/* Knoppen */
-.modal-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-top: 1rem;
-}
-
-button.primary {
-  background-color: #2563eb;
-  color: white;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-button.secondary {
-  background-color: #6b7280;
-  color: white;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-button.primary:hover {
-  background-color: #1e40af;
-}
-
-button.secondary:hover {
-  background-color: #4b5563;
-}
-
-/* Overlay */
-#taskDetailOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-/* Card */
-#taskDetailPanel {
-  background: white;
-  border-radius: 10px;
-  padding: 1.5rem;
-  width: 50%;
-  height: 50%;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-}
-
-/* Titel in het midden */
-#taskDetailPanel h3 {
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-/* Sluitknop */
-#taskDetailClose {
-  position: absolute;
-  top: 10px;
-  right: 15px;
-  font-size: 1.5rem;
-  cursor: pointer;
-  border: none;
-  background: none;
-}
-
-/* Formulier-velden */
-#taskDetailPanel input,
-#taskDetailPanel textarea {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-}
-
-/* Knoppenbalk onderaan */
-#taskDetailActions {
-  margin-top: auto;
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
 }
