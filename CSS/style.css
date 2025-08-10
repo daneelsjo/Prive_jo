@@ -453,6 +453,12 @@ select {
 }
 
 /* ========== MODAL (centrale card boven overlay) ========== */
+.modal-body {
+  max-height: 200px;
+  /* vaste hoogte in px */
+  overflow-y: auto;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -475,8 +481,7 @@ select {
   transform: translate(-50%, -50%);
   width: min(90vw, 50rem);
   /* ~50% breed */
-  height: min(90vh, 50rem);
-  /* ~50% hoog */
+  max-height: 40vh;
   background: var(--card);
   color: var(--fg);
   border: 1px solid var(--border);
