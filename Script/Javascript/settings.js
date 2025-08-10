@@ -37,6 +37,7 @@ const modeSlotsDiv = document.getElementById("modeSlots");
 const modeSwitchSettings = document.getElementById("modeSwitchSettings");
 
 const themeSaveBtn = document.getElementById("saveTheme");
+const MAX_CATEGORIES_PER_MODE = 6;
 
 let currentUser = null;
 let categories = []; // {id,name,type,active}
@@ -108,14 +109,39 @@ function listenCategories() {
   });
 }
 
-/* Categorie toevoegen */
+/* Categorie toevoegen (met max 6 per modus + witte modal melding) */
 addCatBtn && (addCatBtn.onclick = async () => {
   const name = (catName.value || "").trim();
-  const type = catType.value || "werk";
-  if (!name) return alert("Vul een categorienaam in.");
+  const type = (catType.value || "werk").toLowerCase();
+
+  if (!name) {
+    showSettingsMessage("Categorie niet aangemaakt", "Vul een categorienaam in.");
+    return;
+  }
+
+  // tel actieve categorieën in deze modus
+  const countInMode = (categories || [])
+    .filter(c => c && c.type === type && c.active !== false)
+    .length;
+
+  if (countInMode >= MAX_CATEGORIES_PER_MODE) {
+    showSettingsMessage(
+      "Categorie niet aangemaakt",
+      `⚠️ Opgelet!<br>Er zijn al <strong>${MAX_CATEGORIES_PER_MODE}</strong> categorieën in modus <strong>${type}</strong>.<br>
+       Gelieve eerst één te verwijderen.`
+    );
+    return; // blokkeer aanmaak
+  }
+
+  // toevoegen mag
   await addDoc(collection(db, "categories"), { name, type, active: true });
+
+  // opschonen & UI refresh
   catName.value = "";
+  // als je een renderfunctie hebt, roep die even aan:
+  if (typeof renderModeSlots === "function") renderModeSlots();
 });
+
 
 /* Categorie-lijst renderen + archiveerknop */
 function renderCatList() {
@@ -269,4 +295,53 @@ function getContrast(hex) {
   const b = parseInt(hex.substr(5, 2), 16);
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
   return yiq >= 128 ? "#000" : "#fff";
+}
+
+let _setModalBackdrop = null;
+let _setModalCard = null;
+
+function ensureSettingsModal() {
+  if (!_setModalBackdrop) {
+    _setModalBackdrop = document.createElement("div");
+    _setModalBackdrop.className = "modal-backdrop";
+    document.body.appendChild(_setModalBackdrop);
+  }
+  if (!_setModalCard) {
+    _setModalCard = document.createElement("div");
+    _setModalCard.className = "modal-card";
+    _setModalCard.innerHTML = `
+      <div class="modal-header">
+        <h3 id="setModalTitle"></h3>
+        <button class="modal-close" title="Sluiten" onclick="closeSettingsModal()">✕</button>
+      </div>
+      <div class="modal-body" id="setModalBody"></div>
+      <div class="modal-footer" id="setModalFooter"></div>
+    `;
+    document.body.appendChild(_setModalCard);
+  }
+}
+function openSettingsModal() {
+  ensureSettingsModal();
+  _setModalBackdrop.classList.add("open");
+  _setModalBackdrop.style.display = "block";
+  _setModalCard.style.display = "flex";
+  _setModalBackdrop.onclick = (e) => { if (e.target === _setModalBackdrop) closeSettingsModal(); };
+}
+window.closeSettingsModal = function () {
+  if (_setModalBackdrop) { _setModalBackdrop.classList.remove("open"); _setModalBackdrop.style.display = "none"; }
+  if (_setModalCard) { _setModalCard.style.display = "none"; }
+}
+
+/* Eenvoudige info/waarschuwing in jouw witte modal. */
+function showSettingsMessage(title, html) {
+  openSettingsModal();
+  _setModalCard.querySelector("#setModalTitle").textContent = title;
+  _setModalCard.querySelector("#setModalBody").innerHTML = `<div style="text-align:center">${html}</div>`;
+  const foot = _setModalCard.querySelector("#setModalFooter");
+  foot.innerHTML = "";
+  const okBtn = document.createElement("button");
+  okBtn.className = "primary";
+  okBtn.textContent = "OK";
+  okBtn.onclick = closeSettingsModal;
+  foot.appendChild(okBtn);
 }
