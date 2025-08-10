@@ -106,10 +106,15 @@ addTodoBtn.onclick = async () => {
   const name = (nameInput.value || "").trim();
   const start = startInput.value || "";
   const end = endInput.value || "";
-  const category = (categoryInput.value || "").trim();
+  let category = (categoryInput.value || "").trim();
   const description = (descInput.value || "").trim();
   const link = (linkInput.value || "").trim();
   if (!name) return alert("Vul een taaknaam in.");
+
+  // haal alleen de naam uit "Naam (type)"
+  if (category.includes("(")) {
+    category = category.split("(")[0].trim();
+  }
 
   await addDoc(collection(db, "todos"), {
     name, start, end, category, description, link, done: false
@@ -120,6 +125,7 @@ addTodoBtn.onclick = async () => {
   categoryInput.value = ""; descInput.value = ""; linkInput.value = "";
   formContainer.style.display = "none";
 };
+
 
 /* Settings */
 async function loadSettings() {
@@ -194,15 +200,16 @@ function renderTodos() {
   });
 }
 
-/* Datalist uit categories */
+/* Datalist uit categories (met type achter de naam) */
 function updateCategoryDatalist() {
   categoryList.innerHTML = "";
   categories.forEach(c => {
     const opt = document.createElement("option");
-    opt.value = c.name;
+    opt.value = `${c.name} (${c.type})`;
     categoryList.appendChild(opt);
   });
 }
+
 
 /* Detailpaneel */
 window.showTaskDetail = function (todo) {
