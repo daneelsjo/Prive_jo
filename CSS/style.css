@@ -540,3 +540,93 @@ select {
 .modal-card .danger {
   background: #ef4444;
 }
+
+/* ===== Dropdown submenu alleen op hover ===== */
+.mainnav li {
+  position: relative;
+}
+
+/* anker voor absolute submenu */
+.mainnav .submenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  /* VERBORGEN standaard */
+  min-width: 180px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: .6rem;
+  box-shadow: var(--shadow);
+  padding: .4rem;
+  z-index: 1500;
+  list-style: none;
+  /* geen bolletjes */
+  margin: 0;
+}
+
+.mainnav .submenu li {
+  margin: 0;
+}
+
+.mainnav .submenu a {
+  display: block;
+  padding: .45rem .6rem;
+  color: var(--fg);
+  text-decoration: none;
+  /* geen underline */
+  border-radius: .4rem;
+}
+
+.mainnav .submenu a:hover {
+  background: rgba(0, 0, 0, .06);
+}
+
+:root[data-theme="dark"] .mainnav .submenu a:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+/* Toon submenu bij hover/focus op hoofditem */
+.mainnav .has-submenu:hover>.submenu,
+.mainnav .has-submenu:focus-within>.submenu {
+  display: block;
+}
+
+/* ===== Hover-animatie: “ladend vierkantje” rond hoofdknop ===== */
+.menu-link {
+  position: relative;
+  z-index: 1;
+}
+
+.menu-link::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  /* ruimte rondom */
+  border-radius: 8px;
+  padding: 2px;
+  /* randdikte */
+  background: conic-gradient(#2563eb 0 25%, transparent 0 100%);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  /* holle rand */
+  opacity: 0;
+  transform: scale(.96);
+  /* iets kleiner dan knop */
+}
+
+.menu-link:hover::before,
+.menu-link:focus-visible::before {
+  opacity: 1;
+  animation: spinBox 1s linear infinite;
+}
+
+@keyframes spinBox {
+  to {
+    transform: scale(.96) rotate(1turn);
+  }
+}
