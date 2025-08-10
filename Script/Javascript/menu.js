@@ -42,3 +42,7 @@ window.initMenu = function () {
     });
 
 };
+function toggleSubmenu(titleElement) {
+    const submenu = titleElement.nextElementSibling;
+    submenu.style.display = submenu.style.display === "block" ? "none" : "block";
+}

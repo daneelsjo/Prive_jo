@@ -156,6 +156,21 @@ body {
   }
 }
 
+/* Alle icon-links zonder underline */
+a,
+a:visited,
+a:hover,
+a:active {
+  text-decoration: none;
+}
+
+/* Specifiek voor het instellingen-icoon */
+.settings-icon {
+  text-decoration: none;
+  color: inherit;
+  /* behoudt de tekstkleur van de omgeving */
+}
+
 /* ========== LAYOUT ========== */
 #app {
   padding: 1rem;
@@ -271,21 +286,22 @@ body {
 
 /* ========== POST-ITS + DETAIL ========== */
 .postits-row {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: .25rem;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  /* 4 even brede kolommen */
+  gap: 1.2rem;
+  align-items: start;
 }
 
 .postit {
-  min-width: 240px;
-  max-width: 260px;
+
+  width: 100%;
   padding: 1rem;
   border-radius: .75rem;
   color: #111;
   box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
-  flex-shrink: 0;
+  min-height: 140px;
+  /* optioneel */
 }
 
 .postit strong {
@@ -452,4 +468,70 @@ textarea {
 
 .sidemenu-section.open ul {
   display: block;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: var(--sidebar-bg, #fff);
+  padding: 10px;
+}
+
+.menu-title {
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+  padding: 8px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.submenu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: none;
+  /* standaard dicht */
+}
+
+.submenu li {
+  text-align: center;
+  padding: 5px 0;
+}
+
+.submenu a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.submenu a:hover {
+  text-decoration: underline;
+}
+
+/* --- Settings layout centreren --- */
+.settings-page .content {
+  align-items: center;
+}
+
+.settings-page .card {
+  width: 50%;
+  min-width: 420px;
+  /* voorkom super smal */
+}
+
+.settings-page .card h2 {
+  text-align: center;
+  margin-top: 0;
+}
+
+.settings-page .mode-toggle {
+  display: flex;
+  justify-content: center;
+  margin-bottom: .75rem;
+}
+
+/* Mobiel: cards gewoon 100% */
+@media (max-width: 900px) {
+  .settings-page .card {
+    width: 100%;
+    min-width: 0;
+  }
 }

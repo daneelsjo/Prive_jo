@@ -46,41 +46,41 @@
     </nav>
 
     <!-- settingsLink: op settings‑pagina wordt dit automatisch een 'terug' link -->
-    <a id="settingsLink" class="icon-btn" href="HTML/settings.html" title="Instellingen">⚙️</a>
+    <a id="settingsLink" class="settings-icon icon-btn" href="HTML/settings.html" title="Instellingen">⚙️</a>
 </header>
 
 <!-- Zijmenu (drawer) -->
 <aside id="sideMenu" class="sidemenu">
-    <div class="sidemenu-header">
-        <strong>Menu</strong>
-        <a class="icon-btn" href="HTML/settings.html" title="Instellingen">⚙️</a>
+    <div class="sidebar">
+        <button class="menu-toggle">&#9776;</button>
+
+        <div class="menu-section">
+            <div class="menu-title" onclick="toggleSubmenu(this)">Links</div>
+            <ul class="submenu">
+                <li><a href="https://drive.google.com/drive/u/0/my-drive">Google Drive</a></li>
+            </ul>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-title" onclick="toggleSubmenu(this)">Apps</div>
+            <ul class="submenu">
+                <li><a href="https://www.appsheet.com">Google Apps Script</a></li>
+                <li><a href="https://www.appsheet.com/start/504ba865-3785-4c6b-a33c-9d5edf2d3962">Optech</a></li>
+                <li><a href="https://www.appsheet.com/start/218e57f1-032f-4480-8b55-b2a38e944fef">Magazijn</a></li>
+            </ul>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-title" onclick="toggleSubmenu(this)">Interessante websites</div>
+            <ul class="submenu">
+                <li><a href="#">Zone Rand</a></li>
+                <li><a href="#">Transparand</a></li>
+                <li><a href="#">Modus Operandi</a></li>
+                <li><a href="#">Site VTO KO</a></li>
+                <li><a href="#">Computer!Totaal</a></li>
+            </ul>
+        </div>
     </div>
-    <div class="sidemenu-section">
-        <h4>Links</h4>
-        <ul>
-            <li><a href="https://drive.google.com/drive/u/0/my-drive" target="_blank">Google Drive</a></li>
-        </ul>
-    </div>
-    <div class="sidemenu-section">
-        <h4>Apps</h4>
-        <ul>
-            <li><a href="https://www.appsheet.com" target="_blank">Google Apps Script</a></li>
-            <li><a href="https://www.appsheet.com/start/504ba865-3785-4c6b-a33c-9d5edf2d3962" target="_blank">Optech</a>
-            </li>
-            <li><a href="https://www.appsheet.com/start/218e57f1-032f-4480-8b55-b2a38e944fef"
-                    target="_blank">Magazijn</a>
-            </li>
-        </ul>
-    </div>
-    <div class="sidemenu-section">
-        <h4>Interessante websites</h4>
-        <ul>
-            <li><a href="#" target="_blank">Zone Rand</a></li>
-            <li><a href="#" target="_blank">Transparand</a></li>
-            <li><a href="#" target="_blank">Modus Operandi</a></li>
-            <li><a href="#" target="_blank">Site VTO KO</a></li>
-            <li><a href="#" target="_blank">Computer!Totaal</a></li>
-        </ul>
-    </div>
+
 </aside>
 <div id="backdrop" class="backdrop"></div>

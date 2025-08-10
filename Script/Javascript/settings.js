@@ -34,6 +34,7 @@ const catList = document.getElementById("catList");
 
 const saveModeSlotsBtn = document.getElementById("saveModeSlots");
 const modeSlotsDiv = document.getElementById("modeSlots");
+const modeSwitchSettings = document.getElementById("modeSwitchSettings");
 
 const themeSaveBtn = document.getElementById("saveTheme");
 
@@ -57,12 +58,19 @@ onAuthStateChanged(auth, async (user) => {
   authDiv && (authDiv.style.display = "none");
   appDiv && (appDiv.style.display = "block");
 
-  document.querySelectorAll('input[name="mode"]').forEach(r => {
-    r.onchange = () => { currentMode = r.value; renderModeSlots(); };
-  });
-
   await loadSettings();
   applyTheme(settings.theme || "system");
+
+  // Icon toggle voor modus (zoals index)
+  if (modeSwitchSettings) {
+    modeSwitchSettings.checked = (currentMode === "prive");
+    modeSwitchSettings.onchange = async () => {
+      currentMode = modeSwitchSettings.checked ? "prive" : "werk";
+      // sla voorkeur op zodat index dezelfde gebruikt
+      await setDoc(doc(db, "settings", currentUser.uid), { preferredMode: currentMode }, { merge: true });
+      renderModeSlots();
+    };
+  }
 
   listenCategories();
   themeSaveBtn && themeSaveBtn.addEventListener("click", saveTheme);
@@ -90,7 +98,6 @@ async function loadSettings() {
   currentMode = settings.preferredMode || "werk";
   const theme = settings.theme || "system";
   document.querySelectorAll('input[name="theme"]').forEach(r => r.checked = (r.value === theme));
-  document.querySelectorAll('input[name="mode"]').forEach(r => (r.checked = r.value === currentMode));
 }
 
 /* Categorieën volgen */
@@ -121,7 +128,7 @@ function renderCatList() {
   ["werk", "prive"].forEach(type => {
     const block = document.createElement("div");
     block.style.marginBottom = ".75rem";
-    block.innerHTML = `<h3 style="margin:.25rem 0;">${type.toUpperCase()}</h3>`;
+    block.innerHTML = `<h3 style="margin:.25rem 0; text-align:center;">${type.toUpperCase()}</h3>`;
     grouped[type].forEach(c => {
       const row = document.createElement("div");
       row.style.display = "flex";

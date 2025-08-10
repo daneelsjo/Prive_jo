@@ -8,33 +8,37 @@
   <link rel="stylesheet" href="../CSS/style.css" />
 </head>
 
-<body>
+<body class="settings-page">
   <!-- AUTH -->
   <div id="auth">
     <button id="login-btn">🔐 Inloggen met Google</button>
   </div>
 
-  <!-- gedeelde header (let op: pad is ../partials/...) -->
+  <!-- gedeelde header -->
   <div data-include="../partials/header.html"></div>
 
   <!-- APP -->
   <div id="app" style="display:none;">
     <div class="page">
       <main class="content">
+        <!-- Weergave -->
         <section class="card" style="margin:1rem 0;">
           <h2>Weergave</h2>
-          <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+          <div style="display:flex; gap:1rem; flex-wrap:wrap; justify-content:center;">
             <label><input type="radio" name="theme" value="system" checked> Systeem</label>
             <label><input type="radio" name="theme" value="light"> Licht</label>
             <label><input type="radio" name="theme" value="dark"> Donker</label>
           </div>
-          <button id="saveTheme" class="primary" style="margin-top:.5rem;">Opslaan</button>
+          <div style="display:flex; justify-content:center;">
+            <button id="saveTheme" class="primary" style="margin-top:.75rem;">Opslaan</button>
+          </div>
         </section>
 
+        <!-- Categorieën -->
         <section class="card" style="margin:1rem 0;">
           <h2>Categorieën</h2>
-          <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
-            <input id="catName" placeholder="Nieuwe categorie" />
+          <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; justify-content:center;">
+            <input id="catName" placeholder="Nieuwe categorie" style="max-width:260px;" />
             <select id="catType">
               <option value="werk">Werk</option>
               <option value="prive">Privé</option>
@@ -44,20 +48,28 @@
           <div id="catList" style="margin-top:1rem;"></div>
         </section>
 
+        <!-- Post-its per modus -->
         <section class="card">
           <h2>Post‑its per modus</h2>
-          <div style="margin-bottom:.75rem;">
-            <label><input type="radio" name="mode" value="werk" checked> Werk</label>
-            <label style="margin-left:1rem;"><input type="radio" name="mode" value="prive"> Privé</label>
+
+          <!-- zelfde icon‑toggle als op index -->
+          <div class="mode-toggle">
+            <input type="checkbox" id="modeSwitchSettings" aria-label="Schakel tussen werk en privé" />
+            <label for="modeSwitchSettings" class="switch icon-only">
+              <span class="knob" aria-hidden="true"></span>
+              <span class="icon icon-work" title="Werk">🧰</span>
+              <span class="icon icon-prive" title="Privé">🏠</span>
+            </label>
           </div>
+
           <div id="modeSlots"></div>
-          <button id="saveModeSlots" class="primary" style="margin-top:.75rem;">💾 Opslaan</button>
+          <div style="display:flex; justify-content:center;">
+            <button id="saveModeSlots" class="primary" style="margin-top:.75rem;">💾 Opslaan</button>
+          </div>
         </section>
       </main>
 
-      <aside class="rightcol">
-        <!-- leeg rechts op settings, maar behoud layout -->
-      </aside>
+      <aside class="rightcol"><!-- leeg, layout consistent --></aside>
     </div>
   </div>
 
