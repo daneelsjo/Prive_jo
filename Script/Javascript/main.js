@@ -210,29 +210,39 @@ function renderTodos() {
   }
 }
 
-/* 1 taak-rij */
+/* 1 taak-rij – checkbox links, geen bullet, kleine spatie */
 function buildTaskRow(todo, inRest = false) {
   const row = document.createElement("div");
   row.className = "task-row" + (todo.done ? " done" : "");
 
+  // checkbox links
   const cb = document.createElement("input");
   cb.type = "checkbox";
   cb.checked = !!todo.done;
-  cb.onclick = (e) => { e.stopPropagation(); markDone(todo.id, !todo.done); };
+  cb.addEventListener("click", (e) => {
+    e.stopPropagation();
+    markDone(todo.id, !todo.done);
+  });
 
-  const label = document.createElement("div");
-  label.className = "task-text";
+  // tekst zonder bullet
+  const text = document.createElement("span");
+  text.className = "task-text";
   const dates = `(${todo.start || "?"} - ${todo.end || "?"})`;
+
   if (inRest) {
     const c = categories.find(x => x.id === todo.categoryId);
-    label.innerHTML = `• ${todo.name} ${dates} <small style="opacity:.7">(${c ? c.name : "geen"})</small>`;
+    // toon optioneel categorie in klein grijs
+    text.innerHTML = `${todo.name} ${dates} <small style="opacity:.7">(${c ? c.name : "geen"})</small>`;
   } else {
-    label.innerHTML = `• ${todo.name} ${dates}`;
+    text.textContent = `${todo.name} ${dates}`;
   }
 
   row.appendChild(cb);
-  row.appendChild(label);
-  row.onclick = () => showTaskDetail(todo);
+  row.appendChild(text);
+
+  // klik op de rij opent detail (maar niet op checkbox)
+  row.addEventListener("click", () => showTaskDetail(todo));
+
   return row;
 }
 
