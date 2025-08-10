@@ -59,6 +59,24 @@
       </aside>
     </div>
   </div>
+  <div id="taskModalBackdrop" class="task-modal-backdrop"></div>
+  <div id="taskModal" class="task-modal">
+    <div class="panel" id="taskModalPanel"></div>
+  </div>
+
+  <!-- Verwijder Taak Modal -->
+  <div id="confirmDeleteModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close" onclick="closeConfirmDelete()">&times;</span>
+      <h3 id="confirmDeleteTitle">Taak verwijderen</h3>
+      <p id="confirmDeleteText"></p>
+      <div class="modal-actions">
+        <button class="primary" id="confirmDeleteYes">✅ Ja, verwijderen</button>
+        <button class="secondary" onclick="closeConfirmDelete()">❌ Annuleren</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- scripts: eerst include partials (laadt header), dan shared menu init, dan app -->
   <script src="Script/Javascript/menu.js"></script>

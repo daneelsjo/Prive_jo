@@ -342,17 +342,32 @@ window.completeTask = async function (id) {
 };
 
 /* Verwijderen via knop */
-window.deleteTask = async function (id) {
+let deleteIdToConfirm = null;
+
+window.deleteTask = function (id) {
   const todo = todos.find(t => t.id === id);
-  const naam = todo ? todo.name : "onbekende taak";
+  if (!todo) return;
 
-  if (!confirm(`⚠️ OPGELET!\n\nBen je zeker dat je volgende taak wenst te verwijderen:\n"${naam}"`)) {
-    return; // annuleren
-  }
+  deleteIdToConfirm = id;
+  document.getElementById("confirmDeleteText").innerText =
+    `⚠️ OPGELET!\nBen je zeker dat je volgende taak wenst te verwijderen:\n"${todo.name}"`;
 
-  await deleteDoc(doc(db, "todos", id));
-  closeTaskDetail();
+  document.getElementById("confirmDeleteModal").style.display = "flex";
 };
+
+function closeConfirmDelete() {
+  document.getElementById("confirmDeleteModal").style.display = "none";
+  deleteIdToConfirm = null;
+}
+
+document.getElementById("confirmDeleteYes").addEventListener("click", async () => {
+  if (!deleteIdToConfirm) return;
+
+  await deleteDoc(doc(db, "todos", deleteIdToConfirm));
+  closeConfirmDelete();
+  closeTaskDetail();
+});
+
 
 
 
