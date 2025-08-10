@@ -306,8 +306,9 @@ window.showTaskDetail = function (todo) {
       <input id="editLink" value="${todo.link ? escapeHtml(todo.link) : ""}">
     </div>
     <div style="display:flex;gap:.5rem;margin-top:1rem;">
-      <button onclick="saveTask('${todo.id}')" class="primary">💾 Opslaan</button>
-      <button onclick="closeTaskDetail()" class="primary" style="background:#6b7280;">❌ Sluiten</button>
+      <button onclick="saveTask('${todo.id}')" class="primary">💾</button>
+      <button onclick="closeTaskDetail()" class="primary" style="background:#6b7280;">❌</button>
+      <button onclick="deleteTask('${todo.id}')" class="primary">🗑️</button>
     </div>
   `;
 };
