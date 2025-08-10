@@ -57,7 +57,6 @@ onAuthStateChanged(auth, async (user) => {
   authDiv && (authDiv.style.display = "none");
   appDiv && (appDiv.style.display = "block");
 
-  // Tabs (werk/prive) op settings
   document.querySelectorAll('input[name="mode"]').forEach(r => {
     r.onchange = () => { currentMode = r.value; renderModeSlots(); };
   });
@@ -66,8 +65,6 @@ onAuthStateChanged(auth, async (user) => {
   applyTheme(settings.theme || "system");
 
   listenCategories();
-
-  // Theme opslaan
   themeSaveBtn && themeSaveBtn.addEventListener("click", saveTheme);
 });
 
@@ -91,10 +88,8 @@ async function loadSettings() {
   const s = await getDoc(doc(db, "settings", currentUser.uid));
   settings = s.exists() ? (s.data() || {}) : {};
   currentMode = settings.preferredMode || "werk";
-  // Theme radio’s zetten
   const theme = settings.theme || "system";
   document.querySelectorAll('input[name="theme"]').forEach(r => r.checked = (r.value === theme));
-  // Mode radio aanzetten
   document.querySelectorAll('input[name="mode"]').forEach(r => (r.checked = r.value === currentMode));
 }
 
@@ -142,7 +137,6 @@ function renderCatList() {
     catList.appendChild(block);
   });
 }
-
 window.archiveCategory = async function (id) {
   await updateDoc(doc(db, "categories", id), { active: false });
 };

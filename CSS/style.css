@@ -1,6 +1,4 @@
-/* =========================
-   THEME (light / dark)
-   ========================= */
+/* ========== THEME (light / dark) ========== */
 :root {
   --bg: #f6f7fb;
   --fg: #0f172a;
@@ -16,16 +14,6 @@
   --border: #1f2937;
   --shadow: 0 8px 20px rgba(0, 0, 0, .3);
 }
-
-/* Links in dark theme netter */
-:root[data-theme="dark"] a {
-  color: #93c5fd;
-}
-
-:root a {
-  color: #2563eb;
-}
-
 
 * {
   box-sizing: border-box;
@@ -43,13 +31,20 @@ body {
   color: var(--fg);
 }
 
-/* =========================
-   TOPBAR (centred nav + hover border anim)
-   ========================= */
+/* link-kleuren */
+:root a {
+  color: #2563eb;
+}
+
+:root[data-theme="dark"] a {
+  color: #93c5fd;
+}
+
+/* ========== TOPBAR (centred nav + hover border anim) ========== */
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 1000;
+  z-index: 1400;
   display: grid;
   grid-template-columns: 40px 1fr 40px;
   align-items: center;
@@ -103,7 +98,7 @@ body {
   padding: .4rem 0;
   display: none;
   box-shadow: var(--shadow);
-  z-index: 1100;
+  z-index: 1300;
 }
 
 .has-submenu:hover .submenu {
@@ -117,7 +112,7 @@ body {
   text-decoration: none;
 }
 
-/* Hover “loading square” effect */
+/* hover “loading square” */
 .menu-link::after {
   content: "";
   position: absolute;
@@ -154,9 +149,7 @@ body {
   }
 }
 
-/* =========================
-   LAYOUT
-   ========================= */
+/* ========== LAYOUT ========== */
 #app {
   padding: 1rem;
 }
@@ -164,7 +157,6 @@ body {
 .page {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  /* content | right column */
   gap: 1rem;
   align-items: start;
   padding: 1rem 0;
@@ -194,15 +186,9 @@ body {
   .page {
     grid-template-columns: 1fr;
   }
-
-  .rightcol {
-    position: static;
-  }
 }
 
-/* =========================
-   MODE SWITCH (Werk ↔ Privé)
-   ========================= */
+/* ========== MODE SWITCH ========== */
 .mode-toggle {
   margin: .75rem 0;
 }
@@ -219,15 +205,11 @@ body {
   position: relative;
   display: inline-grid;
   grid-template-columns: 1fr 1fr;
-  /* 2 zones voor de labels */
-  align-items: center;
-  gap: 0;
   width: var(--w);
   height: var(--h);
   background: #f3f4f6;
   border-radius: 999px;
   outline: 1px solid var(--border);
-  padding: 0 var(--pad);
 }
 
 .switch .knob {
@@ -250,13 +232,11 @@ body {
   text-align: center;
   font-size: .9rem;
   color: var(--fg);
-  pointer-events: none;
   user-select: none;
+  pointer-events: none;
 }
 
-/* =========================
-   POST-ITS + DETAIL
-   ========================= */
+/* ========== POST-ITS + DETAIL ========== */
 .postits-row {
   display: flex;
   gap: 1rem;
@@ -290,9 +270,7 @@ body {
   box-shadow: var(--shadow);
 }
 
-/* =========================
-   FORMS & BUTTONS
-   ========================= */
+/* ========== FORMS & BUTTONS ========== */
 .primary {
   background: #2563eb;
   color: #fff;
@@ -322,9 +300,7 @@ textarea {
   min-height: 100px;
 }
 
-/* =========================
-   TASK ROWS
-   ========================= */
+/* ========== TASK ROWS ========== */
 .task-row {
   display: flex;
   align-items: center;
@@ -342,9 +318,6 @@ textarea {
   opacity: .6;
 }
 
-/* =========================
-   MISC
-   ========================= */
 #uncategorized-list>.task-row {
   background: rgba(0, 0, 0, .04);
   padding: .3rem .4rem;
@@ -352,7 +325,7 @@ textarea {
   margin: .25rem 0;
 }
 
-/* Drawer (zijmenu) + backdrop */
+/* ========== DRAWER + BACKDROP ========== */
 .sidemenu {
   position: fixed;
   inset: 0 auto 0 0;

@@ -14,127 +14,55 @@
     <button id="login-btn">🔐 Inloggen met Google</button>
   </div>
 
+  <!-- gedeelde header (let op: pad is ../partials/...) -->
+  <div data-include="../partials/header.html"></div>
+
   <!-- APP -->
   <div id="app" style="display:none;">
-    <!-- Topbar -->
-    <header class="topbar">
-      <button id="hamburger" aria-label="Menu" class="icon-btn">☰</button>
+    <div class="page">
+      <main class="content">
+        <section class="card" style="margin:1rem 0;">
+          <h2>Weergave</h2>
+          <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+            <label><input type="radio" name="theme" value="system" checked> Systeem</label>
+            <label><input type="radio" name="theme" value="light"> Licht</label>
+            <label><input type="radio" name="theme" value="dark"> Donker</label>
+          </div>
+          <button id="saveTheme" class="primary" style="margin-top:.5rem;">Opslaan</button>
+        </section>
 
-      <nav class="mainnav">
-        <ul>
-          <li class="has-submenu"><a class="menu-link" href="https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox"
-              target="_blank">Mail</a>
+        <section class="card" style="margin:1rem 0;">
+          <h2>Categorieën</h2>
+          <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
+            <input id="catName" placeholder="Nieuwe categorie" />
+            <select id="catType">
+              <option value="werk">Werk</option>
+              <option value="prive">Privé</option>
+            </select>
+            <button id="addCat" class="primary">➕ Toevoegen</button>
+          </div>
+          <div id="catList" style="margin-top:1rem;"></div>
+        </section>
 
-          </li>
-          <li class="has-submenu"><a class="menu-link" href="#">Verdi</a>
-            <ul class="submenu">
-              <li><a href="https://disparant.verdi.cloud/" target="_blank">Productie</a></li>
-              <li><a href="https://disparant-staging.verdi.cloud/home" target="_blank">Staging</a></li>
-              <li><a href="https://mobile-disparant.verdi.cloud/login" target="_blank">Mobile</a></li>
-              <li><a href="https://mobile-disparant-staging.verdi.cloud/login" target="_blank">Mobile - staging</a></li>
-            </ul>
-          </li>
-          <li class="has-submenu"><a class="menu-link" href="#">Abi</a>
-            <ul class="submenu">
-              <li><a href="https://www.ambuweb.be/" target="_blank">Ambuweb</a></li>
-              <li><a href="https://abiweb.zonerand.be/" target="_blank">Abiweb</a></li>
-              <li><a href="https://testabiweb.zonerand.be/" target="_blank">Abiweb‑TEST</a></li>
-            </ul>
-          </li>
-          <li class="has-submenu"><a class="menu-link" href="#">INA</a>
-            <ul class="submenu">
-              <li><a href="https://hvzrand.ina.gemsotec.com" target="_blank">Productie</a></li>
-              <li><a href="https://hvzrandacc.ina.gemsotec.com" target="_blank">ACC‑omgeving</a></li>
-              <li><a href="https://keycloak.ina.gemsotec.com/auth/admin/hvzrand/console/" target="_blank">Keycloak
-                  Prod</a></li>
-              <li><a href="https://keycloak.ina.gemsotec.com/auth/admin/hvzrandacc/console/" target="_blank">Keycloak
-                  ACC</a></li>
-            </ul>
-          </li>
-          <li class="has-submenu"><a class="menu-link" href="#">Ticketing</a>
-            <ul class="submenu">
-              <li><a href="https://brandweerzonerand.freshservice.com/a/dashboard/default" target="_blank">Optech</a>
-              </li>
-              <li><a href="https://youtrack.verdi.be/" target="_blank">Verdi</a></li>
-            </ul>
-          </li>
-        </ul>
-      </nav>
-    </header>
+        <section class="card">
+          <h2>Post‑its per modus</h2>
+          <div style="margin-bottom:.75rem;">
+            <label><input type="radio" name="mode" value="werk" checked> Werk</label>
+            <label style="margin-left:1rem;"><input type="radio" name="mode" value="prive"> Privé</label>
+          </div>
+          <div id="modeSlots"></div>
+          <button id="saveModeSlots" class="primary" style="margin-top:.75rem;">💾 Opslaan</button>
+        </section>
+      </main>
 
-    <!-- Zijmenu (drawer) -->
-    <aside id="sideMenu" class="sidemenu">
-      <div class="sidemenu-header">
-        <strong>Menu</strong>
-        <a class="icon-btn" href="HTML/settings.html" title="Instellingen">⚙️</a>
-      </div>
-      <div class="sidemenu-section">
-        <h4>Links</h4>
-        <ul>
-          <li><a href="https://drive.google.com/drive/u/0/my-drive" target="_blank">Google Drive</a></li>
-        </ul>
-      </div>
-      <div class="sidemenu-section">
-        <h4>Apps</h4>
-        <ul>
-          <li><a href="https://www.appsheet.com" target="_blank">Google Apps Script</a></li>
-          <li><a href="https://www.appsheet.com/start/504ba865-3785-4c6b-a33c-9d5edf2d3962" target="_blank">Optech</a>
-          </li>
-          <li><a href="https://www.appsheet.com/start/218e57f1-032f-4480-8b55-b2a38e944fef" target="_blank">Magazijn</a>
-          </li>
-        </ul>
-      </div>
-      <div class="sidemenu-section">
-        <h4>Interessante websites</h4>
-        <ul>
-          <li><a href="#" target="_blank">Zone Rand</a></li>
-          <li><a href="#" target="_blank">Transparand</a></li>
-          <li><a href="#" target="_blank">Modus Operandi</a></li>
-          <li><a href="#" target="_blank">Site VTO KO</a></li>
-          <li><a href="#" target="_blank">Computer!Totaal</a></li>
-        </ul>
-      </div>
-    </aside>
-    <div id="backdrop" class="backdrop"></div>
-    <!-- setting voor dark modus-->
-    <section class="card" style="margin:1rem 0;">
-      <h2>Weergave</h2>
-      <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-        <label><input type="radio" name="theme" value="system" checked> Systeem</label>
-        <label><input type="radio" name="theme" value="light"> Licht</label>
-        <label><input type="radio" name="theme" value="dark"> Donker</label>
-      </div>
-      <button id="saveTheme" class="primary" style="margin-top:.5rem;">Opslaan</button>
-    </section>
-    <hr />
-
-    <!-- Sectie: Categoriebeheer -->
-    <section style="margin-bottom:1.5rem;">
-      <h2>Categorieën</h2>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
-        <input id="catName" placeholder="Nieuwe categorie" />
-        <select id="catType">
-          <option value="werk">Werk</option>
-          <option value="prive">Privé</option>
-        </select>
-        <button id="addCat">➕ Toevoegen</button>
-      </div>
-      <div id="catList" style="margin-top:1rem;"></div>
-      <hr />
-    </section>
-
-    <!-- Sectie: Post‑its per modus -->
-    <section>
-      <h2>Post‑its per modus</h2>
-      <div id="modeTabs" style="margin-bottom:.75rem;">
-        <label><input type="radio" name="mode" value="werk" checked> Werk</label>
-        <label style="margin-left:1rem;"><input type="radio" name="mode" value="prive"> Privé</label>
-      </div>
-      <div id="modeSlots"></div>
-      <button id="saveModeSlots" style="margin-top:.75rem;">💾 Opslaan</button>
-    </section>
+      <aside class="rightcol">
+        <!-- leeg rechts op settings, maar behoud layout -->
+      </aside>
+    </div>
   </div>
 
+  <script src="../Script/Javascript/include-partials.js"></script>
+  <script src="../Script/Javascript/menu.js"></script>
   <script type="module" src="../Script/Javascript/settings.js"></script>
 </body>
 
