@@ -223,10 +223,9 @@ function renderTodos() {
   }
 }
 
-/* ---- 1 taak-rij: checkbox links, compacte spacing ---- */
+
 /* ---- 1 taak-rij: checkbox links, compacte spacing ---- */
 function buildTaskRow(todo, inRest = false) {
-  // Gebruik DIV i.p.v. LABEL, anders toggelt checkbox bij klik op tekst
   const row = document.createElement("div");
   row.className = "task-row" + (todo.done ? " done" : "");
 
@@ -234,7 +233,6 @@ function buildTaskRow(todo, inRest = false) {
   cb.type = "checkbox";
   cb.checked = !!todo.done;
 
-  // Klik op checkbox = done togglen, maar niet de rij-klik doorgeven
   cb.addEventListener("click", (e) => {
     e.stopPropagation();
     markDone(todo.id, !todo.done);
@@ -301,6 +299,36 @@ window.showTaskDetail = function (todo) {
 
   const titleEl = _modalCard.querySelector("#modalTitle");
   const bodyEl = _modalCard.querySelector("#modalBody");
+  // Datalist: toon ALLE opties bij focus
+  const editCat = _modalCard.querySelector('#editCategory');
+  if (editCat) {
+    editCat.setAttribute('autocomplete', 'off');   // voorkomt autofill-storing
+    editCat.placeholder = "Kies of typ...";
+
+    editCat.addEventListener('focus', () => {
+      // onthoud huidige waarde en leeg het veld → datalist toont alles
+      editCat.dataset.prev = editCat.value;
+      editCat.value = "";
+      // trigger 'input' zodat sommige browsers meteen refreshen
+      editCat.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    editCat.addEventListener('blur', () => {
+      // als niets gekozen/ingetikt → zet oude waarde terug
+      if (!editCat.value && editCat.dataset.prev) {
+        editCat.value = editCat.dataset.prev;
+      }
+    });
+
+    // Tip: pijl-omlaag opent de lijst expliciet
+    editCat.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' && editCat.showPicker) {
+        // sommige browsers ondersteunen showPicker()
+        editCat.showPicker();
+      }
+    });
+  }
+
   const footEl = _modalCard.querySelector("#modalFooter");
 
   // Title
