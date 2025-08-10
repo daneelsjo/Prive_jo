@@ -66,13 +66,15 @@ body {
   justify-content: center;
 }
 
-.mainnav ul {
+/* Alleen de EERSTE ul (hoofdnavigatie) is flex */
+.mainnav>ul {
   display: flex;
   gap: 1rem;
   list-style: none;
   margin: 0;
   padding: 0;
 }
+
 
 .menu-link {
   position: relative;
@@ -105,6 +107,11 @@ body {
   display: block;
 }
 
+.submenu li {
+  display: block;
+}
+
+/* verticaal */
 .submenu a {
   display: block;
   padding: .4rem .75rem;
@@ -373,4 +380,50 @@ textarea {
 .sidemenu-section ul {
   margin: 0;
   padding-left: 1rem;
+}
+
+/* basisstijl voor lijsten in de drawer */
+.sidemenu-section ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.sidemenu-section a {
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.sidemenu-section a:hover {
+  opacity: .85;
+  text-decoration: none;
+}
+
+/* accordion gedrag (klik op h4) */
+.sidemenu-section h4 {
+  margin: .5rem 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.sidemenu-section h4::after {
+  content: "▸";
+  margin-left: auto;
+  opacity: .6;
+  transition: transform .2s;
+}
+
+.sidemenu-section.open h4::after {
+  transform: rotate(90deg);
+}
+
+/* standaard dicht, open via .open op de sectie */
+.sidemenu-section ul {
+  display: none;
+}
+
+.sidemenu-section.open ul {
+  display: block;
 }

@@ -25,4 +25,20 @@ window.initMenu = function () {
             settingsLink.setAttribute("href", "../index.html");
         }
     }
+    // Accordion in de zijbalk: klik op h4 → open/dicht
+    document.querySelectorAll(".sidemenu-section").forEach((sec, i) => {
+        const h = sec.querySelector("h4");
+        const key = "drawer_sec_" + i;
+
+        // beginstand (optioneel: onthouden)
+        if (localStorage.getItem(key) !== "closed") {
+            sec.classList.add("open"); // standaard open
+        }
+
+        h?.addEventListener("click", () => {
+            sec.classList.toggle("open");
+            localStorage.setItem(key, sec.classList.contains("open") ? "open" : "closed");
+        });
+    });
+
 };
