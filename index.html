@@ -40,3 +40,48 @@
 
     <main class="page">
       <!-- Content -->
+      <div class="content">
+        <!-- Formulier voor nieuwe taak -->
+        <button id="newTaskBtn" class="primary">+ NIEUW</button>
+        <div id="formContainer" style="display:none;">
+          <div class="card">
+            <h3>Nieuwe taak</h3>
+            <label>Naam</label>
+            <input type="text" id="name">
+            <label>Start</label>
+            <input type="date" id="start">
+            <label>Einde</label>
+            <input type="date" id="end">
+            <label>Categorie</label>
+            <input id="category" list="categoryList">
+            <datalist id="categoryList"></datalist>
+            <label>Omschrijving</label>
+            <textarea id="description"></textarea>
+            <label>Link</label>
+            <input type="text" id="link">
+            <button id="addTodo" class="primary" style="margin-top:.8rem;">Toevoegen</button>
+          </div>
+        </div>
+
+        <!-- Post-it weergave -->
+        <div class="postits-row" id="postits"></div>
+      </div>
+
+      <!-- Rechter kolom -->
+      <aside class="rightcol">
+        <div class="card">
+          <strong>📌 Overige taken</strong>
+          <div id="uncategorized-list"></div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../Script/Javascript/include-partials.js"></script>
+  <script src="../Script/Javascript/menu.js"></script>
+  <script type="module" src="Script/Javascript/main.js"></script>
+
+</body>
+
+</html>
