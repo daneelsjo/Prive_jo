@@ -17,6 +17,16 @@
   --shadow: 0 8px 20px rgba(0, 0, 0, .3);
 }
 
+/* Links in dark theme netter */
+:root[data-theme="dark"] a {
+  color: #93c5fd;
+}
+
+:root a {
+  color: #2563eb;
+}
+
+
 * {
   box-sizing: border-box;
 }
@@ -204,47 +214,44 @@ body {
 .switch {
   --w: 180px;
   --h: 36px;
+  --pad: 6px;
+  --knob: 64px;
   position: relative;
-  display: inline-block;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  /* 2 zones voor de labels */
+  align-items: center;
+  gap: 0;
   width: var(--w);
   height: var(--h);
   background: #f3f4f6;
   border-radius: 999px;
-  padding: 0;
-  overflow: hidden;
   outline: 1px solid var(--border);
+  padding: 0 var(--pad);
 }
 
 .switch .knob {
   position: absolute;
-  top: 6px;
-  left: 6px;
-  width: 64px;
-  height: 24px;
+  top: var(--pad);
+  left: var(--pad);
+  width: var(--knob);
+  height: calc(var(--h) - var(--pad)*2);
   background: #fff;
   border-radius: 999px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
   transition: transform .2s ease;
 }
 
-.label {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+#modeSwitch:checked+.switch .knob {
+  transform: translateX(calc(100% + var(--pad)));
+}
+
+.switch .label {
+  text-align: center;
   font-size: .9rem;
   color: var(--fg);
-}
-
-.label-work {
-  left: 80px;
-}
-
-.label-prive {
-  right: 10px;
-}
-
-#modeSwitch:checked+.switch .knob {
-  transform: translateX(104px);
+  pointer-events: none;
+  user-select: none;
 }
 
 /* =========================
@@ -343,4 +350,54 @@ textarea {
   padding: .3rem .4rem;
   border-radius: 6px;
   margin: .25rem 0;
+}
+
+/* Drawer (zijmenu) + backdrop */
+.sidemenu {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 300px;
+  background: var(--card);
+  color: var(--fg);
+  transform: translateX(-100%);
+  transition: transform .25s ease;
+  z-index: 1200;
+  border-right: 1px solid var(--border);
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.sidemenu.open {
+  transform: translateX(0);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+  z-index: 1100;
+}
+
+.backdrop.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.sidemenu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .75rem;
+}
+
+.sidemenu-section h4 {
+  margin: .5rem 0;
+}
+
+.sidemenu-section ul {
+  margin: 0;
+  padding-left: 1rem;
 }

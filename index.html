@@ -146,7 +146,6 @@
 
   <script type="module" src="Script/Javascript/main.js"></script>
   <script>
-    // simpele toggle voor het zijmenu
     const hamb = document.getElementById('hamburger');
     const menu = document.getElementById('sideMenu');
     const backdrop = document.getElementById('backdrop');
@@ -154,6 +153,7 @@
     hamb?.addEventListener('click', () => { menu.classList.add('open'); backdrop.classList.add('open'); });
     backdrop?.addEventListener('click', closeMenu);
   </script>
+
 </body>
 
 </html>

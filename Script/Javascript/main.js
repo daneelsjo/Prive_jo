@@ -161,9 +161,25 @@ function parseCategoryInput(value) {
 
 /* Settings laden */
 async function loadSettings() {
-  const s = await getDoc(doc(db, "settings", currentUser.uid));
-  settings = s.exists() ? (s.data() || {}) : {};
+  const settingsDoc = await getDoc(doc(db, "settings", userId));
+  if (settingsDoc.exists()) {
+    settings = settingsDoc.data();
+    // Zet de toggle-positie bij het laden
+    const modeSwitch = document.getElementById("modeSwitch");
+    modeSwitch.checked = (settings.preferredMode || "werk") === "prive";
+
+    // Reageer op wijziging
+    modeSwitch.onchange = () => {
+      const newMode = modeSwitch.checked ? "prive" : "werk";
+      setMode(newMode);
+      // Optioneel opslaan in settings
+      updateDoc(doc(db, "settings", userId), { preferredMode: newMode });
+    };
+
+  }
+  renderPostIts();
 }
+
 
 /* Render */
 function renderTodos() {
