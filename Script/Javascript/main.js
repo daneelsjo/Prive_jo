@@ -8,7 +8,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 
-/** Firebase config (jouw gegevens) */
+/** Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyDo_zVn_4H1uM7EU-LhQV5XOYBcJmZ0Y3o",
   authDomain: "prive-jo.firebaseapp.com",
@@ -43,14 +43,20 @@ const linkInput = document.getElementById("link");
 
 const postits = document.getElementById("postits");
 const uncategorizedList = document.getElementById("uncategorized-list");
-const taskDetailPanel = document.getElementById("taskDetailPanel");
 
 const modeSwitchEl = document.getElementById("modeSwitch");
 
+/* Modal elements */
+const modal = document.getElementById("taskModal");
+const backdrop = document.getElementById("taskBackdrop");
+const modalTitle = document.getElementById("taskModalTitle");
+const modalBody = document.getElementById("taskModalBody");
+const modalFooter = document.getElementById("taskModalFooter");
+
 let currentUser = null;
 let allTodos = [];
-let categories = []; // {id, name, type('werk'|'prive'), active}
-let settings = {};   // { modeSlots:{ werk:[{categoryId,color}], prive:[...] }, preferredMode, theme }
+let categories = []; // {id,name,type('werk'|'prive'),active}
+let settings = {};   // { modeSlots:{werk[],prive[]}, preferredMode, theme }
 let currentMode = "werk";
 
 const fixedColors = [
@@ -134,7 +140,7 @@ addTodoBtn && (addTodoBtn.onclick = async () => {
 
   await addDoc(collection(db, "todos"), {
     name, start, end,
-    categoryId,               // id als we ‘Naam (type)’ gekozen hebben
+    categoryId,               // id als 'Naam (type)' gekozen werd
     category: categoryName,   // naam (ook voor vrije tekst)
     description, link,
     done: false
@@ -166,19 +172,19 @@ async function loadSettings() {
 /* ---------- RENDER ---------- */
 function renderTodos() {
   if (!settings.modeSlots) settings.modeSlots = {};
-  const slots = settings.modeSlots[currentMode] || []; // [{categoryId,color}]
+  const slots = settings.modeSlots[currentMode] || [];
 
   if (!postits) return;
   postits.innerHTML = "";
 
-  // Filter: toon alleen taken van de actieve modus (of zonder categorie → altijd tonen)
+  // Filter op modus (of geen categorie → altijd tonen)
   const visibleTodos = allTodos.filter(t => {
     if (!t.categoryId) return true;
-    const cat = categories.find(c => c.id === t.categoryId);
-    return !!cat && cat.type === currentMode;
+    const c = categories.find(x => x.id === t.categoryId);
+    return !!c && c.type === currentMode;
   });
 
-  // Groepeer per categoryId (UNCAT voor geen categorie)
+  // groepeer per categoryId
   const byCatId = visibleTodos.reduce((acc, t) => {
     const key = t.categoryId || "UNCAT";
     (acc[key] ||= []).push(t);
@@ -206,7 +212,7 @@ function renderTodos() {
     postits.appendChild(box);
   }
 
-  // Overige taken (UNCAT + niet in slots)
+  // Overige taken
   const slotCatIds = new Set(slots.map(s => s?.categoryId).filter(Boolean));
   const rest = [];
   Object.entries(byCatId).forEach(([key, list]) => {
@@ -220,34 +226,28 @@ function renderTodos() {
   }
 }
 
-/* ---- 1 taak-rij: checkbox links, compacte spacing, geen bullets ---- */
+/* ---- 1 taak-rij: checkbox links, compacte spacing ---- */
 function buildTaskRow(todo, inRest = false) {
-  // label gebruiken zodat klik op tekst het vinkje togglet
   const row = document.createElement("label");
   row.className = "task-row" + (todo.done ? " done" : "");
-
-  // harde styles om spacing altijd goed te houden (overridet eventuele globale CSS)
   row.style.display = "flex";
   row.style.alignItems = "center";
-  row.style.gap = "6px";              // kleine ruimte tussen checkbox en tekst
+  row.style.gap = "6px";
   row.style.cursor = "pointer";
-  row.style.userSelect = "none";
 
   const cb = document.createElement("input");
   cb.type = "checkbox";
   cb.checked = !!todo.done;
   cb.addEventListener("click", (e) => {
-    e.stopPropagation();              // klik op checkbox triggert geen detail
+    e.stopPropagation();
     markDone(todo.id, !todo.done);
   });
 
   const text = document.createElement("span");
   text.className = "task-text";
-  text.style.flex = "0 1 auto";       // niet uitrekken naar rechts
-  text.style.whiteSpace = "nowrap";   // op één regel indien mogelijk
+  text.style.whiteSpace = "nowrap";
   text.style.overflow = "hidden";
   text.style.textOverflow = "ellipsis";
-
   const dates = `(${todo.start || "?"} - ${todo.end || "?"})`;
 
   if (inRest) {
@@ -261,116 +261,84 @@ function buildTaskRow(todo, inRest = false) {
   row.appendChild(cb);
   row.appendChild(text);
 
-  // klik op de rij (maar niet op checkbox) → detail openen
   row.addEventListener("click", (e) => {
-    if (e.target !== cb) showTaskDetail(todo);
+    if (e.target !== cb) openTaskDetail(todo);
   });
 
   return row;
 }
 
-/* Datalist met "Naam (type)" */
-function updateCategoryDatalist() {
-  if (!categoryList) return;
-  categoryList.innerHTML = "";
-  categories.forEach(c => {
-    const opt = document.createElement("option");
-    opt.value = `${c.name} (${c.type})`;
-    categoryList.appendChild(opt);
-  });
-}
+/* ---------- MODAL: open/close + acties ---------- */
+function openTaskDetail(todo) {
+  // Titel
+  modalTitle.textContent = todo.name;
 
-/* ===== Modal: taakdetails ===== */
-window.showTaskDetail = function (todo) {
-  // backdrop
-  const bd = document.createElement("div");
-  bd.id = "taskBackdrop";
-  bd.className = "modal-backdrop open";
-  document.body.appendChild(bd);
-
-  // modal
-  const modal = document.createElement("div");
-  modal.id = "taskModal";
-  modal.className = "modal";
-
+  // Categorie-weergave
   let catDisplay = todo.category || "";
   if (todo.categoryId) {
     const cat = categories.find(c => c.id === todo.categoryId);
     if (cat) catDisplay = `${cat.name} (${cat.type})`;
   }
 
-  modal.innerHTML = `
-    <div class="modal-header">
-      <h3>${escapeHtml(todo.name)}</h3>
-      <button class="modal-close" title="Sluiten" onclick="closeTaskDetail()">✕</button>
-    </div>
-
-    <div class="modal-body">
-      <label>Start</label>
-      <input id="editStart" type="date" value="${todo.start || ""}">
-      <label>Einde</label>
-      <input id="editEnd" type="date" value="${todo.end || ""}">
-      <label>Categorie</label>
-      <input id="editCategory" list="categoryList" value="${escapeHtml(catDisplay)}">
-      <label>Omschrijving</label>
-      <textarea id="editDesc">${todo.description ? escapeHtml(todo.description) : ""}</textarea>
-      <label>Link</label>
-      <input id="editLink" value="${todo.link ? escapeHtml(todo.link) : ""}">
-    </div>
-
-    <div class="modal-footer">
-      <button class="primary" onclick="saveTask('${todo.id}')">💾</button>
-      <button class="primary success" onclick="completeTask('${todo.id}')">✔️</button>
-      <button class="primary danger" onclick="deleteTask('${todo.id}')">🗑️</button>
-    </div>
+  // Body
+  modalBody.innerHTML = `
+    <label>Start</label>
+    <input id="editStart" type="date" value="${todo.start || ""}">
+    <label>Einde</label>
+    <input id="editEnd" type="date" value="${todo.end || ""}">
+    <label>Categorie</label>
+    <input id="editCategory" list="categoryList" value="${escapeHtml(catDisplay)}">
+    <label>Omschrijving</label>
+    <textarea id="editDesc">${todo.description ? escapeHtml(todo.description) : ""}</textarea>
+    <label>Link</label>
+    <input id="editLink" value="${todo.link ? escapeHtml(todo.link) : ""}">
   `;
-  document.body.appendChild(modal);
 
-  // sluit bij klik buiten de modal
-  bd.addEventListener("click", closeTaskDetail);
-};
+  // Footer knoppen
+  modalFooter.innerHTML = "";
+  const btnSave = mkBtn("primary", "💾 Opslaan", () => saveTask(todo.id));
+  const btnDone = mkBtn("primary success", "✔️ Voltooid", () => completeTask(todo.id));
+  const btnDel = mkBtn("primary danger", "🗑️ Verwijderen", () => deleteTask(todo.id, todo.name));
+  modalFooter.append(btnSave, btnDone, btnDel);
 
-window.closeTaskDetail = function () {
-  document.getElementById("taskModal")?.remove();
-  document.getElementById("taskBackdrop")?.remove();
-};
+  // tonen
+  modal.style.display = "block";
+  backdrop.style.display = "block";
 
-/* Voltooien via knop */
-window.completeTask = async function (id) {
-  await setDoc(doc(db, "todos", id), { done: true }, { merge: true });
-  closeTaskDetail();
-};
-
-/* Verwijderen via knop */
-let deleteIdToConfirm = null;
-
-window.deleteTask = function (id) {
-  const todo = todos.find(t => t.id === id);
-  if (!todo) return;
-
-  deleteIdToConfirm = id;
-  document.getElementById("confirmDeleteText").innerText =
-    `⚠️ OPGELET!\nBen je zeker dat je volgende taak wenst te verwijderen:\n"${todo.name}"`;
-
-  document.getElementById("confirmDeleteModal").style.display = "flex";
-};
-
-function closeConfirmDelete() {
-  document.getElementById("confirmDeleteModal").style.display = "none";
-  deleteIdToConfirm = null;
+  // klik buiten modal → sluiten
+  const closeOnBackdrop = (e) => {
+    if (e.target === backdrop) closeTaskDetail();
+  };
+  backdrop.addEventListener("click", closeOnBackdrop, { once: true });
 }
 
-document.getElementById("confirmDeleteYes").addEventListener("click", async () => {
-  if (!deleteIdToConfirm) return;
+window.closeTaskDetail = function () {
+  modal.style.display = "none";
+  backdrop.style.display = "none";
+};
 
-  await deleteDoc(doc(db, "todos", deleteIdToConfirm));
-  closeConfirmDelete();
+/* helpers voor knoppen in footer */
+function mkBtn(cls, text, onClick) {
+  const b = document.createElement("button");
+  b.className = cls; b.textContent = text;
+  b.onclick = onClick; return b;
+}
+
+/* Voltooien via knop */
+async function completeTask(id) {
+  await setDoc(doc(db, "todos", id), { done: true }, { merge: true });
   closeTaskDetail();
-});
+}
 
+/* Verwijderen met nette confirm in modal-stijl (eenvoudig) */
+async function deleteTask(id, name = "deze taak") {
+  const ok = confirm(`⚠️ OPGELET!\n\nBen je zeker dat je volgende taak wenst te verwijderen:\n"${name}"`);
+  if (!ok) return;
+  await deleteDoc(doc(db, "todos", id));
+  closeTaskDetail();
+}
 
-
-
+/* Opslaan uit modal */
 window.saveTask = async function (id) {
   const raw = (document.getElementById("editCategory")?.value || "").trim();
   const { categoryId, categoryName } = parseCategoryInput(raw);
@@ -408,33 +376,4 @@ function escapeHtml(str) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function openTaskDetail(todo) {
-  document.getElementById("taskDetailTitle").innerText = todo.name;
-
-  document.getElementById("taskDetailContent").innerHTML = `
-    <label>Start</label>
-    <input id="editStart" type="date" value="${todo.start || ""}">
-    <label>Einde</label>
-    <input id="editEnd" type="date" value="${todo.end || ""}">
-    <label>Categorie</label>
-    <input id="editCategory" value="${todo.category || ""}">
-    <label>Omschrijving</label>
-    <textarea id="editDesc">${todo.description || ""}</textarea>
-    <label>Link</label>
-    <input id="editLink" value="${todo.link || ""}">
-  `;
-
-  document.getElementById("taskDetailActions").innerHTML = `
-    <button class="primary" onclick="saveTask('${todo.id}')">💾 Opslaan</button>
-    <button class="primary" onclick="completeTask('${todo.id}')">✅ Voltooid</button>
-    <button class="primary" onclick="deleteTask('${todo.id}')">🗑️ Verwijderen</button>
-  `;
-
-  document.getElementById("taskDetailOverlay").style.display = "flex";
-}
-
-function closeTaskDetail() {
-  document.getElementById("taskDetailOverlay").style.display = "none";
 }

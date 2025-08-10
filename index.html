@@ -14,32 +14,33 @@
     <button id="login-btn">🔐 Inloggen met Google</button>
   </div>
 
-  <!-- gedeelde header (via partial include) -->
+  <!-- gedeelde header (hamburger + topmenu) -->
   <div data-include="partials/header.html"></div>
 
   <!-- APP -->
   <div id="app" style="display:none;">
     <div class="page">
       <main class="content">
-        <!-- Werk/Privé schuif -->
+
+        <!-- Werk/Privé icon-toggle -->
         <div class="mode-toggle">
           <input type="checkbox" id="modeSwitch" aria-label="Schakel tussen werk en privé" />
           <label for="modeSwitch" class="switch icon-only">
             <span class="knob" aria-hidden="true"></span>
-            <span class="label" title="Werk">🧰</span>
-            <span class="label" title="Privé">🏠</span>
+            <span class="icon icon-work" title="Werk">🧰</span>
+            <span class="icon icon-prive" title="Privé">🏠</span>
           </label>
         </div>
 
         <div class="workspace">
           <div id="postits" class="postits-row"></div>
-          <aside id="taskDetailPanel" class="detail-panel" style="display:none;"></aside>
         </div>
       </main>
 
       <aside class="rightcol">
         <button id="newTaskBtn" class="primary">＋ NIEUW</button>
 
+        <!-- Nieuw taak formulier -->
         <div id="formContainer" class="card" style="display:none;">
           <input id="name" placeholder="Taaknaam" />
           <input id="start" type="date" placeholder="Startdatum" />
@@ -52,6 +53,7 @@
           <button id="addTodo" class="primary">✔️ Toevoegen</button>
         </div>
 
+        <!-- Overige taken -->
         <div id="uncategorized" class="card">
           <h3>📌 Overige taken</h3>
           <div id="uncategorized-list"></div>
@@ -59,36 +61,29 @@
       </aside>
     </div>
   </div>
-  <!-- Overlay voor taakdetail -->
-  <div id="taskDetailOverlay" style="display:none;">
-    <div id="taskDetailPanel">
-      <button id="taskDetailClose" onclick="closeTaskDetail()">❌</button>
-      <h3 id="taskDetailTitle"></h3>
-      <div id="taskDetailContent"></div>
-      <div id="taskDetailActions"></div>
+
+  <!-- ===== Modal overlay + card voor taakdetails ===== -->
+  <div id="taskBackdrop" class="modal-backdrop" style="display:none;"></div>
+
+  <div id="taskModal" class="modal" style="display:none;">
+    <div class="modal-header">
+      <h3 id="taskModalTitle"></h3>
+      <button class="modal-close" title="Sluiten" onclick="closeTaskDetail()">✕</button>
+    </div>
+
+    <div class="modal-body" id="taskModalBody">
+      <!-- dynamisch gevuld door main.js -->
+    </div>
+
+    <div class="modal-footer" id="taskModalFooter">
+      <!-- dynamische knoppen -->
     </div>
   </div>
 
-
-  <!-- Verwijder Taak Modal -->
-  <div id="confirmDeleteModal" class="modal" style="display:none;">
-    <div class="modal-content">
-      <span class="close" onclick="closeConfirmDelete()">&times;</span>
-      <h3 id="confirmDeleteTitle">Taak verwijderen</h3>
-      <p id="confirmDeleteText"></p>
-      <div class="modal-actions">
-        <button class="primary" id="confirmDeleteYes">✅ Ja, verwijderen</button>
-        <button class="secondary" onclick="closeConfirmDelete()">❌ Annuleren</button>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- scripts: eerst include partials (laadt header), dan shared menu init, dan app -->
+  <!-- scripts: eerst menu, dan include, dan app -->
   <script src="Script/Javascript/menu.js"></script>
   <script src="Script/Javascript/include-partials.js"></script>
   <script type="module" src="Script/Javascript/main.js"></script>
-
 </body>
 
 </html>
