@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="nl">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>To-Do App</title>
+  <title>To‑Do App</title>
   <link rel="stylesheet" href="CSS/style.css" />
 </head>
+
 <body>
   <!-- AUTH -->
   <div id="auth">
@@ -14,17 +16,21 @@
 
   <!-- APP -->
   <div id="app" style="display:none;">
-    <header>
-      <h1>📝 Mijn To-Do's</h1>
+    <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+      <div>
+        <h1 style="margin:0;">📝 Mijn To‑Do’s</h1>
+        <div id="modeSwitch">
+          <label><input type="radio" name="mode" value="werk" checked> Werk</label>
+          <label style="margin-left:1rem;"><input type="radio" name="mode" value="prive"> Privé</label>
+        </div>
+      </div>
       <nav>
         <a href="HTML/settings.html">⚙️ Instellingen</a>
       </nav>
     </header>
 
-    <!-- Nieuwe taak knop -->
+    <!-- Nieuwe taak knop + formulier -->
     <button id="newTaskBtn">+ Nieuwe taak</button>
-
-    <!-- Formulier voor nieuwe taak -->
     <div id="formContainer" style="display:none;">
       <input id="name" placeholder="Taaknaam" />
       <input id="start" type="date" placeholder="Startdatum" />
@@ -32,24 +38,29 @@
       <input id="category" list="categoryList" placeholder="Categorie" />
       <datalist id="categoryList"></datalist>
       <textarea id="description" placeholder="Omschrijving (optioneel)"></textarea>
-<input id="link" placeholder="Link naar bestand (optioneel)" />
-
+      <input id="link" placeholder="Link naar bestand (optioneel)" />
       <button id="addTodo">✔️ Toevoegen</button>
     </div>
 
-    <!-- Post-its weergave -->
-    <div id="postits" class="columns"></div>
+    <div style="display:flex;gap:1rem;align-items:flex-start;">
+      <!-- Post‑its -->
+      <div id="postits" class="columns"></div>
 
-    <!-- Overige taken zonder categorie -->
-    <div id="uncategorized">
-      <h3>📌 Zonder categorie</h3>
+      <!-- Detailpaneel -->
+      <aside id="taskDetailPanel"
+        style="display:none;min-width:320px;max-width:380px;background:#fff;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,.08);padding:1rem;">
+        <!-- gevuld door JS -->
+      </aside>
+    </div>
+
+    <!-- Rest (zonder toegewezen categorie in de huidige modus) -->
+    <div id="uncategorized" style="margin-top:2rem;">
+      <h3>📌 Overige taken</h3>
       <div id="uncategorized-list"></div>
     </div>
   </div>
-<!-- details van de taak -->
-  <div id="taskDetailPanel" style="display:none;"></div>
 
-  <!-- Scripts -->
   <script type="module" src="Script/Javascript/main.js"></script>
 </body>
+
 </html>

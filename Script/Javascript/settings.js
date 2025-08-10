@@ -1,11 +1,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 import {
-  getFirestore, doc, setDoc, getDoc, collection, getDocs
+  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc, query, where
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 
+/** Firebase config (jouw gegevens) */
 const firebaseConfig = {
   apiKey: "AIzaSyDo_zVn_4H1uM7EU-LhQV5XOYBcJmZ0Y3o",
   authDomain: "prive-jo.firebaseapp.com",
@@ -21,98 +22,79 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+/* Elements */
 const loginBtn = document.getElementById("login-btn");
 const appDiv = document.getElementById("app");
 const authDiv = document.getElementById("auth");
-const categorySelectors = document.getElementById("categorySelectors");
-const saveSettingsBtn = document.getElementById("saveSettings");
+
+const catName = document.getElementById("catName");
+const catType = document.getElementById("catType");
+const addCatBtn = document.getElementById("addCat");
+const catList = document.getElementById("catList");
+
+const saveModeSlotsBtn = document.getElementById("saveModeSlots");
+const modeSlotsDiv = document.getElementById("modeSlots");
 
 let currentUser = null;
-let allTodos = [];
-let postitSettings = {};
-const colors = ["#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688", "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"];
+let categories = []; // {id,name,type,active}
+let settings = {};
+let currentMode = "werk";
+const fixedColors = ["#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688", "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"];
 
+/* Auth */
 loginBtn.onclick = () => signInWithPopup(auth, provider);
-
 onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    currentUser = user;
-    authDiv.style.display = "none";
-    appDiv.style.display = "block";
-    await loadTodos();
-    await loadSettings();
-    renderCategorySelectors();
-  }
+  if (!user) return;
+  currentUser = user;
+  authDiv.style.display = "none";
+  appDiv.style.display = "block";
+
+  // Modus tabs (werk/prive)
+  document.querySelectorAll('input[name="mode"]').forEach(r => {
+    r.onchange = () => { currentMode = r.value; renderModeSlots(); };
+  });
+
+  await loadSettings();
+  listenCategories();
 });
 
-async function loadTodos() {
-  const snap = await getDocs(collection(db, "todos"));
-  allTodos = [];
-  snap.forEach((doc) => allTodos.push(doc.data()));
-}
-
+/* Settings laden */
 async function loadSettings() {
-  const ref = doc(db, "settings", currentUser.uid);
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    postitSettings = snap.data().postits || {};
-  }
+  const s = await getDoc(doc(db, "settings", currentUser.uid));
+  settings = s.exists() ? (s.data() || {}) : {};
+  currentMode = settings.preferredMode || "werk";
+  // Zet radiobutton correct
+  document.querySelectorAll('input[name="mode"]').forEach(r => (r.checked = r.value === currentMode));
 }
 
-function renderCategorySelectors() {
-  categorySelectors.innerHTML = "";
-  const uniqueCats = [...new Set(allTodos.map(t => t.category).filter(Boolean))];
-
-  for (let i = 0; i < 4; i++) {
-    const wrapper = document.createElement("div");
-    wrapper.style.marginBottom = "1em";
-
-    const label = document.createElement("label");
-    label.textContent = `Post-it ${i + 1}`;
-    wrapper.appendChild(label);
-    wrapper.appendChild(document.createElement("br"));
-
-    const select = document.createElement("select");
-    select.dataset.index = i;
-    select.innerHTML = `<option value="">(leeg)</option>` + uniqueCats.map(cat => {
-      return `<option value="${cat}" ${postitSettings[i]?.category === cat ? "selected" : ""}>${cat}</option>`;
-    }).join("");
-
-    const colorSelect = document.createElement("select");
-    colorSelect.dataset.index = i;
-    colors.forEach(c => {
-      const opt = document.createElement("option");
-      opt.value = c;
-      opt.style.backgroundColor = c;
-      opt.style.color = getContrast(c);
-      opt.textContent = c;
-      if (postitSettings[i]?.color === c) opt.selected = true;
-      colorSelect.appendChild(opt);
-    });
-
-    wrapper.appendChild(select);
-    wrapper.appendChild(colorSelect);
-    categorySelectors.appendChild(wrapper);
-  }
+/* Categorieën live volgen */
+function listenCategories() {
+  onSnapshot(
+    query(collection(db, "categories"), where("active", "in", [true, undefined])),
+    (snap) => {
+      categories = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderCatList();
+      renderModeSlots();
+    }
+  );
 }
 
-saveSettingsBtn.onclick = async () => {
-  const selects = categorySelectors.querySelectorAll("select");
-  const newSettings = {};
-  for (let i = 0; i < selects.length; i += 2) {
-    const category = selects[i].value;
-    const color = selects[i + 1].value;
-    newSettings[i / 2] = { category, color };
-  }
-
-  await setDoc(doc(db, "settings", currentUser.uid), { postits: newSettings });
-  alert("Instellingen opgeslagen!");
+/* Categorie toevoegen */
+addCatBtn.onclick = async () => {
+  const name = (catName.value || "").trim();
+  const type = catType.value || "werk";
+  if (!name) return alert("Vul een categorienaam in.");
+  await addDoc(collection(db, "categories"), { name, type, active: true });
+  catName.value = "";
 };
 
-function getContrast(hex) {
-  const r = parseInt(hex.substr(1, 2), 16);
-  const g = parseInt(hex.substr(3, 2), 16);
-  const b = parseInt(hex.substr(5, 2), 16);
-  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 128 ? "#000" : "#fff";
-}
+/* Categorie-lijst renderen met archiveerknop */
+function renderCatList() {
+  catList.innerHTML = "";
+  const grouped = { werk: [], prive: [] };
+  categories.forEach(c => grouped[c.type]?.push(c));
+
+  ["werk", "prive"].forEach(type => {
+    const block = document.createElement("div");
+    block.style.marginBottom = ".75rem";
+    block.innerHTML = `<h3 style="margin:.25rem 0;">

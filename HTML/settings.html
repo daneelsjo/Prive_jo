@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="nl">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Instellingen</title>
   <link rel="stylesheet" href="../CSS/style.css" />
 </head>
+
 <body>
   <!-- AUTH -->
   <div id="auth">
@@ -14,21 +16,41 @@
 
   <!-- APP -->
   <div id="app" style="display:none;">
-    <header>
-      <h1>⚙️ Instellingen</h1>
+    <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+      <h1 style="margin:0;">⚙️ Instellingen</h1>
       <nav>
         <a href="../index.html">⬅️ Terug naar overzicht</a>
       </nav>
     </header>
 
-    <p>Stel hier per post-it de bijhorende categorie en kleur in.</p>
+    <!-- Sectie: Categoriebeheer -->
+    <section style="margin-bottom:1.5rem;">
+      <h2>Categorieën</h2>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+        <input id="catName" placeholder="Nieuwe categorie" />
+        <select id="catType">
+          <option value="werk">Werk</option>
+          <option value="prive">Privé</option>
+        </select>
+        <button id="addCat">➕ Toevoegen</button>
+      </div>
+      <div id="catList" style="margin-top:1rem;"></div>
+      <hr />
+    </section>
 
-    <div id="categorySelectors"></div>
-
-    <button id="saveSettings">💾 Instellingen opslaan</button>
+    <!-- Sectie: Post‑its per modus -->
+    <section>
+      <h2>Post‑its per modus</h2>
+      <div id="modeTabs" style="margin-bottom:.75rem;">
+        <label><input type="radio" name="mode" value="werk" checked> Werk</label>
+        <label style="margin-left:1rem;"><input type="radio" name="mode" value="prive"> Privé</label>
+      </div>
+      <div id="modeSlots"></div>
+      <button id="saveModeSlots" style="margin-top:.75rem;">💾 Opslaan</button>
+    </section>
   </div>
 
-  <!-- Scripts -->
   <script type="module" src="../Script/Javascript/settings.js"></script>
 </body>
+
 </html>
