@@ -362,9 +362,7 @@ textarea {
   padding: .2rem 0;
 }
 
-.task-row .task-text {
-  flex: 1 1 auto;
-}
+
 
 .task-row.done .task-text {
   text-decoration: line-through;
@@ -572,4 +570,37 @@ textarea {
 .sidemenu-section a {
   text-decoration: none;
   color: inherit;
+}
+
+/* Zorg dat checkbox + tekst netjes naast elkaar staan */
+.postit {
+  text-align: left;
+}
+
+/* geen right/center align voor rijen */
+.postit .task-row {
+  width: auto;
+}
+
+.task-row {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  /* geen space-between */
+  gap: 6px;
+  /* kleine spatie tussen vinkje en tekst */
+  padding: .2rem 0;
+}
+
+.task-row input[type="checkbox"] {
+  margin: 0;
+}
+
+.task-row .task-text {
+  flex: 0 0 auto !important;
+  /* niet uitrekken */
+  white-space: nowrap;
+  /* 1 regel indien kan */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
