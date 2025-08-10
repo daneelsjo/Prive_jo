@@ -35,6 +35,10 @@ const catList = document.getElementById("catList");
 const saveModeSlotsBtn = document.getElementById("saveModeSlots");
 const modeSlotsDiv = document.getElementById("modeSlots");
 
+const themeRadios = () => Array.from(document.querySelectorAll('input[name="theme"]'));
+const saveThemeBtn = document.getElementById("saveTheme");
+
+
 let currentUser = null;
 let categories = []; // {id,name,type,active}
 let settings = {};
@@ -67,6 +71,10 @@ async function loadSettings() {
   settings = s.exists() ? (s.data() || {}) : {};
   currentMode = settings.preferredMode || "werk";
   document.querySelectorAll('input[name="mode"]').forEach(r => (r.checked = r.value === currentMode));
+  const theme = settings.theme || "system";
+  themeRadios().forEach(r => r.checked = (r.value === theme));
+  applyTheme(theme);
+
 }
 
 // --- Categorieën live volgen (FIX: geen 'where(..., in, [true, undefined])') ---
@@ -195,3 +203,7 @@ function getContrast(hex) {
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
   return yiq >= 128 ? "#000" : "#fff";
 }
+
+const theme = settings.theme || "system";
+themeRadios().forEach(r => r.checked = (r.value === theme));
+applyTheme(theme);

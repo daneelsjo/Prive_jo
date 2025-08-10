@@ -67,10 +67,16 @@ onAuthStateChanged(auth, async (user) => {
   });
 
   await loadSettings();
-  setMode(settings.preferredMode || "werk");
+  const modeSwitch = document.getElementById("modeSwitch");
+  modeSwitch.checked = (settings.preferredMode || "werk") === "prive";
+  modeSwitch.onchange = () => setMode(modeSwitch.checked ? "prive" : "werk");
+
 
   listenCategories();
   listenTodos();
+  const theme = settings.theme || "system";
+  applyTheme(theme);
+
 });
 
 /* Mode helpers */
@@ -324,4 +330,12 @@ function getContrast(hex) {
   const b = parseInt(hex.substr(5, 2), 16);
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
   return yiq >= 128 ? "#000" : "#fff";
+}
+
+function applyTheme(mode) {
+  let final = mode;
+  if (mode === "system") {
+    final = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  document.documentElement.setAttribute("data-theme", final);
 }

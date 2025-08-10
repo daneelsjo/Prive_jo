@@ -19,14 +19,14 @@
     <!-- Topbar -->
     <header class="topbar">
       <button id="hamburger" aria-label="Menu" class="icon-btn">☰</button>
+
       <nav class="mainnav">
         <ul>
-          <li class="has-submenu"><a href="https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox" target="_blank">Mail</a>
-            <ul class="submenu">
-              <li><a href="#">(vul zelf in)</a></li>
-            </ul>
+          <li class="has-submenu"><a class="menu-link" href="https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox"
+              target="_blank">Mail</a>
+
           </li>
-          <li class="has-submenu"><a href="#">Verdi</a>
+          <li class="has-submenu"><a class="menu-link" href="#">Verdi</a>
             <ul class="submenu">
               <li><a href="https://disparant.verdi.cloud/" target="_blank">Productie</a></li>
               <li><a href="https://disparant-staging.verdi.cloud/home" target="_blank">Staging</a></li>
@@ -34,14 +34,14 @@
               <li><a href="https://mobile-disparant-staging.verdi.cloud/login" target="_blank">Mobile - staging</a></li>
             </ul>
           </li>
-          <li class="has-submenu"><a href="#">Abi</a>
+          <li class="has-submenu"><a class="menu-link" href="#">Abi</a>
             <ul class="submenu">
               <li><a href="https://www.ambuweb.be/" target="_blank">Ambuweb</a></li>
               <li><a href="https://abiweb.zonerand.be/" target="_blank">Abiweb</a></li>
               <li><a href="https://testabiweb.zonerand.be/" target="_blank">Abiweb‑TEST</a></li>
             </ul>
           </li>
-          <li class="has-submenu"><a href="#">INA</a>
+          <li class="has-submenu"><a class="menu-link" href="#">INA</a>
             <ul class="submenu">
               <li><a href="https://hvzrand.ina.gemsotec.com" target="_blank">Productie</a></li>
               <li><a href="https://hvzrandacc.ina.gemsotec.com" target="_blank">ACC‑omgeving</a></li>
@@ -51,7 +51,7 @@
                   ACC</a></li>
             </ul>
           </li>
-          <li class="has-submenu"><a href="#">Ticketing</a>
+          <li class="has-submenu"><a class="menu-link" href="#">Ticketing</a>
             <ul class="submenu">
               <li><a href="https://brandweerzonerand.freshservice.com/a/dashboard/default" target="_blank">Optech</a>
               </li>
@@ -101,16 +101,15 @@
     <div class="page">
       <!-- Linkerkant: mode switch + post-its -->
       <main class="content">
-        <div class="mode-switch">
-          <label>
-            <input type="radio" name="mode" value="werk" checked />
-            <span class="chip">🧰 Werk</span>
-          </label>
-          <label>
-            <input type="radio" name="mode" value="prive" />
-            <span class="chip">🏠 Privé</span>
+        <div class="mode-toggle">
+          <input type="checkbox" id="modeSwitch" />
+          <label for="modeSwitch" class="switch">
+            <span class="knob" aria-hidden="true"></span>
+            <span class="label label-work">🧰 Werk</span>
+            <span class="label label-prive">🏠 Privé</span>
           </label>
         </div>
+
 
         <div class="workspace">
           <div id="postits" class="postits-row"></div>
