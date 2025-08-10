@@ -192,14 +192,7 @@ function renderTodos() {
     box.innerHTML = `<strong>${catDoc.name}</strong>`;
 
     (byCatId[slot.categoryId] || []).forEach(todo => {
-      const row = document.createElement("div");
-      row.style.cursor = "pointer";
-      row.innerHTML = `• ${todo.name} (${todo.start || "?"} - ${todo.end || "?"})
-        <button style="float:right" onclick="markDone('${todo.id}', ${!todo.done});event.stopPropagation();">
-          ${todo.done ? "✅" : "☐"}
-        </button>`;
-      if (todo.done) { row.style.textDecoration = "line-through"; row.style.opacity = "0.6"; }
-      row.onclick = () => showTaskDetail(todo);
+      const row = buildTaskRow(todo);
       box.appendChild(row);
     });
 
@@ -224,17 +217,36 @@ function renderTodos() {
   const restList = document.getElementById("uncategorized-list");
   restList.innerHTML = "";
   rest.forEach(todo => {
-    const c = categories.find(x => x.id === todo.categoryId);
-    const label = c ? c.name : "geen";
-    const item = document.createElement("div");
-    item.innerHTML = `${todo.name} (${label})
-      <button style="float:right" onclick="markDone('${todo.id}', ${!todo.done});event.stopPropagation();">
-        ${todo.done ? "✅" : "☐"}
-      </button>`;
-    if (todo.done) { item.style.textDecoration = "line-through"; item.style.opacity = "0.6"; }
-    item.onclick = () => showTaskDetail(todo);
+    const item = buildTaskRow(todo, /*inRest=*/true);
     restList.appendChild(item);
   });
+}
+
+/* Bouw 1 rij voor een taak met checkbox links + tekst rechts */
+function buildTaskRow(todo, inRest = false) {
+  const row = document.createElement("div");
+  row.className = "task-row" + (todo.done ? " done" : "");
+
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = !!todo.done;
+  cb.onclick = (e) => { e.stopPropagation(); markDone(todo.id, !todo.done); };
+
+  const label = document.createElement("div");
+  label.className = "task-text";
+  const dates = `(${todo.start || "?"} - ${todo.end || "?"})`;
+
+  if (inRest) {
+    const c = categories.find(x => x.id === todo.categoryId);
+    label.innerHTML = `• ${todo.name} ${dates} <small style="opacity:.7">(${c ? c.name : "geen"})</small>`;
+  } else {
+    label.innerHTML = `• ${todo.name} ${dates}`;
+  }
+
+  row.appendChild(cb);
+  row.appendChild(label);
+  row.onclick = () => showTaskDetail(todo);
+  return row;
 }
 
 /* Datalist met "Naam (type)" */
@@ -300,7 +312,7 @@ window.closeTaskDetail = function () {
   taskDetailPanel.innerHTML = "";
 };
 
-/* Done-toggle knop (naast taak) */
+/* Done-toggle knop (checkbox links) */
 window.markDone = async function (id, status) {
   await setDoc(doc(db, "todos", id), { done: status }, { merge: true });
 };

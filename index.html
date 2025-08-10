@@ -16,53 +16,144 @@
 
   <!-- APP -->
   <div id="app" style="display:none;">
-    <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
-      <div>
-        <h1 style="margin:0;">📝 Mijn To‑Do’s</h1>
-        <div id="modeSwitch">
-          <label><input type="radio" name="mode" value="werk" checked> Werk</label>
-          <label style="margin-left:1rem;"><input type="radio" name="mode" value="prive"> Privé</label>
-        </div>
-      </div>
-      <nav>
-        <a href="HTML/settings.html">⚙️ Instellingen</a>
+    <!-- Topbar -->
+    <header class="topbar">
+      <button id="hamburger" aria-label="Menu" class="icon-btn">☰</button>
+      <nav class="mainnav">
+        <ul>
+          <li class="has-submenu"><a href="https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox" target="_blank">Mail</a>
+            <ul class="submenu">
+              <li><a href="#">(vul zelf in)</a></li>
+            </ul>
+          </li>
+          <li class="has-submenu"><a href="#">Verdi</a>
+            <ul class="submenu">
+              <li><a href="https://disparant.verdi.cloud/" target="_blank">Productie</a></li>
+              <li><a href="https://disparant-staging.verdi.cloud/home" target="_blank">Staging</a></li>
+              <li><a href="https://mobile-disparant.verdi.cloud/login" target="_blank">Mobile</a></li>
+              <li><a href="https://mobile-disparant-staging.verdi.cloud/login" target="_blank">Mobile - staging</a></li>
+            </ul>
+          </li>
+          <li class="has-submenu"><a href="#">Abi</a>
+            <ul class="submenu">
+              <li><a href="https://www.ambuweb.be/" target="_blank">Ambuweb</a></li>
+              <li><a href="https://abiweb.zonerand.be/" target="_blank">Abiweb</a></li>
+              <li><a href="https://testabiweb.zonerand.be/" target="_blank">Abiweb‑TEST</a></li>
+            </ul>
+          </li>
+          <li class="has-submenu"><a href="#">INA</a>
+            <ul class="submenu">
+              <li><a href="https://hvzrand.ina.gemsotec.com" target="_blank">Productie</a></li>
+              <li><a href="https://hvzrandacc.ina.gemsotec.com" target="_blank">ACC‑omgeving</a></li>
+              <li><a href="https://keycloak.ina.gemsotec.com/auth/admin/hvzrand/console/" target="_blank">Keycloak
+                  Prod</a></li>
+              <li><a href="https://keycloak.ina.gemsotec.com/auth/admin/hvzrandacc/console/" target="_blank">Keycloak
+                  ACC</a></li>
+            </ul>
+          </li>
+          <li class="has-submenu"><a href="#">Ticketing</a>
+            <ul class="submenu">
+              <li><a href="https://brandweerzonerand.freshservice.com/a/dashboard/default" target="_blank">Optech</a>
+              </li>
+              <li><a href="https://youtrack.verdi.be/" target="_blank">Verdi</a></li>
+            </ul>
+          </li>
+        </ul>
       </nav>
     </header>
 
-    <!-- Nieuwe taak knop + formulier -->
-    <button id="newTaskBtn">+ Nieuwe taak</button>
-    <div id="formContainer" style="display:none;">
-      <input id="name" placeholder="Taaknaam" />
-      <input id="start" type="date" placeholder="Startdatum" />
-      <input id="end" type="date" placeholder="Einddatum" />
-      <label>Categorie</label>
-      <input id="category" list="categoryList">
-      <datalist id="categoryList"></datalist>
+    <!-- Zijmenu (drawer) -->
+    <aside id="sideMenu" class="sidemenu">
+      <div class="sidemenu-header">
+        <strong>Menu</strong>
+        <a class="icon-btn" href="HTML/settings.html" title="Instellingen">⚙️</a>
+      </div>
+      <div class="sidemenu-section">
+        <h4>Links</h4>
+        <ul>
+          <li><a href="https://drive.google.com/drive/u/0/my-drive" target="_blank">Google Drive</a></li>
+        </ul>
+      </div>
+      <div class="sidemenu-section">
+        <h4>Apps</h4>
+        <ul>
+          <li><a href="https://www.appsheet.com" target="_blank">Google Apps Script</a></li>
+          <li><a href="https://www.appsheet.com/start/504ba865-3785-4c6b-a33c-9d5edf2d3962" target="_blank">Optech</a>
+          </li>
+          <li><a href="https://www.appsheet.com/start/218e57f1-032f-4480-8b55-b2a38e944fef" target="_blank">Magazijn</a>
+          </li>
+        </ul>
+      </div>
+      <div class="sidemenu-section">
+        <h4>Interessante websites</h4>
+        <ul>
+          <li><a href="#" target="_blank">Zone Rand</a></li>
+          <li><a href="#" target="_blank">Transparand</a></li>
+          <li><a href="#" target="_blank">Modus Operandi</a></li>
+          <li><a href="#" target="_blank">Site VTO KO</a></li>
+          <li><a href="#" target="_blank">Computer!Totaal</a></li>
+        </ul>
+      </div>
+    </aside>
+    <div id="backdrop" class="backdrop"></div>
 
-      <textarea id="description" placeholder="Omschrijving (optioneel)"></textarea>
-      <input id="link" placeholder="Link naar bestand (optioneel)" />
-      <button id="addTodo">✔️ Toevoegen</button>
-    </div>
+    <!-- Pagina-inhoud -->
+    <div class="page">
+      <!-- Linkerkant: mode switch + post-its -->
+      <main class="content">
+        <div class="mode-switch">
+          <label>
+            <input type="radio" name="mode" value="werk" checked />
+            <span class="chip">🧰 Werk</span>
+          </label>
+          <label>
+            <input type="radio" name="mode" value="prive" />
+            <span class="chip">🏠 Privé</span>
+          </label>
+        </div>
 
-    <div style="display:flex;gap:1rem;align-items:flex-start;">
-      <!-- Post‑its -->
-      <div id="postits" class="columns"></div>
+        <div class="workspace">
+          <div id="postits" class="postits-row"></div>
 
-      <!-- Detailpaneel -->
-      <aside id="taskDetailPanel"
-        style="display:none;min-width:320px;max-width:380px;background:#fff;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,.08);padding:1rem;">
-        <!-- gevuld door JS -->
+          <!-- Detailpaneel (links of onderaan op mobiel) -->
+          <aside id="taskDetailPanel" class="detail-panel" style="display:none;"></aside>
+        </div>
+      </main>
+
+      <!-- Rechterkolom: NIEUW + overige taken -->
+      <aside class="rightcol">
+        <button id="newTaskBtn" class="primary">＋ NIEUW</button>
+
+        <div id="formContainer" class="card" style="display:none;">
+          <input id="name" placeholder="Taaknaam" />
+          <input id="start" type="date" placeholder="Startdatum" />
+          <input id="end" type="date" placeholder="Einddatum" />
+          <label>Categorie</label>
+          <input id="category" list="categoryList" placeholder="bv. Algemeen (werk)" />
+          <datalist id="categoryList"></datalist>
+          <textarea id="description" placeholder="Omschrijving (optioneel)"></textarea>
+          <input id="link" placeholder="Link naar bestand (optioneel)" />
+          <button id="addTodo" class="primary">✔️ Toevoegen</button>
+        </div>
+
+        <div id="uncategorized" class="card">
+          <h3>📌 Overige taken</h3>
+          <div id="uncategorized-list"></div>
+        </div>
       </aside>
-    </div>
-
-    <!-- Rest (zonder toegewezen categorie in de huidige modus) -->
-    <div id="uncategorized" style="margin-top:2rem;">
-      <h3>📌 Overige taken</h3>
-      <div id="uncategorized-list"></div>
     </div>
   </div>
 
   <script type="module" src="Script/Javascript/main.js"></script>
+  <script>
+    // simpele toggle voor het zijmenu
+    const hamb = document.getElementById('hamburger');
+    const menu = document.getElementById('sideMenu');
+    const backdrop = document.getElementById('backdrop');
+    function closeMenu() { menu.classList.remove('open'); backdrop.classList.remove('open'); }
+    hamb?.addEventListener('click', () => { menu.classList.add('open'); backdrop.classList.add('open'); });
+    backdrop?.addEventListener('click', closeMenu);
+  </script>
 </body>
 
 </html>
