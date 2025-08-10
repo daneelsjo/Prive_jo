@@ -69,11 +69,6 @@ body {
 }
 
 /* BELANGRIJK: alleen hoofdmenu is flex, dropdowns NIET */
-.mainnav {
-  display: flex;
-  justify-content: center;
-}
-
 .mainnav>ul {
   display: flex;
   gap: 1rem;
@@ -82,19 +77,11 @@ body {
   padding: 0;
 }
 
-.menu-link {
-  position: relative;
-  display: inline-block;
-  padding: .35rem .6rem;
-  border-radius: .5rem;
-  text-decoration: none;
-  color: var(--fg);
-}
-
-.has-submenu {
+.mainnav li {
   position: relative;
 }
 
+/* nodig voor absolute submenu */
 .submenu {
   position: absolute;
   top: 100%;
@@ -109,9 +96,22 @@ body {
   z-index: 1300;
 }
 
+.has-submenu:hover>.submenu {
+  display: block;
+}
+
+/* opent op hover */
 .submenu li {
   display: block;
 }
+
+.submenu a {
+  display: block;
+  padding: .4rem .75rem;
+  text-decoration: none;
+  color: var(--fg);
+}
+
 
 /* verticaal stapelen */
 .submenu a {
