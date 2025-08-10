@@ -6,7 +6,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 
-/** Firebase config (jouw gegevens) */
+/** Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyDo_zVn_4H1uM7EU-LhQV5XOYBcJmZ0Y3o",
   authDomain: "prive-jo.firebaseapp.com",
@@ -39,11 +39,12 @@ const linkInput = document.getElementById("link");
 const postits = document.getElementById("postits");
 const uncategorizedList = document.getElementById("uncategorized-list");
 const taskDetailPanel = document.getElementById("taskDetailPanel");
+const modeSwitchEl = document.getElementById("modeSwitch");
 
 let currentUser = null;
 let allTodos = [];
-let categories = []; // {id, name, type, active}
-let settings = {};   // { modeSlots: { werk:[{categoryId,color}...], prive:[...] }, preferredMode }
+let categories = []; // {id, name, type('werk'|'prive'), active}
+let settings = {};   // { modeSlots:{ werk:[{categoryId,color}*4], prive:[...] }, preferredMode, theme }
 let currentMode = "werk";
 
 const fixedColors = [
@@ -54,35 +55,39 @@ const fixedColors = [
 ];
 
 /* Auth */
-loginBtn.onclick = () => signInWithPopup(auth, provider);
+loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   currentUser = user;
-  authDiv.style.display = "none";
-  appDiv.style.display = "block";
+  authDiv && (authDiv.style.display = "none");
+  appDiv && (appDiv.style.display = "block");
 
-  // Modus switch (Werk/Privé)
-  document.querySelectorAll('input[name="mode"]').forEach(r => {
-    r.onchange = () => setMode(r.value);
-  });
+  await loadSettings();       // haalt ook theme op
+  applyTheme(settings.theme || "system");
 
-  await loadSettings();
-  const modeSwitch = document.getElementById("modeSwitch");
-  modeSwitch.checked = (settings.preferredMode || "werk") === "prive";
-  modeSwitch.onchange = () => setMode(modeSwitch.checked ? "prive" : "werk");
-
+  // Mode switch (checkbox)
+  if (modeSwitchEl) {
+    modeSwitchEl.checked = (settings.preferredMode || "werk") === "prive";
+    modeSwitchEl.onchange = () => setMode(modeSwitchEl.checked ? "prive" : "werk");
+  }
+  setMode(settings.preferredMode || "werk");
 
   listenCategories();
   listenTodos();
-  const theme = settings.theme || "system";
-  applyTheme(theme);
-
 });
+
+/* Theme helper */
+function applyTheme(mode) {
+  let final = mode;
+  if (mode === "system") {
+    final = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  document.documentElement.setAttribute("data-theme", final);
+}
 
 /* Mode helpers */
 function setMode(mode) {
   currentMode = mode;
-  document.querySelectorAll('input[name="mode"]').forEach(r => (r.checked = r.value === mode));
   if (currentUser) {
     setDoc(doc(db, "settings", currentUser.uid), { preferredMode: mode }, { merge: true });
   }
@@ -110,12 +115,12 @@ function listenTodos() {
 }
 
 /* Form toggling */
-newTaskBtn.onclick = () => {
+newTaskBtn && (newTaskBtn.onclick = () => {
   formContainer.style.display = formContainer.style.display === "none" ? "block" : "none";
-};
+});
 
 /* Nieuwe taak opslaan (met categoryId + category naam) */
-addTodoBtn.onclick = async () => {
+addTodoBtn && (addTodoBtn.onclick = async () => {
   const name = (nameInput.value || "").trim();
   const start = startInput.value || "";
   const end = endInput.value || "";
@@ -128,8 +133,8 @@ addTodoBtn.onclick = async () => {
 
   await addDoc(collection(db, "todos"), {
     name, start, end,
-    categoryId,                 // ✅ uniek id
-    category: categoryName,     // legacy naam (handig voor weergave)
+    categoryId,                 // uniek id
+    category: categoryName,     // legacy naam (handig voor weergave/zoek)
     description, link,
     done: false
   });
@@ -138,7 +143,7 @@ addTodoBtn.onclick = async () => {
   nameInput.value = ""; startInput.value = ""; endInput.value = "";
   categoryInput.value = ""; descInput.value = ""; linkInput.value = "";
   formContainer.style.display = "none";
-};
+});
 
 /* Parse invoer "Naam (type)" → id + naam */
 function parseCategoryInput(value) {
@@ -165,10 +170,12 @@ function renderTodos() {
   if (!settings.modeSlots) settings.modeSlots = {};
   const slots = settings.modeSlots[currentMode] || []; // [{categoryId,color}]
 
+  if (!postits) return;
+
   postits.innerHTML = "";
 
   // filter taken voor huidige modus:
-  // - zonder categoryId → altijd meenemen (komt later in "Overige")
+  // - zonder categoryId → meenemen (komt later in "Overige")
   // - met categoryId → alleen als category.type === currentMode
   const visibleTodos = allTodos.filter(t => {
     if (!t.categoryId) return true;
@@ -211,21 +218,17 @@ function renderTodos() {
   const slotCatIds = new Set(slots.map(s => s?.categoryId).filter(Boolean));
   const rest = [];
   Object.entries(byCatId).forEach(([key, list]) => {
-    if (key === "UNCAT") {
-      rest.push(...list);
-      return;
-    }
-    if (!slotCatIds.has(key)) {
-      rest.push(...list);
-    }
+    if (key === "UNCAT") { rest.push(...list); return; }
+    if (!slotCatIds.has(key)) { rest.push(...list); }
   });
 
-  const restList = document.getElementById("uncategorized-list");
-  restList.innerHTML = "";
-  rest.forEach(todo => {
-    const item = buildTaskRow(todo, /*inRest=*/true);
-    restList.appendChild(item);
-  });
+  if (uncategorizedList) {
+    uncategorizedList.innerHTML = "";
+    rest.forEach(todo => {
+      const item = buildTaskRow(todo, /*inRest=*/true);
+      uncategorizedList.appendChild(item);
+    });
+  }
 }
 
 /* Bouw 1 rij voor een taak met checkbox links + tekst rechts */
@@ -257,6 +260,7 @@ function buildTaskRow(todo, inRest = false) {
 
 /* Datalist met "Naam (type)" */
 function updateCategoryDatalist() {
+  if (!categoryList) return;
   categoryList.innerHTML = "";
   categories.forEach(c => {
     const opt = document.createElement("option");
@@ -267,6 +271,7 @@ function updateCategoryDatalist() {
 
 /* Detailpaneel */
 window.showTaskDetail = function (todo) {
+  if (!taskDetailPanel) return;
   taskDetailPanel.style.display = "block";
 
   // Vooraf ingevulde waarde voor categorie: "Naam (type)" indien id bekend
@@ -291,34 +296,35 @@ window.showTaskDetail = function (todo) {
       <input id="editLink" value="${todo.link || ""}">
     </div>
     <div style="display:flex;gap:.5rem;margin-top:1rem;">
-      <button onclick="saveTask('${todo.id}')">💾 Opslaan</button>
-      <button onclick="closeTaskDetail()">❌ Sluiten</button>
+      <button onclick="saveTask('${todo.id}')" class="primary">💾 Opslaan</button>
+      <button onclick="closeTaskDetail()" class="primary" style="background:#6b7280;">❌ Sluiten</button>
     </div>
   `;
 };
 
 window.saveTask = async function (id) {
-  const raw = document.getElementById("editCategory").value.trim();
+  const raw = (document.getElementById("editCategory")?.value || "").trim();
   const { categoryId, categoryName } = parseCategoryInput(raw);
 
   const payload = {
-    start: document.getElementById("editStart").value,
-    end: document.getElementById("editEnd").value,
+    start: document.getElementById("editStart")?.value || "",
+    end: document.getElementById("editEnd")?.value || "",
     categoryId,
     category: categoryName,
-    description: document.getElementById("editDesc").value.trim(),
-    link: document.getElementById("editLink").value.trim()
+    description: (document.getElementById("editDesc")?.value || "").trim(),
+    link: (document.getElementById("editLink")?.value || "").trim()
   };
   await setDoc(doc(db, "todos", id), payload, { merge: true });
   closeTaskDetail();
 };
 
 window.closeTaskDetail = function () {
+  if (!taskDetailPanel) return;
   taskDetailPanel.style.display = "none";
   taskDetailPanel.innerHTML = "";
 };
 
-/* Done-toggle knop (checkbox links) */
+/* Done-toggle */
 window.markDone = async function (id, status) {
   await setDoc(doc(db, "todos", id), { done: status }, { merge: true });
 };
@@ -330,12 +336,4 @@ function getContrast(hex) {
   const b = parseInt(hex.substr(5, 2), 16);
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
   return yiq >= 128 ? "#000" : "#fff";
-}
-
-function applyTheme(mode) {
-  let final = mode;
-  if (mode === "system") {
-    final = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-  document.documentElement.setAttribute("data-theme", final);
 }

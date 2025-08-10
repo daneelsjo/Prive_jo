@@ -1,3 +1,6 @@
+/* =========================
+   THEME (light / dark)
+   ========================= */
 :root {
   --bg: #f6f7fb;
   --fg: #0f172a;
@@ -14,194 +17,43 @@
   --shadow: 0 8px 20px rgba(0, 0, 0, .3);
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html,
 body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background: var(--bg);
   color: var(--fg);
 }
 
-.card,
-.submenu,
-.postit,
-#formContainer,
-.detail-panel {
-  background: var(--card);
-  border-color: var(--border);
-  box-shadow: var(--shadow);
-}
-
-.topbar {
-  background: var(--card);
-  border-color: var(--border);
-}
-
-.menu-link {
-  color: var(--fg);
-}
-
-.submenu a {
-  color: var(--fg);
-}
-
-
-/* Algemene layout */
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-  background: var(--bg, #f0f0f0);
-  color: var(--fg, #000);
-}
-
-#auth {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-
-#app {
-  padding: 1rem;
-}
-
-button {
-  cursor: pointer;
-}
-
-/* Nieuwe taak formulier */
-#formContainer {
-  display: none;
-  background: var(--bg, #fff);
-  padding: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, .1);
-  margin-top: 1rem;
-}
-
-#formContainer input,
-#formContainer textarea,
-#formContainer select {
-  width: 100%;
-  padding: .5rem;
-  margin-bottom: .5rem;
-}
-
-/* Post-it layout */
-#postits {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.postit {
-  padding: 0.5rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, .2);
-  min-height: 150px;
-}
-
-.postit strong {
-  display: block;
-  margin-bottom: .5rem;
-}
-
-/* Taken in post-its */
-.task-row {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  padding: .2rem 0;
-  cursor: pointer;
-}
-
-.task-row.done {
-  text-decoration: line-through;
-  opacity: 0.6;
-}
-
-.task-text {
-  flex: 1;
-}
-
-/* Overige taken lijst */
-#uncategorized-list {
-  margin-top: 1rem;
-}
-
-#uncategorized-list .task-row {
-  background: var(--bg2, #fafafa);
-  padding: .3rem;
-  border-radius: 4px;
-  margin-bottom: .3rem;
-}
-
-/* Detailpaneel links */
-#taskDetailPanel {
-  display: none;
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 300px;
-  height: 100%;
-  background: var(--bg, #fff);
-  border-right: 2px solid #ccc;
-  padding: 1rem;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, .2);
-  overflow-y: auto;
-  z-index: 100;
-}
-
-/* Knoppen */
-button {
-  padding: .5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  background: #2196F3;
-  color: white;
-  font-weight: bold;
-}
-
-button:hover {
-  background: #1976D2;
-}
-
-/* Donkere modus variabelen */
-@media (prefers-color-scheme: dark) {
-  body {
-    --bg: #121212;
-    --bg2: #1e1e1e;
-    --fg: #fff;
-  }
-
-  .postit {
-    box-shadow: 0 4px 6px rgba(255, 255, 255, .1);
-  }
-
-  #formContainer {
-    background: var(--bg2);
-  }
-
-  #taskDetailPanel {
-    background: var(--bg2);
-    color: var(--fg);
-  }
-
-  #uncategorized-list .task-row {
-    background: var(--bg2);
-  }
-}
-
+/* =========================
+   TOPBAR (centred nav + hover border anim)
+   ========================= */
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 1000;
   display: grid;
   grid-template-columns: 40px 1fr 40px;
-  /* hamburger | nav | settings */
   align-items: center;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
   padding: .5rem .75rem;
+}
+
+.icon-btn {
+  background: transparent;
+  border: 0;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--fg);
 }
 
 .mainnav {
@@ -223,10 +75,39 @@ button:hover {
   padding: .35rem .6rem;
   border-radius: .5rem;
   text-decoration: none;
-  color: #111;
+  color: var(--fg);
 }
 
-/* “Ladend vierkantje” bij hover – animated border */
+.has-submenu {
+  position: relative;
+}
+
+.submenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 180px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: .5rem;
+  padding: .4rem 0;
+  display: none;
+  box-shadow: var(--shadow);
+  z-index: 1100;
+}
+
+.has-submenu:hover .submenu {
+  display: block;
+}
+
+.submenu a {
+  display: block;
+  padding: .4rem .75rem;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+/* Hover “loading square” effect */
 .menu-link::after {
   content: "";
   position: absolute;
@@ -238,86 +119,107 @@ button:hover {
 
 .menu-link:hover::after {
   border-color: #c7d2fe;
-  /* zacht blauw */
   animation: spin-square 1s linear infinite;
 }
 
 @keyframes spin-square {
   0% {
-    clip-path: inset(0 100% 100% 0);
+    clip-path: inset(0 100% 100% 0)
   }
 
   25% {
-    clip-path: inset(0 0 100% 0);
+    clip-path: inset(0 0 100% 0)
   }
 
   50% {
-    clip-path: inset(0 0 0 0);
+    clip-path: inset(0 0 0 0)
   }
 
   75% {
-    clip-path: inset(0 0 0 0);
+    clip-path: inset(0 0 0 0)
   }
 
   100% {
-    clip-path: inset(0 100% 100% 0);
+    clip-path: inset(0 100% 100% 0)
   }
 }
 
-/* Submenu’s */
-.has-submenu {
-  position: relative;
+/* =========================
+   LAYOUT
+   ========================= */
+#app {
+  padding: 1rem;
 }
 
-.submenu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  min-width: 180px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: .5rem;
-  padding: .4rem 0;
-  display: none;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, .08);
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  /* content | right column */
+  gap: 1rem;
+  align-items: start;
+  padding: 1rem 0;
 }
 
-.has-submenu:hover .submenu {
-  display: block;
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.submenu a {
-  display: block;
-  padding: .4rem .75rem;
-  color: #111;
-  text-decoration: none;
+.rightcol {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-/* Icon buttons */
-.icon-btn {
-  background: transparent;
-  border: 0;
-  font-size: 1.25rem;
-  cursor: pointer;
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: .75rem;
+  padding: 1rem;
+  box-shadow: var(--shadow);
 }
 
-/* Mode schuif-toggle */
+@media (max-width: 980px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .rightcol {
+    position: static;
+  }
+}
+
+/* =========================
+   MODE SWITCH (Werk ↔ Privé)
+   ========================= */
 .mode-toggle {
   margin: .75rem 0;
 }
 
+.mode-toggle input {
+  display: none;
+}
+
 .switch {
+  --w: 180px;
+  --h: 36px;
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
+  display: inline-block;
+  width: var(--w);
+  height: var(--h);
   background: #f3f4f6;
   border-radius: 999px;
-  padding: .25rem .5rem .25rem .25rem;
+  padding: 0;
+  overflow: hidden;
+  outline: 1px solid var(--border);
 }
 
 .switch .knob {
-  width: 40px;
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 64px;
   height: 24px;
   background: #fff;
   border-radius: 999px;
@@ -325,20 +227,120 @@ button:hover {
   transition: transform .2s ease;
 }
 
-#modeSwitch:checked+.switch .knob {
-  transform: translateX(64px);
-}
-
-/* knob naar rechts */
-.switch .label {
+.label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: .9rem;
-  user-select: none;
+  color: var(--fg);
 }
 
 .label-work {
-  margin-left: .25rem;
+  left: 80px;
 }
 
 .label-prive {
-  margin-left: 2.5rem;
+  right: 10px;
+}
+
+#modeSwitch:checked+.switch .knob {
+  transform: translateX(104px);
+}
+
+/* =========================
+   POST-ITS + DETAIL
+   ========================= */
+.postits-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: .25rem;
+}
+
+.postit {
+  min-width: 240px;
+  max-width: 260px;
+  padding: 1rem;
+  border-radius: .75rem;
+  color: #111;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+  flex-shrink: 0;
+}
+
+.postit strong {
+  display: block;
+  margin-bottom: .5rem;
+}
+
+.detail-panel {
+  min-width: 320px;
+  max-width: 380px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: .75rem;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+/* =========================
+   FORMS & BUTTONS
+   ========================= */
+.primary {
+  background: #2563eb;
+  color: #fff;
+  border: 0;
+  padding: .6rem .9rem;
+  border-radius: .6rem;
+  cursor: pointer;
+}
+
+.primary:hover {
+  background: #1d4ed8;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  max-width: 100%;
+  padding: .5rem .6rem;
+  border: 1px solid var(--border);
+  border-radius: .5rem;
+  background: var(--card);
+  color: var(--fg);
+}
+
+textarea {
+  min-height: 100px;
+}
+
+/* =========================
+   TASK ROWS
+   ========================= */
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  cursor: pointer;
+  padding: .2rem 0;
+}
+
+.task-row .task-text {
+  flex: 1 1 auto;
+}
+
+.task-row.done .task-text {
+  text-decoration: line-through;
+  opacity: .6;
+}
+
+/* =========================
+   MISC
+   ========================= */
+#uncategorized-list>.task-row {
+  background: rgba(0, 0, 0, .04);
+  padding: .3rem .4rem;
+  border-radius: 6px;
+  margin: .25rem 0;
 }
