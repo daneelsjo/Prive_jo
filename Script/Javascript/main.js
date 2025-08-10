@@ -43,10 +43,15 @@ const taskDetailPanel = document.getElementById("taskDetailPanel");
 let currentUser = null;
 let allTodos = [];
 let categories = []; // {id, name, type, active}
-let settings = {};   // { modeSlots: { werk:[...4], prive:[...4] }, preferredMode }
+let settings = {};   // { modeSlots: { werk:[{categoryId,color}...], prive:[...] }, preferredMode }
 let currentMode = "werk";
 
-const fixedColors = ["#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688", "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"];
+const fixedColors = [
+  "#FFEB3B", "#F44336", "#4CAF50", "#2196F3",
+  "#E91E63", "#9C27B0", "#673AB7", "#3F51B5",
+  "#00BCD4", "#009688", "#8BC34A", "#CDDC39",
+  "#FFC107", "#FF9800", "#795548"
+];
 
 /* Auth */
 loginBtn.onclick = () => signInWithPopup(auth, provider);
@@ -56,7 +61,7 @@ onAuthStateChanged(auth, async (user) => {
   authDiv.style.display = "none";
   appDiv.style.display = "block";
 
-  // Modus switch
+  // Modus switch (Werk/Privé)
   document.querySelectorAll('input[name="mode"]').forEach(r => {
     r.onchange = () => setMode(r.value);
   });
@@ -72,14 +77,15 @@ onAuthStateChanged(auth, async (user) => {
 function setMode(mode) {
   currentMode = mode;
   document.querySelectorAll('input[name="mode"]').forEach(r => (r.checked = r.value === mode));
-  if (currentUser) setDoc(doc(db, "settings", currentUser.uid), { preferredMode: mode }, { merge: true });
+  if (currentUser) {
+    setDoc(doc(db, "settings", currentUser.uid), { preferredMode: mode }, { merge: true });
+  }
   renderTodos();
 }
 
-/* CATEGORIES listener – FIX: geen where(...in,[true,undefined]) */
+/* CATEGORIES listener – client-side filter op active !== false */
 function listenCategories() {
   onSnapshot(collection(db, "categories"), (snap) => {
-    // client-side filter: toon alles behalve active === false
     categories = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(c => c.active !== false);
@@ -97,27 +103,29 @@ function listenTodos() {
   });
 }
 
-/* Form toggling + add */
+/* Form toggling */
 newTaskBtn.onclick = () => {
   formContainer.style.display = formContainer.style.display === "none" ? "block" : "none";
 };
 
+/* Nieuwe taak opslaan (met categoryId + category naam) */
 addTodoBtn.onclick = async () => {
   const name = (nameInput.value || "").trim();
   const start = startInput.value || "";
   const end = endInput.value || "";
-  let category = (categoryInput.value || "").trim();
+  const categoryRaw = (categoryInput.value || "").trim();
   const description = (descInput.value || "").trim();
   const link = (linkInput.value || "").trim();
   if (!name) return alert("Vul een taaknaam in.");
 
-  // haal alleen de naam uit "Naam (type)"
-  if (category.includes("(")) {
-    category = category.split("(")[0].trim();
-  }
+  const { categoryId, categoryName } = parseCategoryInput(categoryRaw);
 
   await addDoc(collection(db, "todos"), {
-    name, start, end, category, description, link, done: false
+    name, start, end,
+    categoryId,                 // ✅ uniek id
+    category: categoryName,     // legacy naam (handig voor weergave)
+    description, link,
+    done: false
   });
 
   // reset
@@ -126,8 +134,21 @@ addTodoBtn.onclick = async () => {
   formContainer.style.display = "none";
 };
 
+/* Parse invoer "Naam (type)" → id + naam */
+function parseCategoryInput(value) {
+  if (!value) return { categoryId: null, categoryName: "" };
+  const match = value.match(/^(.*)\s+\((werk|prive)\)$/i);
+  if (match) {
+    const name = match[1].trim();
+    const type = match[2].toLowerCase();
+    const cat = categories.find(c => c.name === name && c.type === type);
+    if (cat) return { categoryId: cat.id, categoryName: cat.name };
+  }
+  // vrije tekst → enkel naam bewaren, geen id
+  return { categoryId: null, categoryName: value.trim() };
+}
 
-/* Settings */
+/* Settings laden */
 async function loadSettings() {
   const s = await getDoc(doc(db, "settings", currentUser.uid));
   settings = s.exists() ? (s.data() || {}) : {};
@@ -136,16 +157,27 @@ async function loadSettings() {
 /* Render */
 function renderTodos() {
   if (!settings.modeSlots) settings.modeSlots = {};
-  const slots = settings.modeSlots[currentMode] || []; // [{categoryId, color}]
+  const slots = settings.modeSlots[currentMode] || []; // [{categoryId,color}]
 
-  // groepeer todos op basis van NAAM (legacy)
-  const grouped = allTodos.reduce((acc, t) => {
-    const key = t.category || "UNCAT";
+  postits.innerHTML = "";
+
+  // filter taken voor huidige modus:
+  // - zonder categoryId → altijd meenemen (komt later in "Overige")
+  // - met categoryId → alleen als category.type === currentMode
+  const visibleTodos = allTodos.filter(t => {
+    if (!t.categoryId) return true;
+    const cat = categories.find(c => c.id === t.categoryId);
+    return !!cat && cat.type === currentMode;
+  });
+
+  // groepeer op categoryId (of "UNCAT" als geen categoryId)
+  const byCatId = visibleTodos.reduce((acc, t) => {
+    const key = t.categoryId || "UNCAT";
     (acc[key] ||= []).push(t);
     return acc;
   }, {});
 
-  postits.innerHTML = "";
+  // bouw 4 post-its volgens slots
   for (let i = 0; i < 4; i++) {
     const slot = slots[i];
     if (!slot?.categoryId) continue;
@@ -159,7 +191,7 @@ function renderTodos() {
     box.style.color = getContrast(color);
     box.innerHTML = `<strong>${catDoc.name}</strong>`;
 
-    (grouped[catDoc.name] || []).forEach(todo => {
+    (byCatId[slot.categoryId] || []).forEach(todo => {
       const row = document.createElement("div");
       row.style.cursor = "pointer";
       row.innerHTML = `• ${todo.name} (${todo.start || "?"} - ${todo.end || "?"})
@@ -174,23 +206,28 @@ function renderTodos() {
     postits.appendChild(box);
   }
 
-  // overige taken niet in slots of zonder categorie
-  const slotCatNames = new Set(
-    (settings.modeSlots[currentMode] || [])
-      .map(s => s?.categoryId)
-      .map(id => categories.find(c => c.id === id)?.name)
-      .filter(Boolean)
-  );
+  // Overige taken:
+  // - zonder categoryId (UNCAT)
+  // - met categoryId maar niet in de 4 slots
+  const slotCatIds = new Set(slots.map(s => s?.categoryId).filter(Boolean));
   const rest = [];
-  Object.entries(grouped).forEach(([catName, list]) => {
-    if (catName === "UNCAT" || !slotCatNames.has(catName)) rest.push(...list);
+  Object.entries(byCatId).forEach(([key, list]) => {
+    if (key === "UNCAT") {
+      rest.push(...list);
+      return;
+    }
+    if (!slotCatIds.has(key)) {
+      rest.push(...list);
+    }
   });
 
   const restList = document.getElementById("uncategorized-list");
   restList.innerHTML = "";
   rest.forEach(todo => {
+    const c = categories.find(x => x.id === todo.categoryId);
+    const label = c ? c.name : "geen";
     const item = document.createElement("div");
-    item.innerHTML = `${todo.name} (${todo.category || "geen"}) 
+    item.innerHTML = `${todo.name} (${label})
       <button style="float:right" onclick="markDone('${todo.id}', ${!todo.done});event.stopPropagation();">
         ${todo.done ? "✅" : "☐"}
       </button>`;
@@ -200,7 +237,7 @@ function renderTodos() {
   });
 }
 
-/* Datalist uit categories (met type achter de naam) */
+/* Datalist met "Naam (type)" */
 function updateCategoryDatalist() {
   categoryList.innerHTML = "";
   categories.forEach(c => {
@@ -210,10 +247,17 @@ function updateCategoryDatalist() {
   });
 }
 
-
 /* Detailpaneel */
 window.showTaskDetail = function (todo) {
   taskDetailPanel.style.display = "block";
+
+  // Vooraf ingevulde waarde voor categorie: "Naam (type)" indien id bekend
+  let catDisplay = todo.category || "";
+  if (todo.categoryId) {
+    const cat = categories.find(c => c.id === todo.categoryId);
+    if (cat) catDisplay = `${cat.name} (${cat.type})`;
+  }
+
   taskDetailPanel.innerHTML = `
     <h3 style="margin-top:0">${todo.name}</h3>
     <div style="display:grid;gap:.5rem;">
@@ -222,11 +266,7 @@ window.showTaskDetail = function (todo) {
       <label>Einde</label>
       <input id="editEnd" type="date" value="${todo.end || ""}">
       <label>Categorie</label>
-<input id="editCategory" list="categoryList" value="${todo.category || ""}">
-<datalist id="categoryList">
-  ${categories.map(c => `<option value="${c.name} (${c.type})">`).join("")}
-</datalist>
-
+      <input id="editCategory" list="categoryList" value="${catDisplay}">
       <label>Omschrijving</label>
       <textarea id="editDesc">${todo.description || ""}</textarea>
       <label>Link</label>
@@ -240,20 +280,19 @@ window.showTaskDetail = function (todo) {
 };
 
 window.saveTask = async function (id) {
+  const raw = document.getElementById("editCategory").value.trim();
+  const { categoryId, categoryName } = parseCategoryInput(raw);
+
   const payload = {
     start: document.getElementById("editStart").value,
     end: document.getElementById("editEnd").value,
-    let editCategoryVal = document.getElementById("editCategory").value.trim();
-    if(editCategoryVal.includes("(")) {
-      editCategoryVal = editCategoryVal.split("(")[0].trim();
-}
-category: editCategoryVal,
-
-  description: document.getElementById("editDesc").value.trim(),
+    categoryId,
+    category: categoryName,
+    description: document.getElementById("editDesc").value.trim(),
     link: document.getElementById("editLink").value.trim()
   };
-await setDoc(doc(db, "todos", id), payload, { merge: true });
-closeTaskDetail();
+  await setDoc(doc(db, "todos", id), payload, { merge: true });
+  closeTaskDetail();
 };
 
 window.closeTaskDetail = function () {
