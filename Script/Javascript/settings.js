@@ -66,10 +66,9 @@ onAuthStateChanged(auth, async (user) => {
     modeSwitchSettings.checked = (currentMode === "prive");
     modeSwitchSettings.onchange = async () => {
       currentMode = modeSwitchSettings.checked ? "prive" : "werk";
-      // sla voorkeur op zodat index dezelfde gebruikt
       await setDoc(doc(db, "settings", currentUser.uid), { preferredMode: currentMode }, { merge: true });
       renderModeSlots();
-    };
+    }
   }
 
   listenCategories();

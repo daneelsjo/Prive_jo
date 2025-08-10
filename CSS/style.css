@@ -31,13 +31,20 @@ body {
   color: var(--fg);
 }
 
-/* link-kleuren */
+/* link-kleuren + geen underline op icon-links */
 :root a {
   color: #2563eb;
+  text-decoration: none;
 }
 
 :root[data-theme="dark"] a {
   color: #93c5fd;
+}
+
+.icon-btn,
+.settings-icon {
+  text-decoration: none;
+  color: inherit;
 }
 
 /* ========== TOPBAR (centred nav + hover border anim) ========== */
@@ -61,12 +68,12 @@ body {
   color: var(--fg);
 }
 
+/* BELANGRIJK: alleen hoofdmenu is flex, dropdowns NIET */
 .mainnav {
   display: flex;
   justify-content: center;
 }
 
-/* Alleen de EERSTE ul (hoofdnavigatie) is flex */
 .mainnav>ul {
   display: flex;
   gap: 1rem;
@@ -74,7 +81,6 @@ body {
   margin: 0;
   padding: 0;
 }
-
 
 .menu-link {
   position: relative;
@@ -103,15 +109,11 @@ body {
   z-index: 1300;
 }
 
-.has-submenu:hover .submenu {
-  display: block;
-}
-
 .submenu li {
   display: block;
 }
 
-/* verticaal */
+/* verticaal stapelen */
 .submenu a {
   display: block;
   padding: .4rem .75rem;
@@ -119,7 +121,11 @@ body {
   text-decoration: none;
 }
 
-/* hover “loading square” */
+.has-submenu:hover .submenu {
+  display: block;
+}
+
+/* hover “ladend vierkantje” */
 .menu-link::after {
   content: "";
   position: absolute;
@@ -156,21 +162,6 @@ body {
   }
 }
 
-/* Alle icon-links zonder underline */
-a,
-a:visited,
-a:hover,
-a:active {
-  text-decoration: none;
-}
-
-/* Specifiek voor het instellingen-icoon */
-.settings-icon {
-  text-decoration: none;
-  color: inherit;
-  /* behoudt de tekstkleur van de omgeving */
-}
-
 /* ========== LAYOUT ========== */
 #app {
   padding: 1rem;
@@ -179,6 +170,7 @@ a:active {
 .page {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
+  /* content | rechterkolom */
   gap: 1rem;
   align-items: start;
   padding: 1rem 0;
@@ -210,8 +202,7 @@ a:active {
   }
 }
 
-/* ========== MODE SWITCH ========== */
-/* MODE SWITCH – icon only */
+/* ========== MODE SWITCH – icon only (index + settings) ========== */
 .mode-toggle {
   margin: .75rem 0;
 }
@@ -220,20 +211,15 @@ a:active {
   display: none;
 }
 
-/* afmetingen aanpasbaar met vars */
+/* basis */
 .switch.icon-only {
   --w: 88px;
-  /* totale breedte */
   --h: 36px;
-  /* hoogte */
   --pad: 4px;
-  /* binnenmarge van de rail */
   --knob: 28px;
-  /* diameter van de knop */
   position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  /* 2 vakken voor iconen */
   align-items: center;
   justify-items: center;
   width: var(--w);
@@ -244,24 +230,23 @@ a:active {
   user-select: none;
 }
 
+:root[data-theme="dark"] .switch.icon-only {
+  background: #1f2937;
+  outline-color: #334155;
+}
+
 .switch.icon-only .knob {
   position: absolute;
   top: var(--pad);
   left: var(--pad);
   width: var(--knob);
-  height: var(--knob);
+  height: calc(var(--h) - var(--pad)*2);
   background: #fff;
   border-radius: 999px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
   transition: transform .18s ease;
 }
 
-/* Verplaats knop helemaal naar rechts */
-#modeSwitch:checked+.switch.icon-only .knob {
-  transform: translateX(calc(var(--w) - var(--pad)*2 - var(--knob)));
-}
-
-/* iconen */
 .switch.icon-only .icon {
   line-height: 1;
   font-size: 16px;
@@ -269,39 +254,55 @@ a:active {
   transition: opacity .15s ease;
 }
 
-/* highlight actief icoon */
-#modeSwitch:not(:checked)+.switch.icon-only .icon-work {
+/* schuiven + actief icoon voor index EN settings */
+#modeSwitch:checked+.switch.icon-only .knob,
+#modeSwitchSettings:checked+.switch.icon-only .knob {
+  transform: translateX(calc(var(--w) - var(--pad)*2 - var(--knob)));
+}
+
+#modeSwitch:not(:checked)+.switch.icon-only .icon-work,
+#modeSwitchSettings:not(:checked)+.switch.icon-only .icon-work {
   opacity: 1;
 }
 
-#modeSwitch:checked+.switch.icon-only .icon-prive {
+#modeSwitch:checked+.switch.icon-only .icon-prive,
+#modeSwitchSettings:checked+.switch.icon-only .icon-prive {
   opacity: 1;
 }
 
-/* dark mode track iets donkerder */
-:root[data-theme="dark"] .switch.icon-only {
-  background: #1f2937;
-  outline-color: #334155;
-}
-
-/* ========== POST-ITS + DETAIL ========== */
+/* ========== POST-ITS (4 kolommen + responsive) ========== */
 .postits-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  /* 4 even brede kolommen */
   gap: 1.2rem;
   align-items: start;
 }
 
-.postit {
+@media (max-width: 1400px) {
+  .postits-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
 
+@media (max-width: 1050px) {
+  .postits-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .postits-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.postit {
   width: 100%;
   padding: 1rem;
   border-radius: .75rem;
   color: #111;
   box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
   min-height: 140px;
-  /* optioneel */
 }
 
 .postit strong {
@@ -309,6 +310,7 @@ a:active {
   margin-bottom: .5rem;
 }
 
+/* Detailpaneel */
 .detail-panel {
   min-width: 320px;
   max-width: 380px;
@@ -374,7 +376,7 @@ textarea {
   margin: .25rem 0;
 }
 
-/* ========== DRAWER + BACKDROP ========== */
+/* ========== DRAWER (zijmenu) + BACKDROP ========== */
 .sidemenu {
   position: fixed;
   inset: 0 auto 0 0;
@@ -408,61 +410,18 @@ textarea {
   pointer-events: all;
 }
 
-.sidemenu-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: .75rem;
-}
-
+/* zijmenu: geen bullets, alles gecentreerd, accordion */
 .sidemenu-section h4 {
-  margin: .5rem 0;
+  margin: .6rem 0;
+  cursor: pointer;
+  text-align: center;
+  display: block;
 }
 
-.sidemenu-section ul {
-  margin: 0;
-  padding-left: 1rem;
-}
-
-/* basisstijl voor lijsten in de drawer */
 .sidemenu-section ul {
   list-style: none;
-  padding-left: 0;
+  padding: 0;
   margin: 0;
-}
-
-.sidemenu-section a {
-  text-decoration: none;
-  color: var(--fg);
-}
-
-.sidemenu-section a:hover {
-  opacity: .85;
-  text-decoration: none;
-}
-
-/* accordion gedrag (klik op h4) */
-.sidemenu-section h4 {
-  margin: .5rem 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-}
-
-.sidemenu-section h4::after {
-  content: "▸";
-  margin-left: auto;
-  opacity: .6;
-  transition: transform .2s;
-}
-
-.sidemenu-section.open h4::after {
-  transform: rotate(90deg);
-}
-
-/* standaard dicht, open via .open op de sectie */
-.sidemenu-section ul {
   display: none;
 }
 
@@ -470,51 +429,41 @@ textarea {
   display: block;
 }
 
-.sidebar {
-  width: 250px;
-  background-color: var(--sidebar-bg, #fff);
-  padding: 10px;
-}
-
-.menu-title {
-  font-weight: bold;
+.sidemenu-section ul li {
   text-align: center;
-  cursor: pointer;
-  padding: 8px 0;
-  border-bottom: 1px solid #ddd;
 }
 
-.submenu {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: none;
-  /* standaard dicht */
-}
-
-.submenu li {
-  text-align: center;
-  padding: 5px 0;
-}
-
-.submenu a {
+.sidemenu-section a {
   text-decoration: none;
-  color: inherit;
+  color: var(--fg);
 }
 
-.submenu a:hover {
-  text-decoration: underline;
+/* optioneel pijltje rechts van title */
+.sidemenu-section h4::after {
+  content: "▸";
+  margin-left: .4rem;
+  opacity: .6;
+  display: inline-block;
+  transition: transform .2s ease;
 }
 
-/* --- Settings layout centreren --- */
+.sidemenu-section.open h4::after {
+  transform: rotate(90deg);
+}
+
+/* ========== SETTINGS-PAGINA ========== */
 .settings-page .content {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  /* centreren */
 }
 
 .settings-page .card {
   width: 50%;
   min-width: 420px;
-  /* voorkom super smal */
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .settings-page .card h2 {
@@ -528,7 +477,23 @@ textarea {
   margin-bottom: .75rem;
 }
 
-/* Mobiel: cards gewoon 100% */
+/* “Categorieën” – invoervelden even breed */
+.settings-page #catName {
+  max-width: 260px;
+}
+
+.settings-page #catType {
+  width: 260px;
+  max-width: 260px;
+}
+
+/* “Post-its per modus” – label op 1 lijn houden */
+#modeSlots>div span:first-child {
+  white-space: nowrap;
+  min-width: 90px;
+  display: inline-block;
+}
+
 @media (max-width: 900px) {
   .settings-page .card {
     width: 100%;
