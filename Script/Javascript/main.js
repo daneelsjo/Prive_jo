@@ -409,3 +409,32 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+function openTaskDetail(todo) {
+  document.getElementById("taskDetailTitle").innerText = todo.name;
+
+  document.getElementById("taskDetailContent").innerHTML = `
+    <label>Start</label>
+    <input id="editStart" type="date" value="${todo.start || ""}">
+    <label>Einde</label>
+    <input id="editEnd" type="date" value="${todo.end || ""}">
+    <label>Categorie</label>
+    <input id="editCategory" value="${todo.category || ""}">
+    <label>Omschrijving</label>
+    <textarea id="editDesc">${todo.description || ""}</textarea>
+    <label>Link</label>
+    <input id="editLink" value="${todo.link || ""}">
+  `;
+
+  document.getElementById("taskDetailActions").innerHTML = `
+    <button class="primary" onclick="saveTask('${todo.id}')">💾 Opslaan</button>
+    <button class="primary" onclick="completeTask('${todo.id}')">✅ Voltooid</button>
+    <button class="primary" onclick="deleteTask('${todo.id}')">🗑️ Verwijderen</button>
+  `;
+
+  document.getElementById("taskDetailOverlay").style.display = "flex";
+}
+
+function closeTaskDetail() {
+  document.getElementById("taskDetailOverlay").style.display = "none";
+}

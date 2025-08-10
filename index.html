@@ -59,10 +59,16 @@
       </aside>
     </div>
   </div>
-  <div id="taskModalBackdrop" class="task-modal-backdrop"></div>
-  <div id="taskModal" class="task-modal">
-    <div class="panel" id="taskModalPanel"></div>
+  <!-- Overlay voor taakdetail -->
+  <div id="taskDetailOverlay" style="display:none;">
+    <div id="taskDetailPanel">
+      <button id="taskDetailClose" onclick="closeTaskDetail()">❌</button>
+      <h3 id="taskDetailTitle"></h3>
+      <div id="taskDetailContent"></div>
+      <div id="taskDetailActions"></div>
+    </div>
   </div>
+
 
   <!-- Verwijder Taak Modal -->
   <div id="confirmDeleteModal" class="modal" style="display:none;">
