@@ -45,6 +45,8 @@ const postits = document.getElementById("postits");
 const uncategorizedList = document.getElementById("uncategorized-list");
 
 const modeSwitchEl = document.getElementById("modeSwitch");
+const priorityInput = document.getElementById("priority");
+
 
 /* Modal (dynamisch aangemaakt) */
 let _modalBackdrop = null;
@@ -131,6 +133,7 @@ addTodoBtn && (addTodoBtn.onclick = async () => {
   const categoryRaw = (categoryInput.value || "").trim();
   const description = (descInput.value || "").trim();
   const link = (linkInput.value || "").trim();
+  const prio = parseInt(priorityInput?.value || "0", 10);
   if (!name) return alert("Vul een taaknaam in.");
 
   const { categoryId, categoryName } = parseCategoryInput(categoryRaw);
@@ -140,6 +143,7 @@ addTodoBtn && (addTodoBtn.onclick = async () => {
     categoryId,               // id als 'Naam (type)' gekozen werd
     category: categoryName,   // naam (ook voor vrije tekst)
     description, link,
+    prio,
     done: false
   });
 
@@ -167,6 +171,26 @@ async function loadSettings() {
 }
 
 /* ---------- RENDER ---------- */
+function prioColor(p) {
+  const n = Number(p);
+  if (n === 1) return "#ef4444";   // rood
+  if (n === 2) return "#f59e0b";   // oranje
+  if (n === 3) return "#10b981";   // groen
+  return "#ffffff";                // wit (prio 0)
+}
+
+function sortTodosForDisplay(list) {
+  const order = { 1: 0, 2: 1, 3: 2, 0: 3 };  // 1 → 2 → 3 → 0
+  list.sort((a, b) => {
+    const pa = order[(a.prio ?? 0)] ?? 3;
+    const pb = order[(b.prio ?? 0)] ?? 3;
+    if (pa !== pb) return pa - pb;
+    // daarna alfabetisch op naam
+    return (a.name || "").localeCompare(b.name || "");
+  });
+  return list;
+}
+
 function renderTodos() {
   if (!settings.modeSlots) settings.modeSlots = {};
   const slots = settings.modeSlots[currentMode] || [];
@@ -202,9 +226,10 @@ function renderTodos() {
     box.style.color = getContrast(color);
     box.innerHTML = `<strong>${escapeHtml(catDoc.name)}</strong>`;
 
-    (byCatId[slot.categoryId] || []).forEach(todo => {
+    sortTodosForDisplay(byCatId[slot.categoryId] || []).forEach(todo => {
       box.appendChild(buildTaskRow(todo));
     });
+
 
     postits.appendChild(box);
   }
@@ -219,25 +244,26 @@ function renderTodos() {
 
   if (uncategorizedList) {
     uncategorizedList.innerHTML = "";
-    rest.forEach(todo => uncategorizedList.appendChild(buildTaskRow(todo, true)));
+    sortTodosForDisplay(rest).forEach(todo => uncategorizedList.appendChild(buildTaskRow(todo, true)));
   }
+
 }
 
 
-/* ---- 1 taak-rij: checkbox links, compacte spacing ---- */
+/* ---- 1 taak-rij: prio-bolletje + tekst ---- */
 function buildTaskRow(todo, inRest = false) {
   const row = document.createElement("div");
   row.className = "task-row" + (todo.done ? " done" : "");
 
-  const cb = document.createElement("input");
-  cb.type = "checkbox";
-  cb.checked = !!todo.done;
+  // prio bolletje
+  const dot = document.createElement("span");
+  dot.className = "prio-dot";
+  const col = prioColor(todo.prio ?? 0);
+  dot.style.background = col;
+  // bij wit bolletje laten we de border zichtbaar; bij andere kleuren border transparanter
+  if ((todo.prio ?? 0) !== 0) dot.style.borderColor = "transparent";
 
-  cb.addEventListener("click", (e) => {
-    e.stopPropagation();
-    markDone(todo.id, !todo.done);
-  });
-
+  // tekst
   const text = document.createElement("span");
   text.className = "task-text";
   const dates = `(${todo.start || "?"} - ${todo.end || "?"})`;
@@ -250,14 +276,15 @@ function buildTaskRow(todo, inRest = false) {
     text.textContent = `${todo.name} ${dates}`;
   }
 
-  row.appendChild(cb);
+  row.appendChild(dot);
   row.appendChild(text);
 
-  // Klik op de rij (maar niet op de checkbox) opent detail
+  // klik op rij opent detail
   row.addEventListener("click", () => showTaskDetail(todo));
 
   return row;
 }
+
 
 
 /* ---------- MODAL helpers ---------- */
@@ -318,6 +345,13 @@ window.showTaskDetail = function (todo) {
   <input id="editStart" type="date" value="${todo.start || ""}">
   <label>Einde</label>
   <input id="editEnd" type="date" value="${todo.end || ""}">
+  <label>Prio</label>
+  <select id="editPrio">
+    <option value="0">PRIO 0</option>
+    <option value="1">PRIO 1</option>
+    <option value="2">PRIO 2</option>
+    <option value="3">PRIO 3</option>
+  </select>
   <label>Categorie</label>
   <input id="editCategory" list="categoryList" value="${escapeHtml(catDisplay)}">
   <label>Omschrijving</label>
@@ -325,6 +359,8 @@ window.showTaskDetail = function (todo) {
   <label>Link</label>
   <input id="editLink" value="${todo.link ? escapeHtml(todo.link) : ""}">
 `;
+  const prioSel = _modalCard.querySelector("#editPrio");
+  if (prioSel) prioSel.value = String(todo.prio ?? 0);
 
   // Datalist: toon ALLE opties bij focus  ⟵ NU STAAT DIT OP DE JUISTE PLEK
   const editCat = _modalCard.querySelector('#editCategory');
@@ -384,7 +420,8 @@ window.saveTask = async function (id) {
     categoryId,
     category: categoryName,
     description: (document.getElementById("editDesc")?.value || "").trim(),
-    link: (document.getElementById("editLink")?.value || "").trim()
+    link: (document.getElementById("editLink")?.value || "").trim(),
+    prio: parseInt(document.getElementById("editPrio")?.value || "0", 10)
   };
   await setDoc(doc(db, "todos", id), payload, { merge: true });
   closeModal();

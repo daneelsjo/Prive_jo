@@ -309,6 +309,25 @@ select {
   margin: .25rem 0;
 }
 
+/* prio-bolletje links */
+.prio-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 10px;
+  border: 1px solid rgba(0, 0, 0, .25);
+}
+
+:root[data-theme="dark"] .prio-dot {
+  border-color: rgba(255, 255, 255, .35);
+}
+
+/* iets minder ruimte nu er geen checkbox meer staat */
+.task-row {
+  gap: 8px;
+}
+
+
 /* ========== DRAWER (zijmenu) + BACKDROP ========== */
 .sidemenu {
   position: fixed;
