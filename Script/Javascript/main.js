@@ -221,8 +221,12 @@ window.showTaskDetail = function (todo) {
       <input id="editStart" type="date" value="${todo.start || ""}">
       <label>Einde</label>
       <input id="editEnd" type="date" value="${todo.end || ""}">
-      <label>Categorie (tekst)</label>
-      <input id="editCategory" value="${todo.category || ""}">
+      <label>Categorie</label>
+<input id="editCategory" list="categoryList" value="${todo.category || ""}">
+<datalist id="categoryList">
+  ${categories.map(c => `<option value="${c.name} (${c.type})">`).join("")}
+</datalist>
+
       <label>Omschrijving</label>
       <textarea id="editDesc">${todo.description || ""}</textarea>
       <label>Link</label>
@@ -239,12 +243,17 @@ window.saveTask = async function (id) {
   const payload = {
     start: document.getElementById("editStart").value,
     end: document.getElementById("editEnd").value,
-    category: document.getElementById("editCategory").value.trim(),
-    description: document.getElementById("editDesc").value.trim(),
+    let editCategoryVal = document.getElementById("editCategory").value.trim();
+    if(editCategoryVal.includes("(")) {
+      editCategoryVal = editCategoryVal.split("(")[0].trim();
+}
+category: editCategoryVal,
+
+  description: document.getElementById("editDesc").value.trim(),
     link: document.getElementById("editLink").value.trim()
   };
-  await setDoc(doc(db, "todos", id), payload, { merge: true });
-  closeTaskDetail();
+await setDoc(doc(db, "todos", id), payload, { merge: true });
+closeTaskDetail();
 };
 
 window.closeTaskDetail = function () {
