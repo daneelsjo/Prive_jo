@@ -196,6 +196,7 @@ body {
 }
 
 /* ========== MODE SWITCH ========== */
+/* MODE SWITCH – icon only */
 .mode-toggle {
   margin: .75rem 0;
 }
@@ -204,43 +205,68 @@ body {
   display: none;
 }
 
-.switch {
-  --w: 180px;
+/* afmetingen aanpasbaar met vars */
+.switch.icon-only {
+  --w: 88px;
+  /* totale breedte */
   --h: 36px;
-  --pad: 6px;
-  --knob: 64px;
+  /* hoogte */
+  --pad: 4px;
+  /* binnenmarge van de rail */
+  --knob: 28px;
+  /* diameter van de knop */
   position: relative;
-  display: inline-grid;
+  display: grid;
   grid-template-columns: 1fr 1fr;
+  /* 2 vakken voor iconen */
+  align-items: center;
+  justify-items: center;
   width: var(--w);
   height: var(--h);
   background: #f3f4f6;
   border-radius: 999px;
   outline: 1px solid var(--border);
+  user-select: none;
 }
 
-.switch .knob {
+.switch.icon-only .knob {
   position: absolute;
   top: var(--pad);
   left: var(--pad);
   width: var(--knob);
-  height: calc(var(--h) - var(--pad)*2);
+  height: var(--knob);
   background: #fff;
   border-radius: 999px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
-  transition: transform .2s ease;
+  transition: transform .18s ease;
 }
 
-#modeSwitch:checked+.switch .knob {
-  transform: translateX(calc(100% + var(--pad)));
+/* Verplaats knop helemaal naar rechts */
+#modeSwitch:checked+.switch.icon-only .knob {
+  transform: translateX(calc(var(--w) - var(--pad)*2 - var(--knob)));
 }
 
-.switch .label {
-  text-align: center;
-  font-size: .9rem;
-  color: var(--fg);
-  user-select: none;
-  pointer-events: none;
+/* iconen */
+.switch.icon-only .icon {
+  line-height: 1;
+  font-size: 16px;
+  opacity: .55;
+  transition: opacity .15s ease;
+}
+
+/* highlight actief icoon */
+#modeSwitch:not(:checked)+.switch.icon-only .icon-work {
+  opacity: 1;
+}
+
+#modeSwitch:checked+.switch.icon-only .icon-prive {
+  opacity: 1;
+}
+
+/* dark mode track iets donkerder */
+:root[data-theme="dark"] .switch.icon-only {
+  background: #1f2937;
+  outline-color: #334155;
 }
 
 /* ========== POST-ITS + DETAIL ========== */
