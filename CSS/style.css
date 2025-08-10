@@ -1,255 +1,147 @@
-/* Topbar */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
-  padding: .5rem 1rem;
-}
-
-.icon-btn {
-  background: transparent;
-  border: 0;
-  font-size: 1.25rem;
-  cursor: pointer;
-}
-
-.mainnav ul {
-  display: flex;
-  gap: 1rem;
-  list-style: none;
+/* Algemene layout */
+body {
+  font-family: Arial, sans-serif;
   margin: 0;
   padding: 0;
+  background: var(--bg, #f0f0f0);
+  color: var(--fg, #000);
 }
 
-.mainnav a {
-  text-decoration: none;
-  color: #111;
-  padding: .4rem .6rem;
-  border-radius: .4rem;
+#auth {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
 }
 
-.mainnav .has-submenu {
-  position: relative;
-}
-
-.mainnav .submenu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  min-width: 180px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: .5rem;
-  padding: .4rem 0;
-  display: none;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, .08);
-}
-
-.mainnav .submenu li {
-  list-style: none;
-}
-
-.mainnav .submenu a {
-  display: block;
-  padding: .4rem .75rem;
-  color: #111;
-}
-
-.mainnav .has-submenu:hover .submenu {
-  display: block;
-}
-
-/* Zijmenu (drawer) + backdrop */
-.sidemenu {
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: 300px;
-  background: #fff;
-  transform: translateX(-100%);
-  transition: transform .25s ease;
-  z-index: 60;
-  border-right: 1px solid #e5e7eb;
+#app {
   padding: 1rem;
 }
 
-.sidemenu.open {
-  transform: translateX(0);
-}
-
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, .2);
-  opacity: 0;
-  pointer-events: none;
-  transition: .2s;
-  z-index: 55;
-}
-
-.backdrop.open {
-  opacity: 1;
-  pointer-events: all;
-}
-
-.sidemenu-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: .75rem;
-}
-
-.sidemenu-section h4 {
-  margin: .5rem 0;
-}
-
-.sidemenu-section ul {
-  margin: 0;
-  padding-left: 1rem;
-}
-
-/* Pagina layout */
-.page {
-  display: grid;
-  grid-template-columns: 1fr 330px;
-  gap: 1rem;
-  align-items: start;
-  padding: 1rem;
-}
-
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.rightcol {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-/* Mode switch */
-.mode-switch {
-  display: flex;
-  gap: .5rem;
-  align-items: center;
-}
-
-.mode-switch .chip {
-  display: inline-block;
-  background: #f3f4f6;
-  padding: .25rem .6rem;
-  border-radius: 999px;
+button {
   cursor: pointer;
 }
 
-.mode-switch input[type="radio"] {
-  margin-right: .35rem;
+/* Nieuwe taak formulier */
+#formContainer {
+  display: none;
+  background: var(--bg, #fff);
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .1);
+  margin-top: 1rem;
 }
 
-/* Post-its + detailpaneel */
-.postits-row {
-  display: flex;
+#formContainer input,
+#formContainer textarea,
+#formContainer select {
+  width: 100%;
+  padding: .5rem;
+  margin-bottom: .5rem;
+}
+
+/* Post-it layout */
+#postits {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1rem;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: .25rem;
+  margin-top: 1rem;
 }
 
 .postit {
-  min-width: 240px;
-  max-width: 260px;
-  padding: 1rem;
-  border-radius: .75rem;
-  color: #111;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
-  flex-shrink: 0;
+  padding: 0.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, .2);
+  min-height: 150px;
 }
 
-.detail-panel {
-  min-width: 320px;
-  max-width: 380px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: .75rem;
-  padding: 1rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+.postit strong {
+  display: block;
+  margin-bottom: .5rem;
 }
 
-/* Cards, knoppen, inputs */
-.card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: .75rem;
-  padding: 1rem;
-}
-
-.primary {
-  background: #2563eb;
-  color: #fff;
-  border: 0;
-  padding: .6rem .9rem;
-  border-radius: .6rem;
-  cursor: pointer;
-}
-
-.primary:hover {
-  background: #1d4ed8;
-}
-
-input,
-textarea,
-select {
-  width: 100%;
-  max-width: 100%;
-  padding: .5rem .6rem;
-  border: 1px solid #e5e7eb;
-  border-radius: .5rem;
-}
-
-textarea {
-  min-height: 100px;
-}
-
-/* Overige taken */
-#uncategorized-list>div {
-  border-bottom: 1px solid #eee;
-  padding: .4rem 0;
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-}
-
-/* Done checkbox links */
+/* Taken in post-its */
 .task-row {
   display: flex;
   align-items: center;
   gap: .5rem;
+  padding: .2rem 0;
   cursor: pointer;
 }
 
-.task-row .task-text {
-  flex: 1 1 auto;
-}
-
-.task-row.done .task-text {
+.task-row.done {
   text-decoration: line-through;
-  opacity: .6;
+  opacity: 0.6;
 }
 
-@media (max-width: 980px) {
-  .page {
-    grid-template-columns: 1fr;
+.task-text {
+  flex: 1;
+}
+
+/* Overige taken lijst */
+#uncategorized-list {
+  margin-top: 1rem;
+}
+
+#uncategorized-list .task-row {
+  background: var(--bg2, #fafafa);
+  padding: .3rem;
+  border-radius: 4px;
+  margin-bottom: .3rem;
+}
+
+/* Detailpaneel links */
+#taskDetailPanel {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 300px;
+  height: 100%;
+  background: var(--bg, #fff);
+  border-right: 2px solid #ccc;
+  padding: 1rem;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, .2);
+  overflow-y: auto;
+  z-index: 100;
+}
+
+/* Knoppen */
+button {
+  padding: .5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #2196F3;
+  color: white;
+  font-weight: bold;
+}
+
+button:hover {
+  background: #1976D2;
+}
+
+/* Donkere modus variabelen */
+@media (prefers-color-scheme: dark) {
+  body {
+    --bg: #121212;
+    --bg2: #1e1e1e;
+    --fg: #fff;
   }
 
-  .detail-panel {
-    order: 2;
-    width: 100%;
-    max-width: 100%;
+  .postit {
+    box-shadow: 0 4px 6px rgba(255, 255, 255, .1);
+  }
+
+  #formContainer {
+    background: var(--bg2);
+  }
+
+  #taskDetailPanel {
+    background: var(--bg2);
+    color: var(--fg);
+  }
+
+  #uncategorized-list .task-row {
+    background: var(--bg2);
   }
 }
