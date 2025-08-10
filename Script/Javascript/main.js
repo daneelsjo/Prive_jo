@@ -224,13 +224,17 @@ function renderTodos() {
 }
 
 /* ---- 1 taak-rij: checkbox links, compacte spacing ---- */
+/* ---- 1 taak-rij: checkbox links, compacte spacing ---- */
 function buildTaskRow(todo, inRest = false) {
-  const row = document.createElement("label");
+  // Gebruik DIV i.p.v. LABEL, anders toggelt checkbox bij klik op tekst
+  const row = document.createElement("div");
   row.className = "task-row" + (todo.done ? " done" : "");
 
   const cb = document.createElement("input");
   cb.type = "checkbox";
   cb.checked = !!todo.done;
+
+  // Klik op checkbox = done togglen, maar niet de rij-klik doorgeven
   cb.addEventListener("click", (e) => {
     e.stopPropagation();
     markDone(todo.id, !todo.done);
@@ -251,12 +255,12 @@ function buildTaskRow(todo, inRest = false) {
   row.appendChild(cb);
   row.appendChild(text);
 
-  row.addEventListener("click", (e) => {
-    if (e.target !== cb) showTaskDetail(todo);
-  });
+  // Klik op de rij (maar niet op de checkbox) opent detail
+  row.addEventListener("click", () => showTaskDetail(todo));
 
   return row;
 }
+
 
 /* ---------- MODAL helpers ---------- */
 function ensureModal() {

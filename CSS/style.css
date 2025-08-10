@@ -646,3 +646,10 @@ select {
     clip-path: inset(0 100% 100% 0)
   }
 }
+
+/* labels in post‑it slots op 1 lijn houden */
+#modeSlots>div span:first-child {
+  white-space: nowrap;
+  min-width: 90px;
+  display: inline-block;
+}
