@@ -299,35 +299,6 @@ window.showTaskDetail = function (todo) {
 
   const titleEl = _modalCard.querySelector("#modalTitle");
   const bodyEl = _modalCard.querySelector("#modalBody");
-  // Datalist: toon ALLE opties bij focus
-  const editCat = _modalCard.querySelector('#editCategory');
-  if (editCat) {
-    editCat.setAttribute('autocomplete', 'off');   // voorkomt autofill-storing
-    editCat.placeholder = "Kies of typ...";
-
-    editCat.addEventListener('focus', () => {
-      // onthoud huidige waarde en leeg het veld → datalist toont alles
-      editCat.dataset.prev = editCat.value;
-      editCat.value = "";
-      // trigger 'input' zodat sommige browsers meteen refreshen
-      editCat.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-
-    editCat.addEventListener('blur', () => {
-      // als niets gekozen/ingetikt → zet oude waarde terug
-      if (!editCat.value && editCat.dataset.prev) {
-        editCat.value = editCat.dataset.prev;
-      }
-    });
-
-    // Tip: pijl-omlaag opent de lijst expliciet
-    editCat.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowDown' && editCat.showPicker) {
-        // sommige browsers ondersteunen showPicker()
-        editCat.showPicker();
-      }
-    });
-  }
 
   const footEl = _modalCard.querySelector("#modalFooter");
 
@@ -341,19 +312,44 @@ window.showTaskDetail = function (todo) {
     if (cat) catDisplay = `${cat.name} (${cat.type})`;
   }
 
-  // Body
+  // Body (laat eerst de inputs renderen)
   bodyEl.innerHTML = `
-    <label>Start</label>
-    <input id="editStart" type="date" value="${todo.start || ""}">
-    <label>Einde</label>
-    <input id="editEnd" type="date" value="${todo.end || ""}">
-    <label>Categorie</label>
-    <input id="editCategory" list="categoryList" value="${escapeHtml(catDisplay)}">
-    <label>Omschrijving</label>
-    <textarea id="editDesc">${todo.description ? escapeHtml(todo.description) : ""}</textarea>
-    <label>Link</label>
-    <input id="editLink" value="${todo.link ? escapeHtml(todo.link) : ""}">
-  `;
+  <label>Start</label>
+  <input id="editStart" type="date" value="${todo.start || ""}">
+  <label>Einde</label>
+  <input id="editEnd" type="date" value="${todo.end || ""}">
+  <label>Categorie</label>
+  <input id="editCategory" list="categoryList" value="${escapeHtml(catDisplay)}">
+  <label>Omschrijving</label>
+  <textarea id="editDesc">${todo.description ? escapeHtml(todo.description) : ""}</textarea>
+  <label>Link</label>
+  <input id="editLink" value="${todo.link ? escapeHtml(todo.link) : ""}">
+`;
+
+  // Datalist: toon ALLE opties bij focus  ⟵ NU STAAT DIT OP DE JUISTE PLEK
+  const editCat = _modalCard.querySelector('#editCategory');
+  if (editCat) {
+    editCat.setAttribute('autocomplete', 'off');
+    editCat.placeholder = "Kies of typ...";
+
+    editCat.addEventListener('focus', () => {
+      editCat.dataset.prev = editCat.value;
+      editCat.value = "";
+      editCat.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    editCat.addEventListener('blur', () => {
+      if (!editCat.value && editCat.dataset.prev) {
+        editCat.value = editCat.dataset.prev;
+      }
+    });
+
+    editCat.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' && editCat.showPicker) {
+        editCat.showPicker();
+      }
+    });
+  }
 
   // Footer knoppen
   footEl.innerHTML = "";
