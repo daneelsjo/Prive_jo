@@ -109,7 +109,6 @@ a {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-width: 0;
 }
 
 .rightcol {
@@ -207,12 +206,13 @@ a {
 }
 
 .postits-row {
+  flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
+  /* vaste 3 kolommen */
+  grid-template-rows: repeat(2, 1fr);
+  /* vaste 2 rijen */
   gap: 1.2rem;
-  align-items: stretch;
-  /* items rekken mee in de rij */
-  max-width: 100%;
 }
 
 @media (max-width: 900px) {
@@ -226,7 +226,7 @@ a {
 @media (max-width: 600px) {
   .postits-row {
     grid-template-columns: 1fr;
-    grid-template-rows: repeat(3, 1fr);
+    grid-template-rows: repeat(6, 1fr);
   }
 }
 
@@ -237,22 +237,11 @@ a {
   color: #111;
   box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
 }
 
 .postit strong {
   display: block;
   margin-bottom: .5rem;
-}
-
-/* Als we >3 post-its tonen: 2 even hoge rijen uitspreiden */
-.postits-row.two-rows {
-  grid-template-rows: repeat(2, 1fr);
-  /* 2 rijen, even hoog */
-  min-height: calc(100vh - 220px);
-  /* ruimte om te verdelen (pas aan indien nood) */
 }
 
 /* ========== FORMS & BUTTONS ========== */
@@ -289,7 +278,7 @@ select {
 /* ========== TASK ROWS ========== */
 .task-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
   cursor: pointer;
   padding: .2rem 0;
