@@ -289,7 +289,7 @@ select {
 /* ========== TASK ROWS ========== */
 .task-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   cursor: pointer;
   padding: .2rem 0;

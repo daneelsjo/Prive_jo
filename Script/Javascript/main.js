@@ -255,36 +255,40 @@ function buildTaskRow(todo, inRest = false) {
   const row = document.createElement("div");
   row.className = "task-row" + (todo.done ? " done" : "");
 
-  // prio bolletje
-  const dot = document.createElement("span");
-  dot.className = "prio-dot";
-  const col = prioColor(todo.prio ?? 0);
-  dot.style.background = col;
-  // bij wit bolletje laten we de border zichtbaar; bij andere kleuren border transparanter
-  if ((todo.prio ?? 0) !== 0) dot.style.borderColor = "transparent";
+  // Prio bolletje
+  const prioDot = document.createElement("span");
+  prioDot.className = "prio-dot";
+  prioDot.style.backgroundColor = getPrioColor(todo.prio || 0);
 
-  // tekst
-  const text = document.createElement("span");
-  text.className = "task-text";
-  const dates = `(${todo.start || "?"} - ${todo.end || "?"})`;
+  // Tekstblok
+  const textWrap = document.createElement("div");
+  textWrap.className = "task-text-wrap";
 
+  const title = document.createElement("div");
+  title.className = "task-title";
   if (inRest) {
     const c = categories.find(x => x.id === todo.categoryId);
     const catName = c ? c.name : "geen";
-    text.innerHTML = `${escapeHtml(todo.name)} ${dates} <small style="opacity:.7">(${escapeHtml(catName)})</small>`;
+    title.innerHTML = `${escapeHtml(todo.name)} <small style="opacity:.7">(${escapeHtml(catName)})</small>`;
   } else {
-    text.textContent = `${todo.name} ${dates}`;
+    title.textContent = todo.name;
   }
 
-  row.appendChild(dot);
-  row.appendChild(text);
+  const dateLine = document.createElement("div");
+  dateLine.className = "task-date";
+  dateLine.textContent = `${todo.start || "?"} - ${todo.end || "?"}`;
 
-  // klik op rij opent detail
+  textWrap.appendChild(title);
+  textWrap.appendChild(dateLine);
+
+  row.appendChild(prioDot);
+  row.appendChild(textWrap);
+
+  // Klik op de rij opent detail
   row.addEventListener("click", () => showTaskDetail(todo));
 
   return row;
 }
-
 
 
 /* ---------- MODAL helpers ---------- */
