@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notities</title>
+    <link rel="stylesheet" href="CSS/style.css" />
+</head>
+
+<body>
+    <!-- AUTH -->
+    <div id="auth">
+        <button id="login-btn">🔐 Inloggen met Google</button>
+    </div>
+
+    <!-- gedeelde header (hamburger + topmenu) -->
+    <div data-include="partials/header.html"></div>
+
+    <!-- APP -->
+    <div id="app" style="display:none;">
+        <div class="page">
+            <main class="content">
+                <div class="card" style="display:flex; align-items:center; justify-content:space-between;">
+                    <h2 style="margin:0;">Notities</h2>
+                    <button id="newNoteBtn" class="primary">＋ NIEUW</button>
+                </div>
+
+                <div class="card">
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 220px;">Tijdstip</th>
+                                    <th>Titel</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+
+            <aside class="rightcol"><!-- leeg op deze pagina --></aside>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="Script/Javascript/menu.js"></script>
+    <script src="Script/Javascript/include-partials.js"></script>
+    <script type="module" src="Script/Javascript/notes.js"></script>
+
+    <!-- Kleine tabel-styles (optioneel, of zet in jouw CSS/style.css) -->
+    <style>
+        .table-wrap {
+            width: 100%;
+            overflow: auto;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            border-bottom: 1px solid var(--border);
+            padding: .6rem .5rem;
+        }
+
+        .table tbody tr {
+            cursor: pointer;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(0, 0, 0, .04);
+        }
+
+        :root[data-theme="dark"] .table tbody tr:hover {
+            background: rgba(255, 255, 255, .06);
+        }
+    </style>
+</body>
+
+</html>
