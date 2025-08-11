@@ -182,13 +182,6 @@ async function loadSettings() {
 }
 
 /* ---------- RENDER ---------- */
-function prioColor(p) {
-  const n = Number(p);
-  if (n === 1) return "#ef4444";   // rood
-  if (n === 2) return "#f59e0b";   // oranje
-  if (n === 3) return "#10b981";   // groen
-  return "#ffffff";                // wit (prio 0)
-}
 
 function sortTodosForDisplay(list) {
   const order = { 1: 0, 2: 1, 3: 2, 0: 3 };  // 1 → 2 → 3 → 0
