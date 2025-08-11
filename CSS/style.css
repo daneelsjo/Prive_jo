@@ -453,21 +453,9 @@ select {
 }
 
 /* ========== MODAL (centrale card boven overlay) ========== */
-.modal-body {
-  max-height: 200px;
-  /* vaste hoogte in px */
-  overflow-y: auto;
-}
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, .55);
-  z-index: 2000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .15s ease;
-}
+
+
 
 .modal-backdrop.open {
   opacity: 1;
