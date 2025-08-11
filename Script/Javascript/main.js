@@ -47,17 +47,16 @@ const uncategorizedList = document.getElementById("uncategorized-list");
 const modeSwitchEl = document.getElementById("modeSwitch");
 const priorityInput = document.getElementById("priority");
 
-// Sorteervolgorde en kleuren (1 → 2 → 3 → 0)
-const PRIO_ORDER = { 1: 0, 2: 1, 3: 2, 0: 3 };
-const PRIO_COLORS = {
-  0: "#ffffff", // wit
-  1: "#ef4444", // rood
-  2: "#f59e0b", // oranje
-  3: "#10b981"  // groen
-};
+function prioColor(p) {
+  const PRIO_COLORS = {
+    0: "#ffffff",
+    1: "#ef4444",
+    2: "#f59e0b",
+    3: "#10b981"
+  };
+  return PRIO_COLORS[p ?? 0] || "#ffffff";
+}
 
-function prioOrder(p) { return PRIO_ORDER[p ?? 0] ?? 3; }
-function prioColor(p) { return PRIO_COLORS[p ?? 0] || "#ffffff"; }
 
 /* Modal (dynamisch aangemaakt) */
 let _modalBackdrop = null;
