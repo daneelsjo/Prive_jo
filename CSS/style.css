@@ -213,6 +213,7 @@ a {
   grid-template-rows: repeat(2, 1fr);
   /* vaste 2 rijen */
   gap: 1.2rem;
+  align-items: stretch;
 }
 
 @media (max-width: 900px) {
@@ -242,6 +243,14 @@ a {
 .postit strong {
   display: block;
   margin-bottom: .5rem;
+}
+
+/* Als we >3 post-its tonen: 2 even hoge rijen uitspreiden */
+.postits-row.two-rows {
+  grid-template-rows: repeat(2, 1fr);
+  /* 2 rijen, even hoog */
+  min-height: calc(100vh - 220px);
+  /* ruimte om te verdelen (pas aan indien nood) */
 }
 
 /* ========== FORMS & BUTTONS ========== */
@@ -469,7 +478,7 @@ select {
   transform: translate(-50%, -50%);
   width: min(90vw, 50rem);
   /* ~50% breed */
-  max-height: 40vh;
+  height: min(90vh, 40rem);
   background: var(--card);
   color: var(--fg);
   border: 1px solid var(--border);
