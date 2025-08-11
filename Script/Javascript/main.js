@@ -47,6 +47,17 @@ const uncategorizedList = document.getElementById("uncategorized-list");
 const modeSwitchEl = document.getElementById("modeSwitch");
 const priorityInput = document.getElementById("priority");
 
+// Sorteervolgorde en kleuren (1 → 2 → 3 → 0)
+const PRIO_ORDER = { 1: 0, 2: 1, 3: 2, 0: 3 };
+const PRIO_COLORS = {
+  0: "#ffffff", // wit
+  1: "#ef4444", // rood
+  2: "#f59e0b", // oranje
+  3: "#10b981"  // groen
+};
+
+function prioOrder(p) { return PRIO_ORDER[p ?? 0] ?? 3; }
+function prioColor(p) { return PRIO_COLORS[p ?? 0] || "#ffffff"; }
 
 /* Modal (dynamisch aangemaakt) */
 let _modalBackdrop = null;
@@ -255,14 +266,14 @@ function buildTaskRow(todo, inRest = false) {
   const row = document.createElement("div");
   row.className = "task-row" + (todo.done ? " done" : "");
 
-  // Prio bolletje
-  const prioDot = document.createElement("span");
-  prioDot.className = "prio-dot";
-  prioDot.style.backgroundColor = getPrioColor(todo.prio || 0);
+  // prio-dot
+  const dot = document.createElement("span");
+  dot.className = "prio-dot";
+  dot.style.backgroundColor = prioColor(todo.priority || 0);  // <-- hier
 
-  // Tekstblok
-  const textWrap = document.createElement("div");
-  textWrap.className = "task-text-wrap";
+  // tekstwrap (titel + datum onder elkaar)
+  const wrap = document.createElement("div");
+  wrap.className = "task-text-wrap";
 
   const title = document.createElement("div");
   title.className = "task-title";
@@ -278,17 +289,16 @@ function buildTaskRow(todo, inRest = false) {
   dateLine.className = "task-date";
   dateLine.textContent = `${todo.start || "?"} - ${todo.end || "?"}`;
 
-  textWrap.appendChild(title);
-  textWrap.appendChild(dateLine);
+  wrap.appendChild(title);
+  wrap.appendChild(dateLine);
 
-  row.appendChild(prioDot);
-  row.appendChild(textWrap);
+  row.appendChild(dot);
+  row.appendChild(wrap);
 
-  // Klik op de rij opent detail
   row.addEventListener("click", () => showTaskDetail(todo));
-
   return row;
 }
+
 
 
 /* ---------- MODAL helpers ---------- */
