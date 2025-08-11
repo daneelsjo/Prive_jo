@@ -49,13 +49,14 @@ const priorityInput = document.getElementById("priority");
 
 function prioColor(p) {
   const PRIO_COLORS = {
-    0: "#ffffff",
-    1: "#ef4444",
-    2: "#f59e0b",
-    3: "#10b981"
+    0: "#ffffff", // wit
+    1: "#ef4444", // rood
+    2: "#f59e0b", // oranje
+    3: "#10b981"  // groen
   };
   return PRIO_COLORS[p ?? 0] || "#ffffff";
 }
+
 
 
 /* Modal (dynamisch aangemaakt) */
@@ -261,7 +262,7 @@ function buildTaskRow(todo, inRest = false) {
   // prio-dot
   const dot = document.createElement("span");
   dot.className = "prio-dot";
-  dot.style.backgroundColor = prioColor(todo.priority || 0);  // <-- hier
+  dot.style.backgroundColor = prioColor(todo.prio || 0);  // <-- hier
 
   // tekstwrap (titel + datum onder elkaar)
   const wrap = document.createElement("div");
