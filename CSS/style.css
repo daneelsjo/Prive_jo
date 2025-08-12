@@ -679,7 +679,7 @@ select {
   /* ruimte tussen iconen */
   align-items: center;
   /* verticaal centreren */
-  margin-left: auto;
+  margin-left: 2rem;
   /* duwt alles helemaal rechts */
 }
 
