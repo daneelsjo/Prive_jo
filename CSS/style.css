@@ -671,3 +671,24 @@ select {
   min-width: 90px;
   display: inline-block;
 }
+
+/* Container waarin de icon-knoppen zitten */
+.header-icons {
+  display: flex;
+  gap: 0.5rem;
+  /* ruimte tussen iconen */
+  align-items: center;
+  /* verticaal centreren */
+  margin-left: auto;
+  /* duwt alles helemaal rechts */
+}
+
+/* Zorgen dat de links netjes in de lijn blijven */
+.header-icons a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  /* grootte icoon */
+  text-decoration: none;
+}
