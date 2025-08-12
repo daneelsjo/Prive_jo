@@ -679,8 +679,9 @@ select {
   /* ruimte tussen iconen */
   align-items: center;
   /* verticaal centreren */
-  margin-left: 2rem;
+  margin-left: auto;
   /* duwt alles helemaal rechts */
+  padding-right: 1rem;
 }
 
 /* Zorgen dat de links netjes in de lijn blijven */
