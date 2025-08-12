@@ -1,0 +1,67 @@
+.sidemenu {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 300px;
+    background: var(--card);
+    color: var(--fg);
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    z-index: 1200;
+    border-right: 1px solid var(--border);
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.sidemenu.open {
+    transform: translateX(0);
+}
+
+.backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+    z-index: 1100;
+}
+
+.backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.sidemenu-section h4 {
+    margin: .6rem 0;
+    cursor: pointer;
+    text-align: center;
+    font-weight: 700;
+}
+
+.sidemenu-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: none;
+}
+
+.sidemenu-section.open ul {
+    display: block;
+}
+
+.sidemenu-section a {
+    text-decoration: none;
+    color: var(--fg);
+}
+
+.sidemenu-section h4::after {
+    content: "▸";
+    margin-left: .4rem;
+    opacity: .6;
+    display: inline-block;
+    transition: transform .2s ease;
+}
+
+.sidemenu-section.open h4::after {
+    transform: rotate(90deg);
+}

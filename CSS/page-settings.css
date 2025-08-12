@@ -1,0 +1,52 @@
+.settings-page .page {
+    grid-template-columns: 1fr;
+}
+
+.settings-page .rightcol {
+    display: none;
+}
+
+.settings-page .content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.settings-page .card {
+    width: min(50%, 820px);
+    min-width: 420px;
+    margin: 0 auto;
+}
+
+.settings-page .card h2 {
+    text-align: center;
+    margin-top: 0;
+}
+
+.settings-page .mode-toggle {
+    display: flex;
+    justify-content: center;
+    margin-bottom: .75rem;
+}
+
+.settings-page #catName {
+    max-width: 260px;
+}
+
+.settings-page #catType {
+    width: 260px;
+    max-width: 260px;
+}
+
+@media (max-width: 900px) {
+    .settings-page .card {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+#modeSlots>div span:first-child {
+    white-space: nowrap;
+    min-width: 90px;
+    display: inline-block;
+}

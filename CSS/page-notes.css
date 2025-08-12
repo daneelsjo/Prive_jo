@@ -1,0 +1,88 @@
+/* ===== NOTITIESPAGINA ===== */
+
+/* Pagina layout */
+.notes-page .page {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+}
+
+.notes-page .card {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Knop Nieuw */
+#addNoteBtn {
+    background: #2563eb;
+    color: #fff;
+    border: 0;
+    padding: .6rem 1rem;
+    border-radius: .6rem;
+    cursor: pointer;
+    margin-bottom: 1rem;
+}
+
+#addNoteBtn:hover {
+    background: #1d4ed8;
+}
+
+/* Tabelweergave voor notities */
+.notes-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.notes-table th,
+.notes-table td {
+    padding: 0.6rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+
+.notes-table th {
+    background: var(--card);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.notes-table tr:hover {
+    background: rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .notes-table tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Modal voor nieuwe/bewerkte notitie */
+#noteModal .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+#noteModal input,
+#noteModal textarea {
+    border: 1px solid var(--border);
+    border-radius: .5rem;
+    padding: .5rem .6rem;
+    background: var(--card);
+    color: var(--fg);
+}
+
+#noteModal textarea {
+    min-height: 200px;
+    resize: vertical;
+}
+
+/* Mobiel */
+@media (max-width: 600px) {
+
+    .notes-table th:nth-child(3),
+    .notes-table td:nth-child(3) {
+        display: none;
+        /* evt. inhoud kolom verbergen op kleine schermen */
+    }
+}

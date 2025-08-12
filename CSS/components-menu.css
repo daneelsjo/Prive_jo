@@ -1,0 +1,107 @@
+.mainnav {
+    display: flex;
+    justify-content: center;
+}
+
+.mainnav>ul {
+    display: flex;
+    gap: 1rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.menu-link {
+    position: relative;
+    display: inline-block;
+    padding: .35rem .6rem;
+    border-radius: .5rem;
+    text-decoration: none;
+    color: var(--fg);
+}
+
+.mainnav li {
+    position: relative;
+}
+
+.mainnav .submenu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    min-width: 180px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: .6rem;
+    box-shadow: var(--shadow);
+    padding: .4rem;
+    z-index: 1500;
+    list-style: none;
+    margin: 0;
+}
+
+.mainnav .submenu a {
+    display: block;
+    padding: .45rem .6rem;
+    border-radius: .4rem;
+    color: var(--fg);
+}
+
+.mainnav .submenu a:hover {
+    background: rgba(0, 0, 0, .06);
+}
+
+:root[data-theme="dark"] .mainnav .submenu a:hover {
+    background: rgba(255, 255, 255, .06);
+}
+
+.mainnav .has-submenu:hover>.submenu,
+.mainnav .has-submenu:focus-within>.submenu {
+    display: block;
+}
+
+/* Hover-animatie */
+.menu-link::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 8px;
+    padding: 2px;
+    background: conic-gradient(#2563eb 0 25%, transparent 0 100%);
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transform: scale(.96);
+}
+
+.menu-link:hover::before,
+.menu-link:focus-visible::before {
+    opacity: 1;
+    animation: spinBox 1s linear infinite;
+}
+
+@keyframes spinBox {
+    0% {
+        clip-path: inset(0 100% 100% 0)
+    }
+
+    25% {
+        clip-path: inset(0 0 100% 0)
+    }
+
+    50% {
+        clip-path: inset(0 0 0 0)
+    }
+
+    75% {
+        clip-path: inset(0 0 0 0)
+    }
+
+    100% {
+        clip-path: inset(0 100% 100% 0)
+    }
+}
