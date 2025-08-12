@@ -1,65 +1,47 @@
 // Script/Javascript/menu.js
-// Zorgt voor: drawer open/dicht, settings → terug op /HTML/settings.html,
-// accordion in zijmenu, init zowel direct als na include.
 
 (function () {
-    let inited = false;
+    const $ = (sel) => document.querySelector(sel);
+    const settingsLink = $("#settingsLink");
+    const notesLink = $("#notesLink");
+    if (!settingsLink || !notesLink) return;
 
-    window.initMenu = function () {
-        if (inited) return; // voorkom dubbele listeners als init 2x wordt geroepen
-        inited = true;
+    // ---------------- helpers ----------------
+    const path = location.pathname.toLowerCase();
 
-        const hamb = document.getElementById("hamburger");
-        const menu = document.getElementById("sideMenu");
-        const backdrop = document.getElementById("backdrop");
+    // Detecteer basispad (werkt ook op GitHub Pages)
+    const BASE = path.includes("/prive_jo/") ? "/Prive_jo/" : "/";
 
-        const openDrawer = () => { menu?.classList.add("open"); backdrop?.classList.add("open"); };
-        const closeDrawer = () => { menu?.classList.remove("open"); backdrop?.classList.remove("open"); };
-
-        hamb?.addEventListener("click", openDrawer);
-        backdrop?.addEventListener("click", closeDrawer);
-
-        // settings-icoon → terugpijl op settings pagina
-        const settingsLink = document.getElementById("settingsLink");
-        if (settingsLink) {
-            const onSettings = location.pathname.toLowerCase().includes("/html/settings");
-            if (onSettings) {
-                settingsLink.textContent = "⬅️";
-                settingsLink.title = "Terug naar overzicht";
-                settingsLink.href = "../index.html";
-            }
-        }
-
-        // Accordion (standaard: dicht, localStorage onthoudt 'open')
-        const sections = document.querySelectorAll(".sidemenu-section");
-        sections.forEach((sec, i) => {
-            const title = sec.querySelector("h4");
-            const key = "drawer_sec_" + i;
-            const state = localStorage.getItem(key);
-
-            if (state === "open") sec.classList.add("open");
-            else sec.classList.remove("open");
-
-            title?.addEventListener("click", () => {
-                sec.classList.toggle("open");
-                localStorage.setItem(key, sec.classList.contains("open") ? "open" : "closed");
-            });
-        });
-
-        // Klik op link in menu → sluit drawer
-        menu?.addEventListener("click", (e) => {
-            const a = e.target.closest("a");
-            if (a && a.getAttribute("href")) setTimeout(closeDrawer, 50);
-        });
+    const paths = {
+        main: BASE + "index.html",
+        settings: BASE + "HTML/settings.html",
+        notes: BASE + "HTML/notes.html",
     };
 
-    // Init direct als header al aanwezig is
-    if (document.getElementById("hamburger")) {
-        try { window.initMenu(); } catch { }
+    const isSettings = path.includes("/html/settings");
+    const isNotes = path.includes("/html/notes");
+    const isMain = !isSettings && !isNotes; // alles wat geen subpagina is
+
+    function setLink(a, { href, title, icon }) {
+        a.href = href;
+        a.title = title;
+        a.textContent = icon; // alleen icoon tonen
     }
 
-    // En opnieuw wanneer partials geladen zijn
-    document.addEventListener("partials:loaded", () => {
-        try { window.initMenu(); } catch { }
-    });
+    // ---------------- pagina-afhankelijk gedrag ----------------
+    // Wens:
+    // MAIN: [Settings, Notes]
+    // SETTINGS: [Post-its (naar main), Notes]
+    // NOTES: [Post-its (naar main), Settings]
+
+    if (isMain) {
+        setLink(settingsLink, { href: paths.settings, title: "Instellingen", icon: "⚙️" });
+        setLink(notesLink, { href: paths.notes, title: "Notities", icon: "🗒️" });
+    } else if (isSettings) {
+        setLink(settingsLink, { href: paths.main, title: "Post-its", icon: "🗂️" });
+        setLink(notesLink, { href: paths.notes, title: "Notities", icon: "🗒️" });
+    } else if (isNotes) {
+        setLink(settingsLink, { href: paths.main, title: "Post-its", icon: "🗂️" });
+        setLink(notesLink, { href: paths.settings, title: "Instellingen", icon: "⚙️" });
+    }
 })();
