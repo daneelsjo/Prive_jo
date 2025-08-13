@@ -1,69 +1,44 @@
-(function () {
-    const $ = (s) => document.querySelector(s);
+// menu.js
+(() => {
+    let inited = false;
 
-    // Bepaal basepad (lokale dev vs GitHub Pages)
-    const path = location.pathname.toLowerCase();
-    const BASE = path.includes("/prive_jo/") ? "/Prive_jo/" : "/";
+    function initMenu() {
+        if (inited) return;
 
-    const paths = {
-        main: BASE + "index.html",
-        settings: BASE + "HTML/settings.html",
-        notes: BASE + "HTML/notes.html",
-    };
+        const btn = document.getElementById('hamburgerBtn'); // in header.html
+        const drawer = document.getElementById('sidemenu');
+        const backdrop = document.getElementById('backdrop');
 
-    function isMainPage() {
-        // root of index
-        return (
-            !path.includes("/html/settings") &&
-            !path.includes("/html/notes")
-        );
-    }
-    function isSettingsPage() { return path.includes("/html/settings"); }
-    function isNotesPage() { return path.includes("/html/notes"); }
+        if (!btn || !drawer || !backdrop) return; // wacht tot partial er is
 
-    function setLink(a, { href, title, icon }) {
-        if (!a) return;
-        a.setAttribute("href", href);   // absolute href
-        a.setAttribute("title", title);
-        a.textContent = icon;
-    }
+        inited = true;
 
-    function applyHeaderLinks() {
-        const settingsLink = $("#settingsLink");
-        const notesLink = $("#notesLink");
-        if (!settingsLink || !notesLink) return false; // header nog niet geladen
+        const open = () => { drawer.classList.add('open'); backdrop.classList.add('open'); };
+        const close = () => { drawer.classList.remove('open'); backdrop.classList.remove('open'); };
 
-        if (isMainPage()) {
-            // MAIN: [Settings, Notes]
-            setLink(settingsLink, { href: paths.settings, title: "Instellingen", icon: "⚙️" });
-            setLink(notesLink, { href: paths.notes, title: "Notities", icon: "🗒️" });
-        } else if (isSettingsPage()) {
-            // SETTINGS: [Post‑its, Notes]
-            setLink(settingsLink, { href: paths.main, title: "Post‑its", icon: "🗂️" });
-            setLink(notesLink, { href: paths.notes, title: "Notities", icon: "🗒️" });
-        } else if (isNotesPage()) {
-            // NOTES: [Post‑its, Settings]
-            setLink(settingsLink, { href: paths.main, title: "Post‑its", icon: "🗂️" });
-            setLink(notesLink, { href: paths.settings, title: "Instellingen", icon: "⚙️" });
-        }
-        return true;
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (drawer.classList.contains('open')) close(); else open();
+        });
+
+        backdrop.addEventListener('click', close);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+        // accordion in het zijmenu (kopje -> open/dicht)
+        document.addEventListener('click', (e) => {
+            const h = e.target.closest('.sidemenu-section h4');
+            if (!h) return;
+            h.parentElement.classList.toggle('open');
+        });
+
+        // klik op een link in de drawer -> sluiten
+        drawer.addEventListener('click', (e) => {
+            if (e.target.closest('a')) close();
+        });
     }
 
-    // --- Zorg dat we pas linken als header geladen is ---
-
-    // 1) probeer meteen
-    if (!applyHeaderLinks()) {
-        // 2) retry kort even (include kan async zijn)
-        let tries = 0;
-        const timer = setInterval(() => {
-            tries++;
-            if (applyHeaderLinks() || tries > 60) clearInterval(timer); // max ~3s
-        }, 50);
-    }
-
-    // 3) als jouw include-partials.js een event dispatcht, luister daarop
-    document.addEventListener("partials:loaded", applyHeaderLinks);
-
-    // 4) fallback na DOMContentLoaded
-    document.addEventListener("DOMContentLoaded", applyHeaderLinks);
+    // init bij gewone pagina‑load
+    document.addEventListener('DOMContentLoaded', initMenu);
+    // init opnieuw nadat de header partial is ingevoegd
+    document.addEventListener('partials:loaded', initMenu);
 })();

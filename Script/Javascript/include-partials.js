@@ -30,3 +30,6 @@
         try { window.initMenu(); } catch (e) { console.error(e); }
     }
 })();
+
+// include-partials.js (onderaan, na het injecteren)
+document.dispatchEvent(new Event('partials:loaded'));
