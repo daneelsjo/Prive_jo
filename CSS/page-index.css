@@ -278,6 +278,19 @@ button.ghost:hover {
   pointer-events: none;
 }
 
+/* Houd 'Voltooid: <datum>' op één regel */
 .task-date {
+  display: inline-flex;
+  /* één horizontale rij */
+  align-items: baseline;
+  /* mooie uitlijning met tekst */
+  gap: .35rem;
+  /* klein spatie tussen label en tijd */
   white-space: nowrap;
+  /* niet afbreken */
+}
+
+.task-date strong {
+  display: inline;
+  font-weight: 700;
 }
