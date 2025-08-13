@@ -10,21 +10,20 @@
         <strong>To-Do & Notes</strong>
     </div>
 
-    <nav class="header-icons" aria-label="Snelkoppelingen">
-        <a class="settings-icon" data-path="HTML/notes.html" title="Notities">📝</a>
-        <a class="settings-icon" data-path="HTML/settings.html" title="Instellingen">⚙️</a>
-    </nav>
+    <!-- wordt dynamisch gevuld door menu.js obv huidige pagina -->
+    <nav class="header-icons" id="quickLinks" aria-label="Snelkoppelingen"></nav>
 </header>
 
-<!-- Topmenubalk met animatie -->
+<!-- Topmenubalk met neon-tekst -->
 <nav class="mainnav" aria-label="Hoofdmenu">
     <ul>
-        <li><a class="menu-link" href="https://mail.google.com" data-newtab>Email</a></li>
-        <li><a class="menu-link" href="https://drive.google.com" data-newtab>Drive</a></li>
+        <li><a class="menu-link" href="https://mail.google.com" data-newtab><span class="label">Email</span></a></li>
+        <li><a class="menu-link" href="https://drive.google.com" data-newtab><span class="label">Drive</span></a></li>
 
         <!-- Verdi -->
         <li class="has-submenu">
-            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false">Verdi</a>
+            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false"><span
+                    class="label">Verdi</span></a>
             <ul class="submenu">
                 <li class="has-submenu">
                     <a href="#" aria-haspopup="true" aria-expanded="false">Web</a>
@@ -45,7 +44,8 @@
 
         <!-- Ticketing systeem -->
         <li class="has-submenu">
-            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false">Ticketing systeem</a>
+            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false"><span class="label">Ticketing
+                    systeem</span></a>
             <ul class="submenu">
                 <li><a href="#" data-newtab>Optech</a></li>
                 <li><a href="#" data-newtab>Verdi</a></li>
@@ -53,9 +53,9 @@
             </ul>
         </li>
 
-        <!-- Ina (nested) -->
+        <!-- Ina -->
         <li class="has-submenu">
-            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false">Ina</a>
+            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false"><span class="label">Ina</span></a>
             <ul class="submenu">
                 <li class="has-submenu">
                     <a href="#" aria-haspopup="true" aria-expanded="false">Applicatie</a>
@@ -74,9 +74,9 @@
             </ul>
         </li>
 
-        <!-- Abi (nested) -->
+        <!-- Abi -->
         <li class="has-submenu">
-            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false">Abi</a>
+            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false"><span class="label">Abi</span></a>
             <ul class="submenu">
                 <li><a href="#" data-newtab>Ambuweb</a></li>
                 <li class="has-submenu">
@@ -95,7 +95,6 @@
 <div id="backdrop" class="backdrop" aria-hidden="true"></div>
 
 <aside id="sidemenu" class="sidemenu" aria-hidden="true" role="dialog" aria-label="Zijmenu">
-    <!-- Links Zone Rand (nu standaard GESLOTEN) -->
     <nav class="sidemenu-section">
         <h4>Links Zone Rand</h4>
         <ul>
@@ -107,7 +106,6 @@
         </ul>
     </nav>
 
-    <!-- OPTECH -->
     <nav class="sidemenu-section">
         <h4>OPTECH</h4>
         <ul>
@@ -117,7 +115,6 @@
         </ul>
     </nav>
 
-    <!-- Interessante links -->
     <nav class="sidemenu-section">
         <h4>Interessante links</h4>
         <ul>
@@ -126,7 +123,6 @@
         </ul>
     </nav>
 
-    <!-- Apps -->
     <nav class="sidemenu-section">
         <h4>Apps</h4>
         <ul>

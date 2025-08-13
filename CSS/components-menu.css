@@ -16,7 +16,6 @@
     position: relative;
     display: inline-block;
     padding: .45rem .7rem;
-    /* iets meer padding */
     border-radius: .6rem;
     text-decoration: none;
     color: var(--fg);
@@ -26,7 +25,7 @@
     position: relative;
 }
 
-/* 1e niveau submenu (onder de knop, gecentreerd) */
+/* Submenu’s */
 .mainnav>ul>li>.submenu {
     position: absolute;
     top: calc(100% + 8px);
@@ -42,10 +41,8 @@
     margin: 0;
     padding: .4rem 0;
     list-style: none;
-    /* GEEN bullets */
 }
 
-/* 2e niveau submenu (rechts uitklappend) */
 .mainnav .submenu .has-submenu {
     position: relative;
 }
@@ -64,21 +61,17 @@
     margin: 0 0 0 6px;
     padding: .4rem 0;
     list-style: none;
-    /* GEEN bullets */
 }
 
 .mainnav .submenu li {
     list-style: none;
 }
 
-/* GEEN bullets */
 .mainnav .submenu ul {
     list-style: none;
     margin: 0;
     padding: 0;
 }
-
-/* nested reset */
 
 .mainnav .submenu a {
     display: block;
@@ -95,83 +88,57 @@
     background: rgba(255, 255, 255, .06);
 }
 
-/* Hover/focus: toon submenu's */
 .mainnav .has-submenu:hover>.submenu,
 .mainnav .has-submenu:focus-within>.submenu {
     display: block;
 }
 
-/* 2e niveau hover/focus */
 .mainnav .submenu .has-submenu:hover>.submenu,
 .mainnav .submenu .has-submenu:focus-within>.submenu {
     display: block;
 }
 
-/* Klik-open ondersteuning (JS zet .open) */
-.mainnav .has-submenu.open>.submenu {
-    display: block;
-}
-
+.mainnav .has-submenu.open>.submenu,
 .mainnav .submenu .has-submenu.open>.submenu {
     display: block;
 }
 
-/* Pijltje naar rechts bij items met kind-submenu */
 .mainnav .submenu .has-submenu>a::after {
     content: "▸";
     float: right;
     opacity: .65;
 }
 
-/* ==== Duidelijkere animatie rond knoppen ==== */
-.menu-link::before,
-.menu-link::after {
-    content: "";
-    position: absolute;
-    inset: -6px;
-    border-radius: 10px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity .18s ease;
+/* ===== NEON ROND DE TEKST (geen vierkant) ===== */
+.menu-link .label {
+    background: linear-gradient(90deg, rgba(37, 99, 235, .15), #60a5fa, rgba(37, 99, 235, .15));
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    /* laat de gradient door de tekst lopen */
+    text-shadow:
+        0 0 6px rgba(96, 165, 250, .7),
+        0 0 14px rgba(37, 99, 235, .45);
+    /* “gloed” rond de letters */
+    transition: text-shadow .2s ease;
 }
 
-/* Glowing, roterende “neon” rand */
-.menu-link::before {
-    padding: 3px;
-    background:
-        conic-gradient(#2563eb 0 12%, transparent 12% 25%,
-            #2563eb 25% 37%, transparent 37% 50%,
-            #2563eb 50% 62%, transparent 62% 75%,
-            #2563eb 75% 87%, transparent 87% 100%);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    filter: drop-shadow(0 0 6px rgba(37, 99, 235, .45));
-    transform-origin: 50% 50%;
+.menu-link:hover .label,
+.menu-link:focus-visible .label {
+    animation: neonSweepText 1.6s linear infinite;
+    text-shadow:
+        0 0 8px rgba(96, 165, 250, .9),
+        0 0 20px rgba(37, 99, 235, .65),
+        0 0 30px rgba(37, 99, 235, .35);
 }
 
-/* subtiele vaste rand om het geheel */
-.menu-link::after {
-    inset: -2px;
-    border-radius: 12px;
-    border: 1px solid rgba(37, 99, 235, .35);
-}
-
-.menu-link:hover::before,
-.menu-link:focus-visible::before,
-.menu-link:hover::after,
-.menu-link:focus-visible::after {
-    opacity: 1;
-}
-
-@keyframes neonSweep {
-    to {
-        transform: rotate(360deg);
+@keyframes neonSweepText {
+    from {
+        background-position: 200% 0;
     }
-}
 
-/* Start/stop van de draaiing alleen bij hover/focus */
-.menu-link:hover::before,
-.menu-link:focus-visible::before {
-    animation: neonSweep 1.6s linear infinite;
+    to {
+        background-position: -200% 0;
+    }
 }

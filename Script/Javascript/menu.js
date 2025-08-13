@@ -2,31 +2,75 @@
 (() => {
     let inited = false;
 
-    function isNested() {
-        // True wanneer we binnen /HTML/ zitten (bv. HTML/settings.html)
-        return /\/HTML\//.test(location.pathname);
-    }
+    function isNested() { return /\/HTML\//.test(location.pathname); }
     function prefixPath(p) {
-        // "" op rootpagina's, "../" op subpagina's
         const pre = isNested() ? "../" : "";
         return p ? pre + p.replace(/^\.\//, "") : "";
     }
 
     function normalizeHeaderAssets() {
-        // Corrigeer alle <a data-path> (interne navigatie)
         document.querySelectorAll('a[data-path]').forEach(a => {
             a.setAttribute('href', prefixPath(a.getAttribute('data-path')));
         });
-        // Externe links in nieuwe tab
         document.querySelectorAll('a[data-newtab]').forEach(a => {
             a.setAttribute('target', '_blank');
             a.setAttribute('rel', 'noopener noreferrer');
         });
-        // Corrigeer <img data-src>
         document.querySelectorAll('img[data-src]').forEach(img => {
             img.setAttribute('src', prefixPath(img.getAttribute('data-src')));
         });
     }
+
+    // ---------- dynamische quick links rechtsboven ----------
+    function pageKey() {
+        let p = location.pathname.toLowerCase();
+        if (p.endsWith('/')) p += 'index.html';
+        const base = p.split('/').pop();
+        if (base === 'index.html') return 'index';
+        if (base === 'settings.html') return 'settings';
+        if (base === 'notes.html') return 'notes';
+        return 'other';
+    }
+
+    function setHeaderQuickLinks() {
+        const host = document.getElementById('quickLinks');
+        if (!host) return;
+        const key = pageKey();
+
+        // definieer gewenste knoppen per pagina
+        const variants = {
+            index: [
+                { label: '📝 Notities', path: 'HTML/notes.html', title: 'Notities' },
+                { label: '⚙️ Instellingen', path: 'HTML/settings.html', title: 'Instellingen' }
+            ],
+            settings: [
+                { label: '📌 Post-its', path: 'index.html', title: 'Post-its' },
+                { label: '📝 Notities', path: 'HTML/notes.html', title: 'Notities' }
+            ],
+            notes: [
+                { label: '📌 Post-its', path: 'index.html', title: 'Post-its' },
+                { label: '⚙️ Instellingen', path: 'HTML/settings.html', title: 'Instellingen' }
+            ],
+            other: [
+                { label: '📌 Post-its', path: 'index.html', title: 'Post-its' },
+                { label: '📝 Notities', path: 'HTML/notes.html', title: 'Notities' }
+            ]
+        };
+
+        host.innerHTML = '';
+        (variants[key] || variants.other).forEach(item => {
+            const a = document.createElement('a');
+            a.className = 'settings-icon';
+            a.setAttribute('data-path', item.path);
+            a.setAttribute('title', item.title);
+            a.textContent = item.label;
+            host.appendChild(a);
+        });
+
+        // zet correcte hrefs na injectie
+        normalizeHeaderAssets();
+    }
+    // --------------------------------------------------------
 
     function setOpen(drawer, backdrop, btn, open) {
         drawer.classList.toggle('open', open);
@@ -50,12 +94,13 @@
         const drawer = document.getElementById('sidemenu');
         const backdrop = document.getElementById('backdrop');
         const topnav = document.querySelector('.mainnav');
-        if (!btn || !drawer || !backdrop) return; // header nog niet aanwezig
+        if (!btn || !drawer || !backdrop) return;
 
         inited = true;
 
-        // Normaliseer paden/targets (lost HTML/HTML-probleem op)
+        // normaliseer assets & bouw quick links
         normalizeHeaderAssets();
+        setHeaderQuickLinks();
 
         // Hamburger open/dicht
         btn.addEventListener('click', (e) => {
@@ -63,12 +108,10 @@
             setOpen(drawer, backdrop, btn, !drawer.classList.contains('open'));
         });
 
-        // klik buiten zijmenu sluit
         backdrop.addEventListener('click', (e) => {
             if (e.target === backdrop) setOpen(drawer, backdrop, btn, false);
         });
 
-        // Esc sluit zijmenu
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 setOpen(drawer, backdrop, btn, false);
@@ -76,47 +119,45 @@
             }
         });
 
-        // Accordion in het zijmenu (kopje -> open/dicht)
+        // accordion in de zijlade
         document.addEventListener('click', (e) => {
             const h = e.target.closest('.sidemenu-section h4');
             if (!h) return;
             h.parentElement.classList.toggle('open');
         });
 
-        // Klik op een link in de drawer -> sluiten
         drawer.addEventListener('click', (e) => {
             if (e.target.closest('a')) setOpen(drawer, backdrop, btn, false);
         });
 
-        // ------- TOPNAV: klik/touch toggle voor (geneste) submenu's -------
+        // topnav nested submenu’s (klik/touch)
         if (topnav) {
             topnav.addEventListener('click', (e) => {
                 const a = e.target.closest('.mainnav .has-submenu > a');
                 if (!a) return;
-                // Alleen togglen als het een "toggler" is (href '#' of heeft submenu)
-                const parentLi = a.parentElement;
-                if (a.getAttribute('href') === '#' || parentLi.classList.contains('has-submenu')) {
+                const li = a.parentElement;
+                if (a.getAttribute('href') === '#' || li.classList.contains('has-submenu')) {
                     e.preventDefault();
-                    const nowOpen = !parentLi.classList.contains('open');
-                    // sluit siblings in hetzelfde niveau
-                    parentLi.parentElement.querySelectorAll(':scope > .has-submenu.open').forEach(sib => {
-                        if (sib !== parentLi) sib.classList.remove('open');
-                        const sa = sib.querySelector(':scope > a[aria-expanded]');
-                        if (sa) sa.setAttribute('aria-expanded', 'false');
+                    const open = !li.classList.contains('open');
+                    li.parentElement.querySelectorAll(':scope > .has-submenu.open').forEach(sib => {
+                        if (sib !== li) {
+                            sib.classList.remove('open');
+                            const sa = sib.querySelector(':scope > a[aria-expanded]');
+                            if (sa) sa.setAttribute('aria-expanded', 'false');
+                        }
                     });
-                    parentLi.classList.toggle('open', nowOpen);
-                    a.setAttribute('aria-expanded', String(nowOpen));
+                    li.classList.toggle('open', open);
+                    a.setAttribute('aria-expanded', String(open));
                 }
             });
 
-            // Klik buiten topnav sluit alle open dropdowns
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.mainnav')) closeAllTopMenus(topnav);
             });
         }
     }
 
-    // Exporteer voor include-partials.js (optioneel)
+    // export voor include-partials
     window.initMenu = bindMenu;
 
     document.addEventListener('DOMContentLoaded', bindMenu);
