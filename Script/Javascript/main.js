@@ -777,17 +777,7 @@ function doneWithin24h(t) {
   return (Date.now() - ms) < ONE_DAY;
 }
 
-// mooie string voor completedAt in nl-BE
-function formatCompletedNL(todo) {
-  let d = null;
-  if (todo?.completedAt?.toDate) d = todo.completedAt.toDate();
-  else if (todo?.completedAtStr) d = new Date(todo.completedAtStr);
-  if (!d || isNaN(d)) return null;
-  return d.toLocaleString('nl-BE', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit'
-  });
-}
+
 
 // ISO helpers wanneer je strings opslaat
 function toYMD(date = new Date()) {
