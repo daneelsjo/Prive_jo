@@ -370,12 +370,12 @@ function closeModal() {
 }
 
 /* ---------- MODAL: open/close + acties ---------- */
+/* ---------- MODAL: open/close + acties ---------- */
 window.showTaskDetail = function (todo) {
   openModal();
 
   const titleEl = _modalCard.querySelector("#modalTitle");
   const bodyEl = _modalCard.querySelector("#modalBody");
-
   const footEl = _modalCard.querySelector("#modalFooter");
 
   // Title
@@ -388,55 +388,57 @@ window.showTaskDetail = function (todo) {
     if (cat) catDisplay = `${cat.name} (${cat.type})`;
   }
 
-  // Body (laat eerst de inputs renderen)
+  // Body
   bodyEl.innerHTML = `
-  <label>Start</label>
-  <input id="editStart" type="date" value="${todo.start || ""}">
-  <label>Einde</label>
-  <input id="editEnd" type="date" value="${todo.end || ""}">
-  <label>Prio</label>
-  <select id="editPrio">
-    <option value="0">PRIO 0</option>
-    <option value="1">PRIO 1</option>
-    <option value="2">PRIO 2</option>
-    <option value="3">PRIO 3</option>
-  </select>
-  <label>Categorie</label>
-  <input id="editCategory" list="categoryList" value="${escapeHtml(catDisplay)}">
-  <label>Omschrijving</label>
-  <textarea id="editDesc">${todo.description ? escapeHtml(todo.description) : ""}</textarea>
-  <label>Link</label>
-  <input id="editLink" value="${todo.link ? escapeHtml(todo.link) : ""}">
-`;
+    <label>Start</label>
+    <input id="editStart" type="date" value="${todo.start || ""}">
+    <label>Einde</label>
+    <input id="editEnd" type="date" value="${todo.end || ""}">
+    <label>Prio</label>
+    <select id="editPrio">
+      <option value="0">PRIO 0</option>
+      <option value="1">PRIO 1</option>
+      <option value="2">PRIO 2</option>
+      <option value="3">PRIO 3</option>
+    </select>
+    <label>Categorie</label>
+    <input id="editCategory" list="categoryList" value="${escapeHtml(catDisplay)}">
+    <label>Omschrijving</label>
+    <textarea id="editDesc">${todo.description ? escapeHtml(todo.description) : ""}</textarea>
+    <label>Link</label>
+    <input id="editLink" value="${todo.link ? escapeHtml(todo.link) : ""}">
+  `;
+
+  // Init prio‑select
   const prioSel = _modalCard.querySelector("#editPrio");
   if (prioSel) prioSel.value = String(todo.prio ?? 0);
 
-  // Datalist: toon ALLE opties bij focus  ⟵ NU STAAT DIT OP DE JUISTE PLEK
-  const editCat = _modalCard.querySelector('#editCategory');
+  // Datalist altijd tonen bij focus
+  const editCat = _modalCard.querySelector("#editCategory");
   if (editCat) {
-    editCat.setAttribute('autocomplete', 'off');
+    editCat.setAttribute("autocomplete", "off");
     editCat.placeholder = "Kies of typ...";
-
-    editCat.addEventListener('focus', () => {
+    editCat.addEventListener("focus", () => {
       editCat.dataset.prev = editCat.value;
       editCat.value = "";
-      editCat.dispatchEvent(new Event('input', { bubbles: true }));
+      editCat.dispatchEvent(new Event("input", { bubbles: true }));
     });
-
-    editCat.addEventListener('blur', () => {
-      if (!editCat.value && editCat.dataset.prev) {
-        editCat.value = editCat.dataset.prev;
-      }
+    editCat.addEventListener("blur", () => {
+      if (!editCat.value && editCat.dataset.prev) editCat.value = editCat.dataset.prev;
     });
-
-    editCat.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowDown' && editCat.showPicker) {
-        editCat.showPicker();
-      }
+    editCat.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" && editCat.showPicker) editCat.showPicker();
     });
   }
 
-  // Footer knoppen
+  // Footer knoppen (opslaan / (on)voltooid / verwijderen)
+  buildModalFooterButtons(todo, footEl);
+}; // <-- BELANGRIJK: showTaskDetail HIER sluiten
+
+window.closeTaskDetail = function () { closeModal(); };
+
+/* Footerknoppen renderen */
+function buildModalFooterButtons(todo, footEl) {
   footEl.innerHTML = "";
   footEl.append(
     mkBtn("primary", "💾 Opslaan", () => saveTask(todo.id)),
@@ -445,182 +447,201 @@ window.showTaskDetail = function (todo) {
       : mkBtn("primary success", "✔️ Voltooid", () => completeTask(todo.id)),
     mkBtn("primary danger", "🗑️ Verwijderen", () => confirmDeleteTask(todo.id, todo.name))
   );
+}
 
+/* Kleine helper voor knoppen */
+function mkBtn(cls, text, onClick) {
+  const b = document.createElement("button");
+  b.className = cls;
+  b.textContent = text;
+  b.onclick = onClick;
+  return b;
+}
 
-  window.closeTaskDetail = function () { closeModal(); };
+/* Voltooien: zet done + timestamps + TTL (client) */
+async function completeTask(id) {
+  const now = new Date();
+  const ttlDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 dagen
+  await setDoc(doc(db, "todos", id), {
+    done: true,
+    completedAt: serverTimestamp(),    // server‑timestamp
+    completedAtStr: toISO(now),        // string fallback
+    ttlAt: ttlDate                     // optioneel, voor Firestore TTL
+  }, { merge: true });
+  closeModal();
+}
 
-  function mkBtn(cls, text, onClick) {
-    const b = document.createElement("button");
-    b.className = cls; b.textContent = text; b.onclick = onClick;
-    return b;
-  }
+/* Onvoltooid maken: wis done + timestamps (+ TTL) */
+async function uncompleteTask(id) {
+  await setDoc(doc(db, "todos", id), {
+    done: false,
+    completedAt: deleteField(),
+    completedAtStr: deleteField(),
+    ttlAt: deleteField()
+  }, { merge: true });
+  closeModal();
+}
 
-  /* Voltooien via knop */
-  async function completeTask(id) {
-    const now = new Date();
-    const ttlDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 dagen
-
-    await setDoc(doc(db, "todos", id), {
-      done: true,
-      completedAt: serverTimestamp(),
-      completedAtStr: toISO(now),
-      ttlAt: ttlDate  // <-- TTL veld (type: Firestore Timestamp)
-    }, { merge: true });
-
-    closeModal();
-  }
-
-
-
-
-  /* Opslaan uit modal */
-  window.saveTask = async function (id) {
-    const raw = (document.getElementById("editCategory")?.value || "").trim();
-    const { categoryId, categoryName } = parseCategoryInput(raw);
-    const payload = {
-      start: document.getElementById("editStart")?.value || "",
-      end: document.getElementById("editEnd")?.value || "",
-      categoryId,
-      category: categoryName,
-      description: (document.getElementById("editDesc")?.value || "").trim(),
-      link: (document.getElementById("editLink")?.value || "").trim(),
-      prio: parseInt(document.getElementById("editPrio")?.value || "0", 10)
-    };
-    await setDoc(doc(db, "todos", id), payload, { merge: true });
-    closeModal();
-  }
-
-  /* Mooie confirm in dezelfde modal-stijl */
-  async function confirmDeleteTask(id, name = "deze taak") {
-    const ok = await askConfirm(
-      "Taak verwijderen",
-      `⚠️ OPGELET!<br>Ben je zeker dat je volgende taak wenst te verwijderen:<br><strong>“${escapeHtml(name)}”</strong>`
-    );
-    if (!ok) return;
-    await deleteDoc(doc(db, "todos", id));
-    closeModal();
-  }
-
-  /* Reusable confirm (Promise<boolean>) */
-  function askConfirm(title, html) {
-    return new Promise((resolve) => {
-      openModal();
-      const titleEl = _modalCard.querySelector("#modalTitle");
-      const bodyEl = _modalCard.querySelector("#modalBody");
-      const footEl = _modalCard.querySelector("#modalFooter");
-
-      titleEl.textContent = title;
-      bodyEl.innerHTML = `<div style="padding-top:.3rem; text-align:center">${html}</div>`;
-      footEl.innerHTML = "";
-
-      const yes = mkBtn("primary danger", "✅ Ja, verwijderen", () => finish(true));
-      const no = mkBtn("primary", "❌ Annuleren", () => finish(false));
-      footEl.append(yes, no);
-
-      function finish(val) { resolve(val); closeModal(); }
-    });
-  }
-
-  /* ---------- DONE TOGGLE ---------- */
-  window.markDone = async function (id, status) {
-    await setDoc(doc(db, "todos", id), { done: status }, { merge: true });
+/* Opslaan vanuit modal */
+window.saveTask = async function (id) {
+  const raw = (document.getElementById("editCategory")?.value || "").trim();
+  const { categoryId, categoryName } = parseCategoryInput(raw);
+  const payload = {
+    start: document.getElementById("editStart")?.value || "",
+    end: document.getElementById("editEnd")?.value || "",
+    categoryId,
+    category: categoryName,
+    description: (document.getElementById("editDesc")?.value || "").trim(),
+    link: (document.getElementById("editLink")?.value || "").trim(),
+    prio: parseInt(document.getElementById("editPrio")?.value || "0", 10)
   };
+  await setDoc(doc(db, "todos", id), payload, { merge: true });
+  closeModal();
+};
 
-  /* ---------- HELPERS ---------- */
-  function getContrast(hex) {
-    const r = parseInt(hex.substr(1, 2), 16);
-    const g = parseInt(hex.substr(3, 2), 16);
-    const b = parseInt(hex.substr(5, 2), 16);
-    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-    return yiq >= 128 ? "#000" : "#fff";
-  }
+/* Verwijderen met nette confirm */
+async function confirmDeleteTask(id, name = "deze taak") {
+  const ok = await askConfirm(
+    "Taak verwijderen",
+    `⚠️ OPGELET!<br>Ben je zeker dat je volgende taak wenst te verwijderen:<br><strong>“${escapeHtml(name)}”</strong>`
+  );
+  if (!ok) return;
+  await deleteDoc(doc(db, "todos", id));
+  closeModal();
+}
 
-  function escapeHtml(str) {
-    return String(str)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
+/* Re-usable confirm modal (Promise<boolean>) */
+function askConfirm(title, html) {
+  openModal();
+  const titleEl = _modalCard.querySelector("#modalTitle");
+  const bodyEl = _modalCard.querySelector("#modalBody");
+  const footEl = _modalCard.querySelector("#modalFooter");
 
-  /* Vul de datalist met alle categorieën: "Naam (werk|prive)" */
-  function updateCategoryDatalist() {
-    if (!categoryList) return;
+  titleEl.textContent = title;
+  bodyEl.innerHTML = `<div style="padding-top:.3rem; text-align:center">${html}</div>`;
+  footEl.innerHTML = "";
 
-    // leegmaken
-    categoryList.innerHTML = "";
+  return new Promise((resolve) => {
+    const yes = mkBtn("primary danger", "✅ Ja, verwijderen", () => finish(true));
+    const no = mkBtn("primary", "❌ Annuleren", () => finish(false));
+    footEl.append(yes, no);
+    function finish(val) { resolve(val); closeModal(); }
+  });
+}
 
-    // alle actieve categorieën tonen, ongeacht modus
-    categories
-      .filter(c => c && c.name && c.type && c.active !== false)
-      .forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = `${c.name} (${c.type})`;  // bv. "Algemeen (werk)"
-        categoryList.appendChild(opt);
-      });
-  }
+/* Toggle done (indien je deze elders gebruikt) */
+window.markDone = async function (id, status) {
+  await setDoc(doc(db, "todos", id), { done: status }, { merge: true });
+};
 
-  // 24u en 90 dagen in ms
-  const ONE_DAY = 24 * 60 * 60 * 1000;
-  const NINETY_DAYS = 90 * ONE_DAY;
+/* ---------- HELPERS ---------- */
+function getContrast(hex) {
+  const r = parseInt(hex.substr(1, 2), 16);
+  const g = parseInt(hex.substr(3, 2), 16);
+  const b = parseInt(hex.substr(5, 2), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#000" : "#fff";
+}
 
-  // is voltooid binnen 24u?
-  function doneWithin24h(t) {
-    if (!t?.done || !t?.completedAt) return false;
-    const ts = typeof t.completedAt === "string" ? Date.parse(t.completedAt) : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+/* Datums/TTL helpers */
+const ONE_DAY = 24 * 60 * 60 * 1000;
+const NINETY_DAYS = 90 * ONE_DAY;
+
+function doneWithin24h(t) {
+  if (!t?.done || !t?.completedAt) return false;
+  const ts = typeof t.completedAt === "string"
+    ? Date.parse(t.completedAt)
+    : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
+  if (Number.isNaN(ts)) return false;
+  return (Date.now() - ts) < ONE_DAY;
+}
+
+function toISO(date = new Date()) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
+}
+
+/* Opruimen (client-side fallback op TTL) */
+async function cleanupOldCompleted() {
+  const now = Date.now();
+  const toDelete = allTodos.filter(t => {
+    if (!t.done || !t.completedAt) return false;
+    const ts = typeof t.completedAt === "string"
+      ? Date.parse(t.completedAt)
+      : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
     if (Number.isNaN(ts)) return false;
-    return (Date.now() - ts) < ONE_DAY;
+    return (now - ts) > NINETY_DAYS;
+  });
+  for (const t of toDelete) {
+    await deleteDoc(doc(db, "todos", t.id));
   }
+}
 
-  // format helpers
-  function toYMD(date = new Date()) {
-    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10); // "YYYY-MM-DD"
-  }
-  function toISO(date = new Date()) {
-    // volledige ISO (voor completedAt als string fallback)
-    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
-  }
-
-  async function cleanupOldCompleted() {
-    const now = Date.now();
-    const toDelete = allTodos.filter(t => {
-      if (!t.done || !t.completedAt) return false;
-      const ts = typeof t.completedAt === "string"
-        ? Date.parse(t.completedAt)
-        : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
-      if (Number.isNaN(ts)) return false;
-      return (now - ts) > NINETY_DAYS;
+/* Datalist met ALLE categorieën */
+function updateCategoryDatalist() {
+  if (!categoryList) return;
+  categoryList.innerHTML = "";
+  categories
+    .filter(c => c && c.name && c.type && c.active !== false)
+    .forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = `${c.name} (${c.type})`;
+      categoryList.appendChild(opt);
     });
-    for (const t of toDelete) {
-      await deleteDoc(doc(db, "todos", t.id));
-    }
-  }
+}
 
+/* Categorieën live luisteren (TOP-LEVEL!) */
+function listenCategories() {
+  onSnapshot(collection(db, "categories"), (snap) => {
+    categories = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(c => c.active !== false);
+    updateCategoryDatalist();
+    renderTodos();
+  });
+}
 
-  function renderAllTasks() {
-    if (!allTasksTableDiv) return;
+/* ---------- ALLE TAKEN (onderaan paneel) ---------- */
+function formatCompletedNL(todo) {
+  let d = null;
+  if (todo?.completedAt?.toDate) d = todo.completedAt.toDate();
+  else if (todo?.completedAtStr) d = new Date(todo.completedAtStr);
+  if (!d || isNaN(d)) return null;
+  return d.toLocaleString("nl-BE", {
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit"
+  });
+}
 
-    // groepeer per categorie-label
-    const groups = new Map();
-    const labelOf = (t) => {
-      const c = t.categoryId ? categories.find(x => x.id === t.categoryId) : null;
-      return c ? `${c.name} (${c.type})` : "Overig";
-    };
-    allTodos.forEach(t => {
-      const lbl = labelOf(t);
-      if (!groups.has(lbl)) groups.set(lbl, []);
-      groups.get(lbl).push(t);
-    });
+function renderAllTasks() {
+  if (!allTasksTableDiv) return;
 
-    const order = { 1: 0, 2: 1, 3: 2, 0: 3 };
-    const prioRank = p => order[p ?? 0] ?? 3;
+  const groups = new Map();
+  const labelOf = (t) => {
+    const c = t.categoryId ? categories.find(x => x.id === t.categoryId) : null;
+    return c ? `${c.name} (${c.type})` : "Overig";
+  };
+  allTodos.forEach(t => {
+    const lbl = labelOf(t);
+    if (!groups.has(lbl)) groups.set(lbl, []);
+    groups.get(lbl).push(t);
+  });
 
-    // één tabel voor alles
-    const wrapper = document.createElement("div");
-    const table = document.createElement("table");
-    table.className = "alltasks-table unified";
-    table.innerHTML = `
+  const order = { 1: 0, 2: 1, 3: 2, 0: 3 };
+  const prioRank = p => order[p ?? 0] ?? 3;
+
+  const wrapper = document.createElement("div");
+  const table = document.createElement("table");
+  table.className = "alltasks-table unified";
+  table.innerHTML = `
     <thead>
       <tr>
         <th class="col-prio">Prio</th>
@@ -632,93 +653,60 @@ window.showTaskDetail = function (todo) {
     </thead>
     <tbody></tbody>
   `;
-    const tbody = table.querySelector("tbody");
+  const tbody = table.querySelector("tbody");
 
-    // sorteer groepen op naam
-    [...groups.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .forEach(([label, list]) => {
-        // scheidingsrij voor categorie
-        const sep = document.createElement("tr");
-        sep.className = "group-row";
-        sep.innerHTML = `<td colspan="5">${label}</td>`;
-        tbody.appendChild(sep);
+  [...groups.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([label, list]) => {
+      const sep = document.createElement("tr");
+      sep.className = "group-row";
+      sep.innerHTML = `<td colspan="5">${label}</td>`;
+      tbody.appendChild(sep);
 
-        // sorteer taken binnen groep
-        list.slice().sort((a, b) => {
-          const pa = prioRank(a.prio), pb = prioRank(b.prio);
-          if (pa !== pb) return pa - pb;
-          return (a.name || "").localeCompare(b.name || "");
-        }).forEach(t => {
-          const tr = document.createElement("tr");
-          tr.onclick = () => showTaskDetail(t);
+      list.slice().sort((a, b) => {
+        const pa = prioRank(a.prio), pb = prioRank(b.prio);
+        if (pa !== pb) return pa - pb;
+        return (a.name || "").localeCompare(b.name || "");
+      }).forEach(t => {
+        const tr = document.createElement("tr");
+        tr.onclick = () => showTaskDetail(t);
 
-          // PRIO dot
-          const tdPrio = document.createElement("td");
-          tdPrio.className = "td-prio";
-          const dot = document.createElement("span");
-          dot.className = "prio-dot";
-          dot.style.backgroundColor = prioColor(t.prio);
-          tdPrio.appendChild(dot);
+        const tdPrio = document.createElement("td");
+        tdPrio.className = "td-prio";
+        const dot = document.createElement("span");
+        dot.className = "prio-dot";
+        dot.style.backgroundColor = prioColor(t.prio);
+        tdPrio.appendChild(dot);
 
-          const tdName = document.createElement("td");
-          tdName.textContent = t.name || "";
+        const tdName = document.createElement("td"); tdName.textContent = t.name || "";
+        const tdStart = document.createElement("td"); tdStart.textContent = t.start || "—";
+        const tdEnd = document.createElement("td"); tdEnd.textContent = t.end || "—";
 
-          const tdStart = document.createElement("td");
-          tdStart.textContent = t.start || "—";
+        const tdDone = document.createElement("td");
+        tdDone.textContent = t.done ? (formatCompletedNL(t) || "✓") : "—";
 
-          const tdEnd = document.createElement("td");
-          tdEnd.textContent = t.end || "—";
-
-          const tdDone = document.createElement("td");
-          if (t.done) {
-            const when = formatCompletedNL(t);
-            tdDone.textContent = when || "✓";
-          } else {
-            tdDone.textContent = "—";
-          }
-
-          tr.append(tdPrio, tdName, tdStart, tdEnd, tdDone);
-          tbody.appendChild(tr);
-        });
+        tr.append(tdPrio, tdName, tdStart, tdEnd, tdDone);
+        tbody.appendChild(tr);
       });
-
-    wrapper.appendChild(table);
-    allTasksTableDiv.innerHTML = "";
-    allTasksTableDiv.appendChild(wrapper);
-  }
-
-
-  function formatCompletedNL(todo) {
-    let d = null;
-    if (todo?.completedAt?.toDate) d = todo.completedAt.toDate();
-    else if (todo?.completedAtStr) d = new Date(todo.completedAtStr);
-    if (!d || isNaN(d)) return null;
-    return d.toLocaleString('nl-BE', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit'
     });
+
+  wrapper.appendChild(table);
+  allTasksTableDiv.innerHTML = "";
+  allTasksTableDiv.appendChild(wrapper);
+}
+
+/* Als all-tasks paneel open is, hertekenen na renderTodos */
+function refreshAllTasksIfOpen() {
+  if (allTasksPanel && allTasksPanel.style.display !== "none") {
+    renderAllTasks();
   }
+}
 
-  // Luister live naar categorieën en bouw de datalist + herteken
-  function listenCategories() {
-    onSnapshot(collection(db, "categories"), (snap) => {
-      categories = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(c => c.active !== false);
-
-      updateCategoryDatalist(); // vult <datalist id="categoryList">
-      renderTodos();            // herteken post-its
-    });
-  }
-
-
-  async function uncompleteTask(id) {
-    await setDoc(doc(db, "todos", id), {
-      done: false,
-      completedAt: deleteField(),
-      completedAtStr: deleteField(),
-      ttlAt: deleteField()   // als je TTL gebruikt, haal je die ook weg
-    }, { merge: true });
-    closeModal();
-  }
+/* Patch: roep na je bestaande renderTodos ook refresh aan */
+(function patchRenderTodosToRefresh() {
+  const orig = renderTodos;
+  renderTodos = function () {
+    orig();
+    refreshAllTasksIfOpen();
+  };
+})();
