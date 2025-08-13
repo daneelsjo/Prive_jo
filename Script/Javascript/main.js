@@ -693,3 +693,15 @@ function formatCompletedNL(todo) {
     hour: '2-digit', minute: '2-digit'
   });
 }
+
+// Luister live naar categorieën en bouw de datalist + herteken
+function listenCategories() {
+  onSnapshot(collection(db, "categories"), (snap) => {
+    categories = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(c => c.active !== false);
+
+    updateCategoryDatalist(); // vult <datalist id="categoryList">
+    renderTodos();            // herteken post-its
+  });
+}
