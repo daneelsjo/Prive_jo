@@ -2,25 +2,136 @@
 <header class="topbar" role="banner">
     <button id="hamburgerBtn" class="icon-btn" aria-label="Menu" aria-controls="sidemenu"
         aria-expanded="false">☰</button>
+
     <div style="display:flex; align-items:center; gap:.6rem; justify-self:center;">
-        <img src="IMG/JD_Web_Solutions.jpg" alt="JD Web Solutions" style="height:28px; width:auto; border-radius:6px;">
+        <!-- pad wordt automatisch geprefixt door menu.js -->
+        <img data-src="IMG/JD_Web_Solutions.jpg" src="IMG/JD_Web_Solutions.jpg" alt="JD Web Solutions"
+            style="height:28px; width:auto; border-radius:6px;">
         <strong>To-Do & Notes</strong>
     </div>
+
     <nav class="header-icons" aria-label="Snelkoppelingen">
-        <a class="settings-icon" href="HTML/notes.html" title="Notities">📝</a>
-        <a class="settings-icon" href="HTML/settings.html" title="Instellingen">⚙️</a>
+        <a class="settings-icon" data-path="HTML/notes.html" title="Notities">📝</a>
+        <a class="settings-icon" data-path="HTML/settings.html" title="Instellingen">⚙️</a>
     </nav>
 </header>
 
-<!-- Zijmenu + backdrop -->
+<!-- Topmenubalk met animatie (menu-link heeft 'lopende lijn' animatie) -->
+<nav class="mainnav" aria-label="Hoofdmenu">
+    <ul>
+        <li><a class="menu-link" href="https://mail.google.com" data-newtab>Email</a></li>
+        <li><a class="menu-link" href="https://drive.google.com" data-newtab>Drive</a></li>
+
+        <!-- Verdi -->
+        <li class="has-submenu">
+            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false">Verdi</a>
+            <ul class="submenu">
+                <li class="has-submenu">
+                    <a href="#" aria-haspopup="true" aria-expanded="false">Web</a>
+                    <ul class="submenu">
+                        <li><a href="#" data-newtab>Live</a></li>
+                        <li><a href="#" data-newtab>Staging</a></li>
+                    </ul>
+                </li>
+                <li class="has-submenu">
+                    <a href="#" aria-haspopup="true" aria-expanded="false">Mobile</a>
+                    <ul class="submenu">
+                        <li><a href="#" data-newtab>Live</a></li>
+                        <li><a href="#" data-newtab>Staging</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+
+        <!-- Ticketing systeem -->
+        <li class="has-submenu">
+            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false">Ticketing systeem</a>
+            <ul class="submenu">
+                <li><a href="#" data-newtab>Optech</a></li>
+                <li><a href="#" data-newtab>Verdi</a></li>
+                <li><a href="#" data-newtab>Abi</a></li>
+            </ul>
+        </li>
+
+        <!-- Ina (met nested submenus) -->
+        <li class="has-submenu">
+            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false">Ina</a>
+            <ul class="submenu">
+                <li class="has-submenu">
+                    <a href="#" aria-haspopup="true" aria-expanded="false">Applicatie</a>
+                    <ul class="submenu">
+                        <li><a href="#" data-newtab>Live</a></li>
+                        <li><a href="#" data-newtab>Acc</a></li>
+                    </ul>
+                </li>
+                <li class="has-submenu">
+                    <a href="#" aria-haspopup="true" aria-expanded="false">Keycloak</a>
+                    <ul class="submenu">
+                        <li><a href="#" data-newtab>Live</a></li>
+                        <li><a href="#" data-newtab>Acc</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+
+        <!-- Abi (met nested voor Abiweb) -->
+        <li class="has-submenu">
+            <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false">Abi</a>
+            <ul class="submenu">
+                <li><a href="#" data-newtab>Ambuweb</a></li>
+                <li class="has-submenu">
+                    <a href="#" aria-haspopup="true" aria-expanded="false">Abiweb</a>
+                    <ul class="submenu">
+                        <li><a href="#" data-newtab>Live</a></li>
+                        <li><a href="#" data-newtab>Testomgeving</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
+</nav>
+
+<!-- Backdrop + ZIJMENU (accordion) -->
 <div id="backdrop" class="backdrop" aria-hidden="true"></div>
+
 <aside id="sidemenu" class="sidemenu" aria-hidden="true" role="dialog" aria-label="Zijmenu">
-    <nav class="sidemenu-section">
-        <h4>📂 Navigatie</h4>
+    <!-- Links Zone Rand -->
+    <nav class="sidemenu-section open">
+        <h4>Links Zone Rand</h4>
         <ul>
-            <li><a href="index.html">Start</a></li>
-            <li><a href="HTML/notes.html">Notities</a></li>
-            <li><a href="HTML/settings.html">Instellingen</a></li>
+            <li><a href="#" data-newtab>Zone Rand</a></li>
+            <li><a href="#" data-newtab>Transparand</a></li>
+            <li><a href="#" data-newtab>Modus operandi</a></li>
+            <li><a href="#" data-newtab>Site VTO Kontich</a></li>
+            <li><a href="#" data-newtab>Loonbrieven</a></li>
+        </ul>
+    </nav>
+
+    <!-- OPTECH -->
+    <nav class="sidemenu-section">
+        <h4>OPTECH</h4>
+        <ul>
+            <li><a href="https://trello.com" data-newtab>Trello</a></li>
+            <li><a href="https://www.teamviewer.com" data-newtab>Teamviewer</a></li>
+            <li><a href="#" data-newtab>Modutech</a></li>
+        </ul>
+    </nav>
+
+    <!-- Interessante links -->
+    <nav class="sidemenu-section">
+        <h4>Interessante links</h4>
+        <ul>
+            <li><a href="#" data-newtab>kennisbank brandweer</a></li>
+            <li><a href="#" data-newtab>tijdschrift Computer</a></li>
+        </ul>
+    </nav>
+
+    <!-- Apps -->
+    <nav class="sidemenu-section">
+        <h4>Apps</h4>
+        <ul>
+            <li><a href="#" data-newtab>Optech</a></li>
+            <li><a href="#" data-newtab>Magazijn</a></li>
         </ul>
     </nav>
 </aside>

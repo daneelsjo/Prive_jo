@@ -1,3 +1,4 @@
+/* Hoofdnav basis */
 .mainnav {
     display: flex;
     justify-content: center;
@@ -24,13 +25,14 @@
     position: relative;
 }
 
-.mainnav .submenu {
+/* 1e niveau submenu (onder de knop, gecentreerd) */
+.mainnav>ul>li>.submenu {
     position: absolute;
     top: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
     display: none;
-    min-width: 180px;
+    min-width: 200px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: .6rem;
@@ -41,6 +43,29 @@
     margin: 0;
 }
 
+/* 2e niveau submenu (rechts uitklappend) */
+.mainnav .submenu .has-submenu {
+    position: relative;
+}
+
+.mainnav .submenu .submenu {
+    position: absolute;
+    top: 0;
+    left: 100%;
+    transform: none;
+    display: none;
+    min-width: 200px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: .6rem;
+    box-shadow: var(--shadow);
+    padding: .4rem;
+    z-index: 1600;
+    /* boven 1e niveau */
+    margin-left: 6px;
+}
+
+/* Links in submenu */
 .mainnav .submenu a {
     display: block;
     padding: .45rem .6rem;
@@ -56,12 +81,35 @@
     background: rgba(255, 255, 255, .06);
 }
 
+/* Hover/focus: toon submenu's */
 .mainnav .has-submenu:hover>.submenu,
 .mainnav .has-submenu:focus-within>.submenu {
     display: block;
 }
 
-/* Hover-animatie */
+/* 2e niveau hover/focus */
+.mainnav .submenu .has-submenu:hover>.submenu,
+.mainnav .submenu .has-submenu:focus-within>.submenu {
+    display: block;
+}
+
+/* Klik-open ondersteuning (JS zet .open) */
+.mainnav .has-submenu.open>.submenu {
+    display: block;
+}
+
+.mainnav .submenu .has-submenu.open>.submenu {
+    display: block;
+}
+
+/* Pijltje naar rechts bij items met kind-submenu */
+.mainnav .submenu .has-submenu>a::after {
+    content: "▸";
+    float: right;
+    opacity: .65;
+}
+
+/* Hover-animatie rond knop (bestaand effect) */
 .menu-link::before {
     content: "";
     position: absolute;
