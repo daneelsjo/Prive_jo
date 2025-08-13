@@ -777,8 +777,6 @@ function doneWithin24h(t) {
   return (Date.now() - ms) < ONE_DAY;
 }
 
-
-
 // ISO helpers wanneer je strings opslaat
 function toYMD(date = new Date()) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
