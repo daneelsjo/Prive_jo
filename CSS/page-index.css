@@ -49,7 +49,10 @@
   padding: .2rem 0;
 }
 
-.task-row.done .task-text { text-decoration: line-through; opacity: .6; }
+.task-row.done .task-text {
+  text-decoration: line-through;
+  opacity: .6;
+}
 
 #uncategorized-list>.task-row {
   background: rgba(0, 0, 0, .04);
@@ -69,4 +72,37 @@
 
 :root[data-theme="dark"] .prio-dot {
   border-color: rgba(255, 255, 255, .35);
+}
+
+/* Tabel in het “Alle taken” paneel */
+.alltasks-group {
+  margin: .6rem 0;
+}
+
+.alltasks-group h4 {
+  margin: .6rem 0 .4rem;
+  font-size: 1rem;
+  opacity: .85;
+}
+
+.alltasks-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.alltasks-table th,
+.alltasks-table td {
+  text-align: left;
+  padding: .45rem .5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: .95rem;
+}
+
+.alltasks-table tbody tr:hover {
+  background: rgba(0, 0, 0, .05);
+  cursor: pointer;
+}
+
+:root[data-theme="dark"] .alltasks-table tbody tr:hover {
+  background: rgba(255, 255, 255, .06);
 }

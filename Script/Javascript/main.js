@@ -2,8 +2,9 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, deleteDoc
+  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, deleteDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
+
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
@@ -46,6 +47,17 @@ const uncategorizedList = document.getElementById("uncategorized-list");
 
 const modeSwitchEl = document.getElementById("modeSwitch");
 const priorityInput = document.getElementById("priority");
+
+const toggleAllBtn = document.getElementById("toggleAllTasks");
+const allTasksPanel = document.getElementById("allTasksPanel");
+const allTasksTableDiv = document.getElementById("allTasksTable");
+
+toggleAllBtn && (toggleAllBtn.onclick = () => {
+  const open = allTasksPanel.style.display !== "none";
+  allTasksPanel.style.display = open ? "none" : "block";
+  if (!open) renderAllTasks(); // render bij openen
+});
+
 
 function prioColor(p) {
   const PRIO_COLORS = {
@@ -117,11 +129,12 @@ function setMode(mode) {
 }
 
 /* ---------- LISTENERS ---------- */
-function listenCategories() {
-  onSnapshot(collection(db, "categories"), (snap) => {
-    categories = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.active !== false);
-    updateCategoryDatalist();
+function listenTodos() {
+  onSnapshot(collection(db, "todos"), async (snapshot) => {
+    allTodos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     renderTodos();
+    // opruimen van oude taken (asynchroon, niet blocking)
+    cleanupOldCompleted().catch(console.error);
   });
 }
 
@@ -204,10 +217,18 @@ function renderTodos() {
 
   // Filter op modus (of geen categorie → altijd tonen)
   const visibleTodos = allTodos.filter(t => {
-    if (!t.categoryId) return true;
-    const c = categories.find(x => x.id === t.categoryId);
-    return !!c && c.type === currentMode;
+    // alleen huidige modus (of UNCATEGORIZED)
+    const cat = t.categoryId ? categories.find(x => x.id === t.categoryId) : null;
+    const inMode = !t.categoryId || (cat && cat.type === currentMode);
+    if (!inMode) return false;
+
+    // done → nog tonen als binnen 24u voltooid
+    if (t.done) return doneWithin24h(t);
+
+    // open taken → altijd tonen
+    return true;
   });
+
 
   // groepeer per categoryId
   const byCatId = visibleTodos.reduce((acc, t) => {
@@ -250,6 +271,10 @@ function renderTodos() {
     uncategorizedList.innerHTML = "";
     sortTodosForDisplay(rest).forEach(todo => uncategorizedList.appendChild(buildTaskRow(todo, true)));
   }
+  if (allTasksPanel && allTasksPanel.style.display !== "none") {
+    renderAllTasks();
+  }
+
 
 }
 
@@ -280,7 +305,20 @@ function buildTaskRow(todo, inRest = false) {
 
   const dateLine = document.createElement("div");
   dateLine.className = "task-date";
-  dateLine.textContent = `${todo.start || "?"} - ${todo.end || "?"}`;
+
+
+  let datesText;
+  if (todo.done && doneWithin24h(todo)) {
+    const when = formatCompletedNL(todo);
+    datesText = when ? `Voltooid: ${when}` : `Voltooid`;
+  } else {
+    const s = todo.start || "?";
+    const e = todo.end || "?";
+    datesText = `${s} - ${e}`;
+  }
+
+  dateLine.textContent = datesText;
+
 
   wrap.appendChild(title);
   wrap.appendChild(dateLine);
@@ -413,9 +451,21 @@ function mkBtn(cls, text, onClick) {
 
 /* Voltooien via knop */
 async function completeTask(id) {
-  await setDoc(doc(db, "todos", id), { done: true }, { merge: true });
+  const now = new Date();
+  const ttlDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 dagen
+
+  await setDoc(doc(db, "todos", id), {
+    done: true,
+    completedAt: serverTimestamp(),
+    completedAtStr: toISO(now),
+    ttlAt: ttlDate  // <-- TTL veld (type: Firestore Timestamp)
+  }, { merge: true });
+
   closeModal();
 }
+
+
+
 
 /* Opslaan uit modal */
 window.saveTask = async function (id) {
@@ -503,4 +553,149 @@ function updateCategoryDatalist() {
       opt.value = `${c.name} (${c.type})`;  // bv. "Algemeen (werk)"
       categoryList.appendChild(opt);
     });
+}
+
+// 24u en 90 dagen in ms
+const ONE_DAY = 24 * 60 * 60 * 1000;
+const NINETY_DAYS = 90 * ONE_DAY;
+
+// is voltooid binnen 24u?
+function doneWithin24h(t) {
+  if (!t?.done || !t?.completedAt) return false;
+  const ts = typeof t.completedAt === "string" ? Date.parse(t.completedAt) : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
+  if (Number.isNaN(ts)) return false;
+  return (Date.now() - ts) < ONE_DAY;
+}
+
+// format helpers
+function toYMD(date = new Date()) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
+function toISO(date = new Date()) {
+  // volledige ISO (voor completedAt als string fallback)
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
+}
+
+async function cleanupOldCompleted() {
+  const now = Date.now();
+  const toDelete = allTodos.filter(t => {
+    if (!t.done || !t.completedAt) return false;
+    const ts = typeof t.completedAt === "string"
+      ? Date.parse(t.completedAt)
+      : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
+    if (Number.isNaN(ts)) return false;
+    return (now - ts) > NINETY_DAYS;
+  });
+  for (const t of toDelete) {
+    await deleteDoc(doc(db, "todos", t.id));
+  }
+}
+
+
+function renderAllTasks() {
+  if (!allTasksTableDiv) return;
+
+  // groepeer per categorie (incl. "Overig")
+  const groups = new Map(); // key: label, val: array
+  function push(label, t) {
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(t);
+  }
+
+  allTodos.forEach(t => {
+    const cat = t.categoryId ? categories.find(c => c.id === t.categoryId) : null;
+    const label = cat ? `${cat.name} (${cat.type})` : "Overig";
+    push(label, t);
+  });
+
+  // sorteer binnen groep: eerst prio (1,2,3,0), dan naam
+  const order = { 1: 0, 2: 1, 3: 2, 0: 3 };
+  function prioRank(p) { return order[p ?? 0] ?? 3; }
+
+  const container = document.createElement("div");
+  container.innerHTML = "";
+  [...groups.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([label, list]) => {
+      const grp = document.createElement("div");
+      grp.className = "alltasks-group";
+      const h = document.createElement("h4");
+      h.textContent = label;
+      grp.appendChild(h);
+
+      const table = document.createElement("table");
+      table.className = "alltasks-table";
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>Prio</th>
+            <th>Taak</th>
+            <th>Start</th>
+            <th>Eind</th>
+            <th>Voltooid</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      const tbody = table.querySelector("tbody");
+
+      list
+        .slice()
+        .sort((a, b) => {
+          const pa = prioRank(a.prio), pb = prioRank(b.prio);
+          if (pa !== pb) return pa - pb;
+          return (a.name || "").localeCompare(b.name || "");
+        })
+        .forEach(t => {
+          const tr = document.createElement("tr");
+          tr.onclick = () => showTaskDetail(t);
+          const tdPrio = document.createElement("td");
+          const tdName = document.createElement("td");
+          const tdStart = document.createElement("td");
+          const tdEnd = document.createElement("td");
+          const tdDone = document.createElement("td");
+
+          tdPrio.textContent = `PRIO ${t.prio ?? 0}`;
+          tdName.textContent = t.name || "";
+          tdStart.textContent = t.start || "";
+          tdEnd.textContent = t.end || "";
+
+          // voltooid datum/tijd
+          let doneTxt = "";
+          if (t.done) {
+            if (t.completedAt?.toDate) {
+              const d = t.completedAt.toDate();
+              doneTxt = d.toLocaleString();
+            } else if (t.completedAtStr) {
+              const d = new Date(t.completedAtStr);
+              doneTxt = d.toLocaleString();
+            } else {
+              doneTxt = "✓";
+            }
+          } else {
+            doneTxt = "—";
+          }
+          tdDone.textContent = doneTxt;
+
+          tr.append(tdPrio, tdName, tdStart, tdEnd, tdDone);
+          tbody.appendChild(tr);
+        });
+
+      grp.appendChild(table);
+      container.appendChild(grp);
+    });
+
+  allTasksTableDiv.innerHTML = "";
+  allTasksTableDiv.appendChild(container);
+}
+
+function formatCompletedNL(todo) {
+  let d = null;
+  if (todo?.completedAt?.toDate) d = todo.completedAt.toDate();
+  else if (todo?.completedAtStr) d = new Date(todo.completedAtStr);
+  if (!d || isNaN(d)) return null;
+  return d.toLocaleString('nl-BE', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit'
+  });
 }

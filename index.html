@@ -62,6 +62,13 @@
           <label>Document:</label><input id="link" placeholder="Link naar bestand (optioneel)" />
           <button id="addTodo" class="primary">✔️ Toevoegen</button>
         </div>
+        <!-- Toggle + tabel met ALLE taken -->
+        <div class="card" style="margin-top:1rem;">
+          <button id="toggleAllTasks" class="primary" style="margin-bottom:.6rem;">📚 ALLE TAKEN</button>
+          <div id="allTasksPanel" style="display:none;">
+            <div id="allTasksTable"></div>
+          </div>
+        </div>
 
         <!-- Overige taken -->
         <div id="uncategorized" class="card">
