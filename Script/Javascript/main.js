@@ -55,6 +55,9 @@ const allTasksTableDiv = document.getElementById("allTasksTable");
 const jumpBtn = document.getElementById("jumpAllTasks");
 const allTasksSearchEl = document.getElementById("allTasksSearch");
 
+const ONE_DAY = 24 * 60 * 60 * 1000;
+const NINETY_DAYS = 90 * ONE_DAY;
+
 
 jumpBtn && (jumpBtn.onclick = () => {
   if (allTasksPanel) {
@@ -563,8 +566,7 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
-/* Datums/TTL helpers */
-const NINETY_DAYS = 90 * ONE_DAY;
+
 
 
 function toISO(date = new Date()) {
@@ -763,3 +765,36 @@ function refreshAllTasksIfOpen() {
     refreshAllTasksIfOpen();
   };
 })();
+
+// --- Shared helpers (ook top-level) ---
+// is voltooid binnen 24u?
+function doneWithin24h(t) {
+  if (!t?.done || !t?.completedAt) return false;
+  const ms = typeof t.completedAt === "string"
+    ? Date.parse(t.completedAt)
+    : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
+  if (Number.isNaN(ms)) return false;
+  return (Date.now() - ms) < ONE_DAY;
+}
+
+// mooie string voor completedAt in nl-BE
+function formatCompletedNL(todo) {
+  let d = null;
+  if (todo?.completedAt?.toDate) d = todo.completedAt.toDate();
+  else if (todo?.completedAtStr) d = new Date(todo.completedAtStr);
+  if (!d || isNaN(d)) return null;
+  return d.toLocaleString('nl-BE', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+// ISO helpers wanneer je strings opslaat
+function toYMD(date = new Date()) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    .toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
+function toISO(date = new Date()) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    .toISOString();
+}
