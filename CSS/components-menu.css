@@ -15,8 +15,9 @@
 .menu-link {
     position: relative;
     display: inline-block;
-    padding: .35rem .6rem;
-    border-radius: .5rem;
+    padding: .45rem .7rem;
+    /* iets meer padding */
+    border-radius: .6rem;
     text-decoration: none;
     color: var(--fg);
 }
@@ -37,10 +38,11 @@
     border: 1px solid var(--border);
     border-radius: .6rem;
     box-shadow: var(--shadow);
-    padding: .4rem;
     z-index: 1500;
-    list-style: none;
     margin: 0;
+    padding: .4rem 0;
+    list-style: none;
+    /* GEEN bullets */
 }
 
 /* 2e niveau submenu (rechts uitklappend) */
@@ -52,23 +54,35 @@
     position: absolute;
     top: 0;
     left: 100%;
-    transform: none;
     display: none;
     min-width: 200px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: .6rem;
     box-shadow: var(--shadow);
-    padding: .4rem;
     z-index: 1600;
-    /* boven 1e niveau */
-    margin-left: 6px;
+    margin: 0 0 0 6px;
+    padding: .4rem 0;
+    list-style: none;
+    /* GEEN bullets */
 }
 
-/* Links in submenu */
+.mainnav .submenu li {
+    list-style: none;
+}
+
+/* GEEN bullets */
+.mainnav .submenu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* nested reset */
+
 .mainnav .submenu a {
     display: block;
-    padding: .45rem .6rem;
+    padding: .45rem .7rem;
     border-radius: .4rem;
     color: var(--fg);
 }
@@ -109,45 +123,55 @@
     opacity: .65;
 }
 
-/* Hover-animatie rond knop (bestaand effect) */
-.menu-link::before {
+/* ==== Duidelijkere animatie rond knoppen ==== */
+.menu-link::before,
+.menu-link::after {
     content: "";
     position: absolute;
     inset: -6px;
-    border-radius: 8px;
-    padding: 2px;
-    background: conic-gradient(#2563eb 0 25%, transparent 0 100%);
+    border-radius: 10px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .18s ease;
+}
+
+/* Glowing, roterende “neon” rand */
+.menu-link::before {
+    padding: 3px;
+    background:
+        conic-gradient(#2563eb 0 12%, transparent 12% 25%,
+            #2563eb 25% 37%, transparent 37% 50%,
+            #2563eb 50% 62%, transparent 62% 75%,
+            #2563eb 75% 87%, transparent 87% 100%);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
-    opacity: 0;
-    transform: scale(.96);
+    filter: drop-shadow(0 0 6px rgba(37, 99, 235, .45));
+    transform-origin: 50% 50%;
+}
+
+/* subtiele vaste rand om het geheel */
+.menu-link::after {
+    inset: -2px;
+    border-radius: 12px;
+    border: 1px solid rgba(37, 99, 235, .35);
 }
 
 .menu-link:hover::before,
-.menu-link:focus-visible::before {
+.menu-link:focus-visible::before,
+.menu-link:hover::after,
+.menu-link:focus-visible::after {
     opacity: 1;
-    animation: spinBox 1s linear infinite;
 }
 
-@keyframes spinBox {
-    0% {
-        clip-path: inset(0 100% 100% 0)
+@keyframes neonSweep {
+    to {
+        transform: rotate(360deg);
     }
+}
 
-    25% {
-        clip-path: inset(0 0 100% 0)
-    }
-
-    50% {
-        clip-path: inset(0 0 0 0)
-    }
-
-    75% {
-        clip-path: inset(0 0 0 0)
-    }
-
-    100% {
-        clip-path: inset(0 100% 100% 0)
-    }
+/* Start/stop van de draaiing alleen bij hover/focus */
+.menu-link:hover::before,
+.menu-link:focus-visible::before {
+    animation: neonSweep 1.6s linear infinite;
 }
