@@ -1,8 +1,8 @@
 <header class="topbar">
-    <!-- Hamburger -->
-    <button id="hamburger" aria-label="Menu" class="icon-btn">☰</button>
+    <button id="hamburgerBtn" class="icon-btn" aria-controls="sidemenu" aria-expanded="false" title="Menu">
+        &#9776;
+    </button>
 
-    <!-- Hoofdmenu (optioneel) -->
     <nav class="mainnav">
         <ul>
             <li><a class="menu-link" href="https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox" target="_blank">Mail</a>
@@ -56,7 +56,7 @@
 </header>
 
 <!-- Drawer (zijmenu) -->
-<aside id="sideMenu" class="sidemenu">
+<nav id="sidemenu" class="sidemenu" aria-hidden="true">
     <div class="sidemenu-section">
         <h4>Links</h4>
         <ul>
@@ -85,7 +85,7 @@
             <li><a href="#" target="_blank">Computer!Totaal</a></li>
         </ul>
     </div>
-</aside>
+</nav>
 
 <!-- Donkere achtergrond achter de drawer -->
 <div id="backdrop" class="backdrop"></div>

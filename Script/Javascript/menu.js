@@ -42,3 +42,37 @@
     // init opnieuw nadat de header partial is ingevoegd
     document.addEventListener('partials:loaded', initMenu);
 })();
+
+
+// Script/Javascript/menu.js
+function wireHamburger() {
+    const btn = document.getElementById('hamburgerBtn');
+    const menu = document.getElementById('sidemenu');
+    const backdrop = document.getElementById('backdrop');
+    if (!btn || !menu || !backdrop) return; // header nog niet in DOM
+
+    const setOpen = (open) => {
+        menu.classList.toggle('open', open);
+        backdrop.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', String(open));
+        menu.setAttribute('aria-hidden', String(!open));
+    };
+
+    btn.onclick = (e) => {
+        e.preventDefault();
+        setOpen(!menu.classList.contains('open'));
+    };
+
+    // klik naast de lade sluit
+    backdrop.onclick = (e) => { if (e.target === backdrop) setOpen(false); };
+
+    // Esc sluit
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') setOpen(false);
+    });
+}
+
+// werkt als de header al in de HTML staat…
+document.addEventListener('DOMContentLoaded', wireHamburger);
+// …en ook als de header via partials werd ingeladen
+document.addEventListener('partials:loaded', wireHamburger);
