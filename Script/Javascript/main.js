@@ -314,14 +314,17 @@ function buildTaskRow(todo, inRest = false) {
   let datesText;
   if (todo.done && doneWithin24h(todo)) {
     const when = formatCompletedNL(todo);
-    datesText = when ? `Voltooid: ${when}` : `Voltooid`;
+    datesText = when
+      ? `<strong>Voltooid:</strong> ${when}`
+      : `<strong>Voltooid</strong>`;
+    dateLine.innerHTML = datesText;  // LET OP: innerHTML i.p.v. textContent
   } else {
     const s = todo.start || "?";
     const e = todo.end || "?";
     datesText = `${s} - ${e}`;
+    dateLine.textContent = datesText;
   }
 
-  dateLine.textContent = datesText;
 
 
   wrap.appendChild(title);

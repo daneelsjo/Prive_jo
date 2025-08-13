@@ -119,3 +119,10 @@
     margin: .75rem 0;
     display: flex;
 }
+
+/* verberg de checkbox zelf */
+.mode-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
