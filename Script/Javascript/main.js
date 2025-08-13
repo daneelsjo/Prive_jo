@@ -323,8 +323,6 @@ function buildTaskRow(todo, inRest = false) {
   }
 
 
-
-
   wrap.appendChild(title);
   wrap.appendChild(dateLine);
 
