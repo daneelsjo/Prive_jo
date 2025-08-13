@@ -106,3 +106,98 @@
 :root[data-theme="dark"] .alltasks-table tbody tr:hover {
   background: rgba(255, 255, 255, .06);
 }
+
+/* unified table met vaste kolombreedtes */
+.alltasks-table.unified {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.alltasks-table.unified thead th {
+  text-align: left;
+  padding: .5rem .6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.alltasks-table.unified tbody td {
+  padding: .45rem .6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+/* vaste kolommen */
+.alltasks-table .col-prio {
+  width: 64px;
+}
+
+.alltasks-table .col-date {
+  width: 140px;
+}
+
+.alltasks-table .col-done {
+  width: 180px;
+}
+
+/* taak neemt restbreedte */
+.alltasks-table .col-task {
+  width: auto;
+}
+
+/* categorie scheidingsrij */
+.alltasks-table .group-row td {
+  padding: .55rem .6rem;
+  font-weight: 700;
+  background: rgba(0, 0, 0, .05);
+  border-bottom: 1px solid var(--border);
+}
+
+:root[data-theme="dark"] .alltasks-table .group-row td {
+  background: rgba(255, 255, 255, .06);
+}
+
+/* prio dot in tabel */
+.td-prio {
+  text-align: center;
+}
+
+.prio-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, .25);
+}
+
+:root[data-theme="dark"] .prio-dot {
+  border-color: rgba(255, 255, 255, .35);
+}
+
+/* “ghost” knop bovenaan */
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: .45rem .7rem;
+  border-radius: .6rem;
+  cursor: pointer;
+}
+
+button.ghost:hover {
+  background: rgba(0, 0, 0, .05);
+}
+
+:root[data-theme="dark"] button.ghost:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+/* warning stijl voor Onvoltooid-knop in modal */
+.primary.warning {
+  background: #f59e0b;
+  /* amber */
+  color: #fff;
+}
+
+.primary.warning:hover {
+  background: #d97706;
+}

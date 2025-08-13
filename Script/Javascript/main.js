@@ -2,8 +2,9 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, deleteDoc, serverTimestamp
+  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, deleteDoc, serverTimestamp, deleteField
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
+
 
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
@@ -51,6 +52,15 @@ const priorityInput = document.getElementById("priority");
 const toggleAllBtn = document.getElementById("toggleAllTasks");
 const allTasksPanel = document.getElementById("allTasksPanel");
 const allTasksTableDiv = document.getElementById("allTasksTable");
+const jumpBtn = document.getElementById("jumpAllTasks");
+jumpBtn && (jumpBtn.onclick = () => {
+  if (allTasksPanel) {
+    allTasksPanel.style.display = "block";
+    renderAllTasks();
+    document.querySelector(".alltasks-container")?.scrollIntoView({ behavior: "smooth" });
+  }
+});
+
 
 toggleAllBtn && (toggleAllBtn.onclick = () => {
   const open = allTasksPanel.style.display !== "none";
@@ -430,278 +440,285 @@ window.showTaskDetail = function (todo) {
   footEl.innerHTML = "";
   footEl.append(
     mkBtn("primary", "💾 Opslaan", () => saveTask(todo.id)),
-    mkBtn("primary success", "✔️ Voltooid", () => completeTask(todo.id)),
+    todo.done
+      ? mkBtn("primary warning", "↩️ Onvoltooid", () => uncompleteTask(todo.id))
+      : mkBtn("primary success", "✔️ Voltooid", () => completeTask(todo.id)),
     mkBtn("primary danger", "🗑️ Verwijderen", () => confirmDeleteTask(todo.id, todo.name))
   );
-};
-
-window.closeTaskDetail = function () { closeModal(); };
-
-function mkBtn(cls, text, onClick) {
-  const b = document.createElement("button");
-  b.className = cls; b.textContent = text; b.onclick = onClick;
-  return b;
-}
-
-/* Voltooien via knop */
-async function completeTask(id) {
-  const now = new Date();
-  const ttlDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 dagen
-
-  await setDoc(doc(db, "todos", id), {
-    done: true,
-    completedAt: serverTimestamp(),
-    completedAtStr: toISO(now),
-    ttlAt: ttlDate  // <-- TTL veld (type: Firestore Timestamp)
-  }, { merge: true });
-
-  closeModal();
-}
 
 
+  window.closeTaskDetail = function () { closeModal(); };
+
+  function mkBtn(cls, text, onClick) {
+    const b = document.createElement("button");
+    b.className = cls; b.textContent = text; b.onclick = onClick;
+    return b;
+  }
+
+  /* Voltooien via knop */
+  async function completeTask(id) {
+    const now = new Date();
+    const ttlDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 dagen
+
+    await setDoc(doc(db, "todos", id), {
+      done: true,
+      completedAt: serverTimestamp(),
+      completedAtStr: toISO(now),
+      ttlAt: ttlDate  // <-- TTL veld (type: Firestore Timestamp)
+    }, { merge: true });
+
+    closeModal();
+  }
 
 
-/* Opslaan uit modal */
-window.saveTask = async function (id) {
-  const raw = (document.getElementById("editCategory")?.value || "").trim();
-  const { categoryId, categoryName } = parseCategoryInput(raw);
-  const payload = {
-    start: document.getElementById("editStart")?.value || "",
-    end: document.getElementById("editEnd")?.value || "",
-    categoryId,
-    category: categoryName,
-    description: (document.getElementById("editDesc")?.value || "").trim(),
-    link: (document.getElementById("editLink")?.value || "").trim(),
-    prio: parseInt(document.getElementById("editPrio")?.value || "0", 10)
-  };
-  await setDoc(doc(db, "todos", id), payload, { merge: true });
-  closeModal();
-}
 
-/* Mooie confirm in dezelfde modal-stijl */
-async function confirmDeleteTask(id, name = "deze taak") {
-  const ok = await askConfirm(
-    "Taak verwijderen",
-    `⚠️ OPGELET!<br>Ben je zeker dat je volgende taak wenst te verwijderen:<br><strong>“${escapeHtml(name)}”</strong>`
-  );
-  if (!ok) return;
-  await deleteDoc(doc(db, "todos", id));
-  closeModal();
-}
 
-/* Reusable confirm (Promise<boolean>) */
-function askConfirm(title, html) {
-  return new Promise((resolve) => {
-    openModal();
-    const titleEl = _modalCard.querySelector("#modalTitle");
-    const bodyEl = _modalCard.querySelector("#modalBody");
-    const footEl = _modalCard.querySelector("#modalFooter");
+  /* Opslaan uit modal */
+  window.saveTask = async function (id) {
+    const raw = (document.getElementById("editCategory")?.value || "").trim();
+    const { categoryId, categoryName } = parseCategoryInput(raw);
+    const payload = {
+      start: document.getElementById("editStart")?.value || "",
+      end: document.getElementById("editEnd")?.value || "",
+      categoryId,
+      category: categoryName,
+      description: (document.getElementById("editDesc")?.value || "").trim(),
+      link: (document.getElementById("editLink")?.value || "").trim(),
+      prio: parseInt(document.getElementById("editPrio")?.value || "0", 10)
+    };
+    await setDoc(doc(db, "todos", id), payload, { merge: true });
+    closeModal();
+  }
 
-    titleEl.textContent = title;
-    bodyEl.innerHTML = `<div style="padding-top:.3rem; text-align:center">${html}</div>`;
-    footEl.innerHTML = "";
+  /* Mooie confirm in dezelfde modal-stijl */
+  async function confirmDeleteTask(id, name = "deze taak") {
+    const ok = await askConfirm(
+      "Taak verwijderen",
+      `⚠️ OPGELET!<br>Ben je zeker dat je volgende taak wenst te verwijderen:<br><strong>“${escapeHtml(name)}”</strong>`
+    );
+    if (!ok) return;
+    await deleteDoc(doc(db, "todos", id));
+    closeModal();
+  }
 
-    const yes = mkBtn("primary danger", "✅ Ja, verwijderen", () => finish(true));
-    const no = mkBtn("primary", "❌ Annuleren", () => finish(false));
-    footEl.append(yes, no);
+  /* Reusable confirm (Promise<boolean>) */
+  function askConfirm(title, html) {
+    return new Promise((resolve) => {
+      openModal();
+      const titleEl = _modalCard.querySelector("#modalTitle");
+      const bodyEl = _modalCard.querySelector("#modalBody");
+      const footEl = _modalCard.querySelector("#modalFooter");
 
-    function finish(val) { resolve(val); closeModal(); }
-  });
-}
+      titleEl.textContent = title;
+      bodyEl.innerHTML = `<div style="padding-top:.3rem; text-align:center">${html}</div>`;
+      footEl.innerHTML = "";
 
-/* ---------- DONE TOGGLE ---------- */
-window.markDone = async function (id, status) {
-  await setDoc(doc(db, "todos", id), { done: status }, { merge: true });
-};
+      const yes = mkBtn("primary danger", "✅ Ja, verwijderen", () => finish(true));
+      const no = mkBtn("primary", "❌ Annuleren", () => finish(false));
+      footEl.append(yes, no);
 
-/* ---------- HELPERS ---------- */
-function getContrast(hex) {
-  const r = parseInt(hex.substr(1, 2), 16);
-  const g = parseInt(hex.substr(3, 2), 16);
-  const b = parseInt(hex.substr(5, 2), 16);
-  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 128 ? "#000" : "#fff";
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-/* Vul de datalist met alle categorieën: "Naam (werk|prive)" */
-function updateCategoryDatalist() {
-  if (!categoryList) return;
-
-  // leegmaken
-  categoryList.innerHTML = "";
-
-  // alle actieve categorieën tonen, ongeacht modus
-  categories
-    .filter(c => c && c.name && c.type && c.active !== false)
-    .forEach(c => {
-      const opt = document.createElement("option");
-      opt.value = `${c.name} (${c.type})`;  // bv. "Algemeen (werk)"
-      categoryList.appendChild(opt);
+      function finish(val) { resolve(val); closeModal(); }
     });
-}
+  }
 
-// 24u en 90 dagen in ms
-const ONE_DAY = 24 * 60 * 60 * 1000;
-const NINETY_DAYS = 90 * ONE_DAY;
+  /* ---------- DONE TOGGLE ---------- */
+  window.markDone = async function (id, status) {
+    await setDoc(doc(db, "todos", id), { done: status }, { merge: true });
+  };
 
-// is voltooid binnen 24u?
-function doneWithin24h(t) {
-  if (!t?.done || !t?.completedAt) return false;
-  const ts = typeof t.completedAt === "string" ? Date.parse(t.completedAt) : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
-  if (Number.isNaN(ts)) return false;
-  return (Date.now() - ts) < ONE_DAY;
-}
+  /* ---------- HELPERS ---------- */
+  function getContrast(hex) {
+    const r = parseInt(hex.substr(1, 2), 16);
+    const g = parseInt(hex.substr(3, 2), 16);
+    const b = parseInt(hex.substr(5, 2), 16);
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 128 ? "#000" : "#fff";
+  }
 
-// format helpers
-function toYMD(date = new Date()) {
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10); // "YYYY-MM-DD"
-}
-function toISO(date = new Date()) {
-  // volledige ISO (voor completedAt als string fallback)
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
-}
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
 
-async function cleanupOldCompleted() {
-  const now = Date.now();
-  const toDelete = allTodos.filter(t => {
-    if (!t.done || !t.completedAt) return false;
-    const ts = typeof t.completedAt === "string"
-      ? Date.parse(t.completedAt)
-      : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
+  /* Vul de datalist met alle categorieën: "Naam (werk|prive)" */
+  function updateCategoryDatalist() {
+    if (!categoryList) return;
+
+    // leegmaken
+    categoryList.innerHTML = "";
+
+    // alle actieve categorieën tonen, ongeacht modus
+    categories
+      .filter(c => c && c.name && c.type && c.active !== false)
+      .forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = `${c.name} (${c.type})`;  // bv. "Algemeen (werk)"
+        categoryList.appendChild(opt);
+      });
+  }
+
+  // 24u en 90 dagen in ms
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+  const NINETY_DAYS = 90 * ONE_DAY;
+
+  // is voltooid binnen 24u?
+  function doneWithin24h(t) {
+    if (!t?.done || !t?.completedAt) return false;
+    const ts = typeof t.completedAt === "string" ? Date.parse(t.completedAt) : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
     if (Number.isNaN(ts)) return false;
-    return (now - ts) > NINETY_DAYS;
-  });
-  for (const t of toDelete) {
-    await deleteDoc(doc(db, "todos", t.id));
-  }
-}
-
-
-function renderAllTasks() {
-  if (!allTasksTableDiv) return;
-
-  // groepeer per categorie (incl. "Overig")
-  const groups = new Map(); // key: label, val: array
-  function push(label, t) {
-    if (!groups.has(label)) groups.set(label, []);
-    groups.get(label).push(t);
+    return (Date.now() - ts) < ONE_DAY;
   }
 
-  allTodos.forEach(t => {
-    const cat = t.categoryId ? categories.find(c => c.id === t.categoryId) : null;
-    const label = cat ? `${cat.name} (${cat.type})` : "Overig";
-    push(label, t);
-  });
+  // format helpers
+  function toYMD(date = new Date()) {
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10); // "YYYY-MM-DD"
+  }
+  function toISO(date = new Date()) {
+    // volledige ISO (voor completedAt als string fallback)
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
+  }
 
-  // sorteer binnen groep: eerst prio (1,2,3,0), dan naam
-  const order = { 1: 0, 2: 1, 3: 2, 0: 3 };
-  function prioRank(p) { return order[p ?? 0] ?? 3; }
+  async function cleanupOldCompleted() {
+    const now = Date.now();
+    const toDelete = allTodos.filter(t => {
+      if (!t.done || !t.completedAt) return false;
+      const ts = typeof t.completedAt === "string"
+        ? Date.parse(t.completedAt)
+        : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
+      if (Number.isNaN(ts)) return false;
+      return (now - ts) > NINETY_DAYS;
+    });
+    for (const t of toDelete) {
+      await deleteDoc(doc(db, "todos", t.id));
+    }
+  }
 
-  const container = document.createElement("div");
-  container.innerHTML = "";
-  [...groups.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .forEach(([label, list]) => {
-      const grp = document.createElement("div");
-      grp.className = "alltasks-group";
-      const h = document.createElement("h4");
-      h.textContent = label;
-      grp.appendChild(h);
 
-      const table = document.createElement("table");
-      table.className = "alltasks-table";
-      table.innerHTML = `
-        <thead>
-          <tr>
-            <th>Prio</th>
-            <th>Taak</th>
-            <th>Start</th>
-            <th>Eind</th>
-            <th>Voltooid</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      `;
-      const tbody = table.querySelector("tbody");
+  function renderAllTasks() {
+    if (!allTasksTableDiv) return;
 
-      list
-        .slice()
-        .sort((a, b) => {
+    // groepeer per categorie-label
+    const groups = new Map();
+    const labelOf = (t) => {
+      const c = t.categoryId ? categories.find(x => x.id === t.categoryId) : null;
+      return c ? `${c.name} (${c.type})` : "Overig";
+    };
+    allTodos.forEach(t => {
+      const lbl = labelOf(t);
+      if (!groups.has(lbl)) groups.set(lbl, []);
+      groups.get(lbl).push(t);
+    });
+
+    const order = { 1: 0, 2: 1, 3: 2, 0: 3 };
+    const prioRank = p => order[p ?? 0] ?? 3;
+
+    // één tabel voor alles
+    const wrapper = document.createElement("div");
+    const table = document.createElement("table");
+    table.className = "alltasks-table unified";
+    table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="col-prio">Prio</th>
+        <th class="col-task">Taak</th>
+        <th class="col-date">Start</th>
+        <th class="col-date">Eind</th>
+        <th class="col-done">Voltooid</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+    const tbody = table.querySelector("tbody");
+
+    // sorteer groepen op naam
+    [...groups.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .forEach(([label, list]) => {
+        // scheidingsrij voor categorie
+        const sep = document.createElement("tr");
+        sep.className = "group-row";
+        sep.innerHTML = `<td colspan="5">${label}</td>`;
+        tbody.appendChild(sep);
+
+        // sorteer taken binnen groep
+        list.slice().sort((a, b) => {
           const pa = prioRank(a.prio), pb = prioRank(b.prio);
           if (pa !== pb) return pa - pb;
           return (a.name || "").localeCompare(b.name || "");
-        })
-        .forEach(t => {
+        }).forEach(t => {
           const tr = document.createElement("tr");
           tr.onclick = () => showTaskDetail(t);
+
+          // PRIO dot
           const tdPrio = document.createElement("td");
+          tdPrio.className = "td-prio";
+          const dot = document.createElement("span");
+          dot.className = "prio-dot";
+          dot.style.backgroundColor = prioColor(t.prio);
+          tdPrio.appendChild(dot);
+
           const tdName = document.createElement("td");
-          const tdStart = document.createElement("td");
-          const tdEnd = document.createElement("td");
-          const tdDone = document.createElement("td");
-
-          tdPrio.textContent = `PRIO ${t.prio ?? 0}`;
           tdName.textContent = t.name || "";
-          tdStart.textContent = t.start || "";
-          tdEnd.textContent = t.end || "";
 
-          // voltooid datum/tijd
-          let doneTxt = "";
+          const tdStart = document.createElement("td");
+          tdStart.textContent = t.start || "—";
+
+          const tdEnd = document.createElement("td");
+          tdEnd.textContent = t.end || "—";
+
+          const tdDone = document.createElement("td");
           if (t.done) {
-            if (t.completedAt?.toDate) {
-              const d = t.completedAt.toDate();
-              doneTxt = d.toLocaleString();
-            } else if (t.completedAtStr) {
-              const d = new Date(t.completedAtStr);
-              doneTxt = d.toLocaleString();
-            } else {
-              doneTxt = "✓";
-            }
+            const when = formatCompletedNL(t);
+            tdDone.textContent = when || "✓";
           } else {
-            doneTxt = "—";
+            tdDone.textContent = "—";
           }
-          tdDone.textContent = doneTxt;
 
           tr.append(tdPrio, tdName, tdStart, tdEnd, tdDone);
           tbody.appendChild(tr);
         });
+      });
 
-      grp.appendChild(table);
-      container.appendChild(grp);
+    wrapper.appendChild(table);
+    allTasksTableDiv.innerHTML = "";
+    allTasksTableDiv.appendChild(wrapper);
+  }
+
+
+  function formatCompletedNL(todo) {
+    let d = null;
+    if (todo?.completedAt?.toDate) d = todo.completedAt.toDate();
+    else if (todo?.completedAtStr) d = new Date(todo.completedAtStr);
+    if (!d || isNaN(d)) return null;
+    return d.toLocaleString('nl-BE', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
     });
+  }
 
-  allTasksTableDiv.innerHTML = "";
-  allTasksTableDiv.appendChild(container);
-}
+  // Luister live naar categorieën en bouw de datalist + herteken
+  function listenCategories() {
+    onSnapshot(collection(db, "categories"), (snap) => {
+      categories = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => c.active !== false);
 
-function formatCompletedNL(todo) {
-  let d = null;
-  if (todo?.completedAt?.toDate) d = todo.completedAt.toDate();
-  else if (todo?.completedAtStr) d = new Date(todo.completedAtStr);
-  if (!d || isNaN(d)) return null;
-  return d.toLocaleString('nl-BE', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit'
-  });
-}
+      updateCategoryDatalist(); // vult <datalist id="categoryList">
+      renderTodos();            // herteken post-its
+    });
+  }
 
-// Luister live naar categorieën en bouw de datalist + herteken
-function listenCategories() {
-  onSnapshot(collection(db, "categories"), (snap) => {
-    categories = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(c => c.active !== false);
 
-    updateCategoryDatalist(); // vult <datalist id="categoryList">
-    renderTodos();            // herteken post-its
-  });
-}
+  async function uncompleteTask(id) {
+    await setDoc(doc(db, "todos", id), {
+      done: false,
+      completedAt: deleteField(),
+      completedAtStr: deleteField(),
+      ttlAt: deleteField()   // als je TTL gebruikt, haal je die ook weg
+    }, { merge: true });
+    closeModal();
+  }
