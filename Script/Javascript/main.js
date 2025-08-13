@@ -1,14 +1,9 @@
 // Script/Javascript/main.js
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 import {
   getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, deleteDoc, serverTimestamp, deleteField
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
-
-
-import {
-  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 
 /** Firebase config */
 const firebaseConfig = {
@@ -58,78 +53,43 @@ const allTasksSearchEl = document.getElementById("allTasksSearch");
 const ONE_DAY = 24 * 60 * 60 * 1000;
 const NINETY_DAYS = 90 * ONE_DAY;
 
-
-jumpBtn && (jumpBtn.onclick = () => {
-  if (allTasksPanel) {
-    allTasksPanel.style.display = "block";
-    renderAllTasks();
-    document.querySelector(".alltasks-container")?.scrollIntoView({ behavior: "smooth" });
-  }
-});
-
-
-toggleAllBtn && (toggleAllBtn.onclick = () => {
-  const goingOpen = allTasksPanel.style.display === "none";
-  allTasksPanel.style.display = goingOpen ? "block" : "none";
-
-  if (allTasksSearchEl) {
-    allTasksSearchEl.style.display = goingOpen ? "block" : "none";
-    if (goingOpen) {
-      allTasksSearchEl.value = "";      // leegmaken bij openen
-      allTasksSearchEl.focus();
-    }
-  }
-  if (goingOpen) renderAllTasks();      // eerste render
-});
-
-function debounce(fn, ms = 200) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+/* Helpers */
+const PRIO_COLORS = { 0: "#ffffff", 1: "#ef4444", 2: "#f59e0b", 3: "#10b981" };
+function prioColor(p) { return PRIO_COLORS[p ?? 0] || "#ffffff"; }
+function debounce(fn, ms = 200) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function getContrast(hex) {
+  const r = parseInt(hex.substr(1, 2), 16), g = parseInt(hex.substr(3, 2), 16), b = parseInt(hex.substr(5, 2), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#000" : "#fff";
 }
-
-allTasksSearchEl && allTasksSearchEl.addEventListener(
-  "input",
-  debounce(() => renderAllTasks(allTasksSearchEl.value || ""), 150)
-);
-
-
-function prioColor(p) {
-  const PRIO_COLORS = {
-    0: "#ffffff", // wit
-    1: "#ef4444", // rood
-    2: "#f59e0b", // oranje
-    3: "#10b981"  // groen
-  };
-  return PRIO_COLORS[p ?? 0] || "#ffffff";
+function escapeHtml(str) {
+  return String(str).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
+function toISO(date = new Date()) { return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString(); }
+function formatCompletedNL(todo) {
+  let d = null;
+  if (todo?.completedAt?.toDate) d = todo.completedAt.toDate();
+  else if (todo?.completedAtStr) d = new Date(todo.completedAtStr);
+  if (!d || isNaN(d)) return null;
+  return d.toLocaleString("nl-BE", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+function normalize(s) { return (s || "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
 
-
-
-/* Modal (dynamisch aangemaakt) */
-let _modalBackdrop = null;
-let _modalCard = null;
-
+/* State */
 let currentUser = null;
 let allTodos = [];
 let categories = []; // {id,name,type('werk'|'prive'),active}
 let settings = {};   // { modeSlots:{werk[],prive[]}, preferredMode, theme }
 let currentMode = "werk";
+const fixedColors = ["#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688", "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"];
 
-const fixedColors = [
-  "#FFEB3B", "#F44336", "#4CAF50", "#2196F3",
-  "#E91E63", "#9C27B0", "#673AB7", "#3F51B5",
-  "#00BCD4", "#009688", "#8BC34A", "#CDDC39",
-  "#FFC107", "#FF9800", "#795548"
-];
-
-/* ---------- AUTH ---------- */
+/* AUTH */
 loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
-
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   currentUser = user;
-  authDiv && (authDiv.style.display = "none");
-  appDiv && (appDiv.style.display = "block");
+  if (authDiv) authDiv.style.display = "none";
+  if (appDiv) appDiv.style.display = "block";
 
   await loadSettings();
   applyTheme(settings.theme || "system");
@@ -144,40 +104,40 @@ onAuthStateChanged(auth, async (user) => {
   listenTodos();
 });
 
-/* ---------- THEME ---------- */
+/* THEME */
 function applyTheme(mode) {
   let final = mode;
-  if (mode === "system") {
-    final = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
+  if (mode === "system") final = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   document.documentElement.setAttribute("data-theme", final);
 }
 
-/* ---------- MODE ---------- */
+/* MODE */
 function setMode(mode) {
   currentMode = mode;
-  if (currentUser) {
-    setDoc(doc(db, "settings", currentUser.uid), { preferredMode: mode }, { merge: true });
-  }
+  if (currentUser) setDoc(doc(db, "settings", currentUser.uid), { preferredMode: mode }, { merge: true });
   renderTodos();
 }
 
-/* ---------- LISTENERS ---------- */
+/* LISTENERS */
 function listenTodos() {
   onSnapshot(collection(db, "todos"), async (snapshot) => {
     allTodos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     renderTodos();
-    // opruimen van oude taken (asynchroon, niet blocking)
     cleanupOldCompleted().catch(console.error);
   });
 }
+function listenCategories() {
+  onSnapshot(collection(db, "categories"), (snap) => {
+    categories = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.active !== false);
+    updateCategoryDatalist();
+    renderTodos();
+  });
+}
 
-
-/* ---------- FORM ---------- */
+/* FORM */
 newTaskBtn && (newTaskBtn.onclick = () => {
   formContainer.style.display = formContainer.style.display === "none" ? "block" : "none";
 });
-
 addTodoBtn && (addTodoBtn.onclick = async () => {
   const name = (nameInput.value || "").trim();
   const start = startInput.value || "";
@@ -192,11 +152,8 @@ addTodoBtn && (addTodoBtn.onclick = async () => {
 
   await addDoc(collection(db, "todos"), {
     name, start, end,
-    categoryId,               // id als 'Naam (type)' gekozen werd
-    category: categoryName,   // naam (ook voor vrije tekst)
-    description, link,
-    prio,
-    done: false
+    categoryId, category: categoryName,
+    description, link, prio, done: false
   });
 
   nameInput.value = ""; startInput.value = ""; endInput.value = "";
@@ -204,7 +161,6 @@ addTodoBtn && (addTodoBtn.onclick = async () => {
   formContainer.style.display = "none";
 });
 
-/* "Naam (type)" → id + naam */
 function parseCategoryInput(value) {
   if (!value) return { categoryId: null, categoryName: "" };
   const m = value.match(/^(.*)\s+\((werk|prive)\)$/i);
@@ -216,24 +172,59 @@ function parseCategoryInput(value) {
   return { categoryId: null, categoryName: value.trim() };
 }
 
-/* ---------- SETTINGS LADEN ---------- */
+/* SETTINGS LADEN */
 async function loadSettings() {
   const s = await getDoc(doc(db, "settings", currentUser.uid));
   settings = s.exists() ? (s.data() || {}) : {};
 }
 
-/* ---------- RENDER ---------- */
-
+/* RENDER */
 function sortTodosForDisplay(list) {
-  const order = { 1: 0, 2: 1, 3: 2, 0: 3 };  // 1 → 2 → 3 → 0
+  const order = { 1: 0, 2: 1, 3: 2, 0: 3 };
   list.sort((a, b) => {
     const pa = order[(a.prio ?? 0)] ?? 3;
     const pb = order[(b.prio ?? 0)] ?? 3;
     if (pa !== pb) return pa - pb;
-    // daarna alfabetisch op naam
     return (a.name || "").localeCompare(b.name || "");
   });
   return list;
+}
+
+function buildTaskRow(todo, inRest = false) {
+  const row = document.createElement("div");
+  row.className = "task-row" + (todo.done ? " done" : "");
+
+  const dot = document.createElement("span");
+  dot.className = "prio-dot";
+  dot.style.backgroundColor = prioColor(todo.prio || 0);
+
+  const wrap = document.createElement("div");
+  wrap.className = "task-text-wrap";
+
+  const title = document.createElement("div");
+  title.className = "task-title";
+  if (inRest) {
+    const c = categories.find(x => x.id === todo.categoryId);
+    const catName = c ? c.name : "geen";
+    title.innerHTML = `${escapeHtml(todo.name)} <small style="opacity:.7">(${escapeHtml(catName)})</small>`;
+  } else {
+    title.textContent = todo.name;
+  }
+
+  const dateLine = document.createElement("div");
+  dateLine.className = "task-date";
+  const s = todo.start || "—";
+  const e = todo.end || "—";
+  dateLine.textContent = `${s} - ${e}`;
+
+  wrap.appendChild(title);
+  wrap.appendChild(dateLine);
+
+  row.appendChild(dot);
+  row.appendChild(wrap);
+
+  row.addEventListener("click", () => showTaskDetail(todo));
+  return row;
 }
 
 function renderTodos() {
@@ -243,24 +234,19 @@ function renderTodos() {
   if (!postits) return;
   postits.innerHTML = "";
 
-  // Filter op modus (of geen categorie → altijd tonen)
-  // ENKEL open taken voor de huidige modus
   const visibleTodos = allTodos.filter(t => {
     const cat = t.categoryId ? categories.find(x => x.id === t.categoryId) : null;
     const inMode = !t.categoryId || (cat && cat.type === currentMode);
-    return inMode && !t.done;   // voltooid = uit post-its
+    return inMode && !t.done;
   });
 
-
-
-  // groepeer per categoryId
   const byCatId = visibleTodos.reduce((acc, t) => {
     const key = t.categoryId || "UNCAT";
     (acc[key] ||= []).push(t);
     return acc;
   }, {});
 
-  // 6 post‑its volgens slots
+  // 6 post-its volgens slots
   for (let i = 0; i < 6; i++) {
     const slot = slots[i];
     if (!slot?.categoryId) continue;
@@ -277,12 +263,10 @@ function renderTodos() {
     sortTodosForDisplay(byCatId[slot.categoryId] || []).forEach(todo => {
       box.appendChild(buildTaskRow(todo));
     });
-
-
     postits.appendChild(box);
   }
 
-  // Overige taken
+  // Overige taken (niet in slots of helemaal zonder categorie)
   const slotCatIds = new Set(slots.map(s => s?.categoryId).filter(Boolean));
   const rest = [];
   Object.entries(byCatId).forEach(([key, list]) => {
@@ -294,63 +278,17 @@ function renderTodos() {
     uncategorizedList.innerHTML = "";
     sortTodosForDisplay(rest).forEach(todo => uncategorizedList.appendChild(buildTaskRow(todo, true)));
   }
+
+  // indien open, tabel hertekenen
   if (allTasksPanel && allTasksPanel.style.display !== "none") {
-    renderAllTasks();
+    renderAllTasks(allTasksSearchEl?.value || "");
   }
-
-
 }
 
+/* MODAL helpers */
+let _modalBackdrop = null;
+let _modalCard = null;
 
-/* ---- 1 taak-rij: prio-bolletje + tekst ---- */
-function buildTaskRow(todo, inRest = false) {
-  const row = document.createElement("div");
-  row.className = "task-row" + (todo.done ? " done" : "");
-
-  // prio-dot
-  const dot = document.createElement("span");
-  dot.className = "prio-dot";
-  dot.style.backgroundColor = prioColor(todo.prio || 0);  // <-- hier
-
-  // tekstwrap (titel + datum onder elkaar)
-  const wrap = document.createElement("div");
-  wrap.className = "task-text-wrap";
-
-  const title = document.createElement("div");
-  title.className = "task-title";
-  if (inRest) {
-    const c = categories.find(x => x.id === todo.categoryId);
-    const catName = c ? c.name : "geen";
-    title.innerHTML = `${escapeHtml(todo.name)} <small style="opacity:.7">(${escapeHtml(catName)})</small>`;
-  } else {
-    title.textContent = todo.name;
-  }
-
-  const dateLine = document.createElement("div");
-  dateLine.className = "task-date";
-
-
-  let datesText;
-
-  const s = todo.start || "?";
-  const e = todo.end || "?";
-  dateLine.textContent = `${s} - ${e}`;
-
-
-
-  wrap.appendChild(title);
-  wrap.appendChild(dateLine);
-
-  row.appendChild(dot);
-  row.appendChild(wrap);
-
-  row.addEventListener("click", () => showTaskDetail(todo));
-  return row;
-}
-
-
-
-/* ---------- MODAL helpers ---------- */
 function ensureModal() {
   if (!_modalBackdrop) {
     _modalBackdrop = document.createElement("div");
@@ -383,16 +321,13 @@ function closeModal() {
   if (_modalCard) { _modalCard.style.display = "none"; }
 }
 
-/* ---------- MODAL: open/close + acties ---------- */
-/* ---------- MODAL: open/close + acties ---------- */
+/* MODAL: open + acties */
 window.showTaskDetail = function (todo) {
   openModal();
 
   const titleEl = _modalCard.querySelector("#modalTitle");
   const bodyEl = _modalCard.querySelector("#modalBody");
   const footEl = _modalCard.querySelector("#modalFooter");
-
-  // Title
   titleEl.textContent = todo.name || "Taak";
 
   // Categorie-weergave "Naam (type)"
@@ -402,7 +337,6 @@ window.showTaskDetail = function (todo) {
     if (cat) catDisplay = `${cat.name} (${cat.type})`;
   }
 
-  // Body
   bodyEl.innerHTML = `
     <label>Start</label>
     <input id="editStart" type="date" value="${todo.start || ""}">
@@ -422,12 +356,10 @@ window.showTaskDetail = function (todo) {
     <label>Link</label>
     <input id="editLink" value="${todo.link ? escapeHtml(todo.link) : ""}">
   `;
-
-  // Init prio‑select
   const prioSel = _modalCard.querySelector("#editPrio");
   if (prioSel) prioSel.value = String(todo.prio ?? 0);
 
-  // Datalist altijd tonen bij focus
+  // Datalist UX
   const editCat = _modalCard.querySelector("#editCategory");
   if (editCat) {
     editCat.setAttribute("autocomplete", "off");
@@ -440,71 +372,49 @@ window.showTaskDetail = function (todo) {
     editCat.addEventListener("blur", () => {
       if (!editCat.value && editCat.dataset.prev) editCat.value = editCat.dataset.prev;
     });
-    editCat.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowDown" && editCat.showPicker) editCat.showPicker();
-    });
+    editCat.addEventListener("keydown", (e) => { if (e.key === "ArrowDown" && editCat.showPicker) editCat.showPicker(); });
   }
 
-  // Footer knoppen (opslaan / (on)voltooid / verwijderen)
   buildModalFooterButtons(todo, footEl);
-}; // <-- BELANGRIJK: showTaskDetail HIER sluiten
-
+};
 window.closeTaskDetail = function () { closeModal(); };
 
-/* Footerknoppen renderen */
+function mkBtn(cls, text, onClick) { const b = document.createElement("button"); b.className = cls; b.textContent = text; b.onclick = onClick; return b; }
 function buildModalFooterButtons(todo, footEl) {
   footEl.innerHTML = "";
   footEl.append(
     mkBtn("primary", "💾 Opslaan", () => saveTask(todo.id)),
-    todo.done
-      ? mkBtn("primary warning", "↩️ Onvoltooid", () => uncompleteTask(todo.id))
+    todo.done ? mkBtn("primary warning", "↩️ Onvoltooid", () => uncompleteTask(todo.id))
       : mkBtn("primary success", "✔️ Voltooid", () => completeTask(todo.id)),
     mkBtn("primary danger", "🗑️ Verwijderen", () => confirmDeleteTask(todo.id, todo.name))
   );
 }
 
-/* Kleine helper voor knoppen */
-function mkBtn(cls, text, onClick) {
-  const b = document.createElement("button");
-  b.className = cls;
-  b.textContent = text;
-  b.onclick = onClick;
-  return b;
-}
-
-/* Voltooien: zet done + timestamps + TTL (client) */
+/* Acties op taak */
 async function completeTask(id) {
   const now = new Date();
-  const ttlDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 dagen
+  const ttlDate = new Date(now.getTime() + 90 * ONE_DAY);
   await setDoc(doc(db, "todos", id), {
     done: true,
-    completedAt: serverTimestamp(),    // server‑timestamp
-    completedAtStr: toISO(now),        // string fallback
-    ttlAt: ttlDate                     // optioneel, voor Firestore TTL
+    completedAt: serverTimestamp(),
+    completedAtStr: toISO(now),
+    ttlAt: ttlDate
   }, { merge: true });
   closeModal();
 }
-
-/* Onvoltooid maken: wis done + timestamps (+ TTL) */
 async function uncompleteTask(id) {
   await setDoc(doc(db, "todos", id), {
-    done: false,
-    completedAt: deleteField(),
-    completedAtStr: deleteField(),
-    ttlAt: deleteField()
+    done: false, completedAt: deleteField(), completedAtStr: deleteField(), ttlAt: deleteField()
   }, { merge: true });
   closeModal();
 }
-
-/* Opslaan vanuit modal */
 window.saveTask = async function (id) {
   const raw = (document.getElementById("editCategory")?.value || "").trim();
   const { categoryId, categoryName } = parseCategoryInput(raw);
   const payload = {
     start: document.getElementById("editStart")?.value || "",
     end: document.getElementById("editEnd")?.value || "",
-    categoryId,
-    category: categoryName,
+    categoryId, category: categoryName,
     description: (document.getElementById("editDesc")?.value || "").trim(),
     link: (document.getElementById("editLink")?.value || "").trim(),
     prio: parseInt(document.getElementById("editPrio")?.value || "0", 10)
@@ -512,29 +422,21 @@ window.saveTask = async function (id) {
   await setDoc(doc(db, "todos", id), payload, { merge: true });
   closeModal();
 };
-
-/* Verwijderen met nette confirm */
 async function confirmDeleteTask(id, name = "deze taak") {
-  const ok = await askConfirm(
-    "Taak verwijderen",
-    `⚠️ OPGELET!<br>Ben je zeker dat je volgende taak wenst te verwijderen:<br><strong>“${escapeHtml(name)}”</strong>`
-  );
+  const ok = await askConfirm("Taak verwijderen",
+    `⚠️ OPGELET!<br>Ben je zeker dat je volgende taak wenst te verwijderen:<br><strong>“${escapeHtml(name)}”</strong>`);
   if (!ok) return;
   await deleteDoc(doc(db, "todos", id));
   closeModal();
 }
-
-/* Re-usable confirm modal (Promise<boolean>) */
 function askConfirm(title, html) {
   openModal();
   const titleEl = _modalCard.querySelector("#modalTitle");
   const bodyEl = _modalCard.querySelector("#modalBody");
   const footEl = _modalCard.querySelector("#modalFooter");
-
   titleEl.textContent = title;
   bodyEl.innerHTML = `<div style="padding-top:.3rem; text-align:center">${html}</div>`;
   footEl.innerHTML = "";
-
   return new Promise((resolve) => {
     const yes = mkBtn("primary danger", "✅ Ja, verwijderen", () => finish(true));
     const no = mkBtn("primary", "❌ Annuleren", () => finish(false));
@@ -543,37 +445,7 @@ function askConfirm(title, html) {
   });
 }
 
-/* Toggle done (indien je deze elders gebruikt) */
-window.markDone = async function (id, status) {
-  await setDoc(doc(db, "todos", id), { done: status }, { merge: true });
-};
-
-/* ---------- HELPERS ---------- */
-function getContrast(hex) {
-  const r = parseInt(hex.substr(1, 2), 16);
-  const g = parseInt(hex.substr(3, 2), 16);
-  const b = parseInt(hex.substr(5, 2), 16);
-  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 128 ? "#000" : "#fff";
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-
-
-
-function toISO(date = new Date()) {
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
-}
-
-/* Opruimen (client-side fallback op TTL) */
+/* Cleanup */
 async function cleanupOldCompleted() {
   const now = Date.now();
   const toDelete = allTodos.filter(t => {
@@ -602,75 +474,28 @@ function updateCategoryDatalist() {
     });
 }
 
-/* Categorieën live luisteren (TOP-LEVEL!) */
-function listenCategories() {
-  onSnapshot(collection(db, "categories"), (snap) => {
-    categories = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(c => c.active !== false);
-    updateCategoryDatalist();
-    renderTodos();
-  });
-}
-
-/* ---------- ALLE TAKEN (onderaan paneel) ---------- */
-function formatCompletedNL(todo) {
-  let d = null;
-  if (todo?.completedAt?.toDate) d = todo.completedAt.toDate();
-  else if (todo?.completedAtStr) d = new Date(todo.completedAtStr);
-  if (!d || isNaN(d)) return null;
-  return d.toLocaleString("nl-BE", {
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit"
-  });
-}
-
-function normalize(s) {
-  return (s || "")
-    .toString()
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // strip accenten
-}
-
+/* “Alle taken” + zoeken */
 function matchesQuery(t, q) {
   if (!q) return true;
   const nq = normalize(q);
-
   const cat = t.categoryId ? categories.find(c => c.id === t.categoryId) : null;
   const catLabel = cat ? `${cat.name} (${cat.type})` : "overig";
-
-  // alles samenvoegen
   const hay = [
-    t.name,
-    t.description,
-    t.link,
-    t.start, t.end,
-    t.completedAtStr,
-    catLabel,
-    `prio ${t.prio ?? 0}`,
-    String(t.prio ?? 0)
+    t.name, t.description, t.link, t.start, t.end, t.completedAtStr,
+    catLabel, `prio ${t.prio ?? 0}`, String(t.prio ?? 0)
   ].map(normalize).join(" ");
-
   return hay.includes(nq);
 }
 
 function renderAllTasks(query = "") {
-
   if (!allTasksTableDiv) return;
-  // eerst filteren op huidige modus (werk/prive)
   const inCurrentMode = (t) => {
     const c = t.categoryId ? categories.find(x => x.id === t.categoryId) : null;
     return !t.categoryId || (c && c.type === currentMode);
   };
-
-  // => basislijst voor de tabel
   const base = allTodos.filter(inCurrentMode);
-
-
-  // filter op query
   const filtered = base.filter(t => matchesQuery(t, query));
 
-  // groepeer per categorie-label
   const groups = new Map();
   const labelOf = (t) => {
     const c = t.categoryId ? categories.find(x => x.id === t.categoryId) : null;
@@ -685,7 +510,6 @@ function renderAllTasks(query = "") {
   const order = { 1: 0, 2: 1, 3: 2, 0: 3 };
   const prioRank = p => order[p ?? 0] ?? 3;
 
-  // één tabel
   const wrapper = document.createElement("div");
   const table = document.createElement("table");
   table.className = "alltasks-table unified";
@@ -703,82 +527,64 @@ function renderAllTasks(query = "") {
   `;
   const tbody = table.querySelector("tbody");
 
-  // sorteer groepen + rijen
-  [...groups.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .forEach(([label, list]) => {
-      const sep = document.createElement("tr");
-      sep.className = "group-row";
-      sep.innerHTML = `<td colspan="5">${label}</td>`;
-      tbody.appendChild(sep);
+  [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([label, list]) => {
+    const sep = document.createElement("tr");
+    sep.className = "group-row";
+    sep.innerHTML = `<td colspan="5">${label}</td>`;
+    tbody.appendChild(sep);
 
-      list.slice().sort((a, b) => {
-        const pa = prioRank(a.prio), pb = prioRank(b.prio);
-        if (pa !== pb) return pa - pb;
-        return (a.name || "").localeCompare(b.name || "");
-      }).forEach(t => {
-        const tr = document.createElement("tr");
-        tr.onclick = () => showTaskDetail(t);
+    list.slice().sort((a, b) => {
+      const pa = prioRank(a.prio), pb = prioRank(b.prio);
+      if (pa !== pb) return pa - pb;
+      return (a.name || "").localeCompare(b.name || "");
+    }).forEach(t => {
+      const tr = document.createElement("tr");
+      tr.onclick = () => showTaskDetail(t);
 
-        const tdPrio = document.createElement("td");
-        tdPrio.className = "td-prio";
-        const dot = document.createElement("span");
-        dot.className = "prio-dot";
-        dot.style.backgroundColor = prioColor(t.prio);
-        tdPrio.appendChild(dot);
+      const tdPrio = document.createElement("td");
+      tdPrio.className = "td-prio";
+      const dot = document.createElement("span");
+      dot.className = "prio-dot";
+      dot.style.backgroundColor = prioColor(t.prio);
+      tdPrio.appendChild(dot);
 
-        const tdName = document.createElement("td"); tdName.textContent = t.name || "";
-        const tdStart = document.createElement("td"); tdStart.textContent = t.start || "—";
-        const tdEnd = document.createElement("td"); tdEnd.textContent = t.end || "—";
+      const tdName = document.createElement("td"); tdName.textContent = t.name || "";
+      const tdStart = document.createElement("td"); tdStart.textContent = t.start || "—";
+      const tdEnd = document.createElement("td"); tdEnd.textContent = t.end || "—";
 
-        const tdDone = document.createElement("td");
-        if (t.done) {
-          const when = formatCompletedNL(t);
-          tdDone.textContent = when || "✓";
-        } else {
-          tdDone.textContent = "—";
-        }
+      const tdDone = document.createElement("td");
+      tdDone.textContent = t.done ? (formatCompletedNL(t) || "✓") : "—";
 
-        tr.append(tdPrio, tdName, tdStart, tdEnd, tdDone);
-        tbody.appendChild(tr);
-      });
+      tr.append(tdPrio, tdName, tdStart, tdEnd, tdDone);
+      tbody.appendChild(tr);
     });
+  });
 
   allTasksTableDiv.innerHTML = "";
   wrapper.appendChild(table);
   allTasksTableDiv.appendChild(wrapper);
 }
 
-
-/* Als all-tasks paneel open is, hertekenen na renderTodos */
-function refreshAllTasksIfOpen() {
-  if (allTasksPanel && allTasksPanel.style.display !== "none") {
+/* Scroll/zoek gedrag */
+jumpBtn && (jumpBtn.onclick = () => {
+  if (allTasksPanel) {
+    allTasksPanel.style.display = "block";
     renderAllTasks();
+    document.querySelector(".alltasks-container")?.scrollIntoView({ behavior: "smooth" });
   }
-}
-
-/* Patch: roep na je bestaande renderTodos ook refresh aan */
-(function patchRenderTodosToRefresh() {
-  const orig = renderTodos;
-  renderTodos = function () {
-    orig();
-    refreshAllTasksIfOpen();
-  };
-})();
-
-// --- Shared helpers (ook top-level) ---
-// is voltooid binnen 24u?
-function doneWithin24h(t) {
-  if (!t?.done || !t?.completedAt) return false;
-  const ms = typeof t.completedAt === "string"
-    ? Date.parse(t.completedAt)
-    : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
-  if (Number.isNaN(ms)) return false;
-  return (Date.now() - ms) < ONE_DAY;
-}
-
-// ISO helpers wanneer je strings opslaat
-function toYMD(date = new Date()) {
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-    .toISOString().slice(0, 10); // "YYYY-MM-DD"
-}
+});
+toggleAllBtn && (toggleAllBtn.onclick = () => {
+  const goingOpen = allTasksPanel.style.display === "none";
+  allTasksPanel.style.display = goingOpen ? "block" : "none";
+  if (allTasksSearchEl) {
+    allTasksSearchEl.style.display = goingOpen ? "block" : "none";
+    if (goingOpen) {
+      allTasksSearchEl.value = "";
+      allTasksSearchEl.focus();
+    }
+  }
+  if (goingOpen) renderAllTasks();
+});
+allTasksSearchEl && allTasksSearchEl.addEventListener("input", debounce(() => {
+  renderAllTasks(allTasksSearchEl.value || "");
+}, 150));

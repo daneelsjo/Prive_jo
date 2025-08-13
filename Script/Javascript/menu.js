@@ -2,27 +2,37 @@
 (() => {
     let inited = false;
 
-    function initMenu() {
+    function setOpen(drawer, backdrop, btn, open) {
+        drawer.classList.toggle('open', open);
+        backdrop.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', String(open));
+        drawer.setAttribute('aria-hidden', String(!open));
+    }
+
+    function bindMenu() {
         if (inited) return;
 
-        const btn = document.getElementById('hamburgerBtn'); // in header.html
+        const btn = document.getElementById('hamburgerBtn');
         const drawer = document.getElementById('sidemenu');
         const backdrop = document.getElementById('backdrop');
-
-        if (!btn || !drawer || !backdrop) return; // wacht tot partial er is
+        if (!btn || !drawer || !backdrop) return; // header nog niet aanwezig
 
         inited = true;
 
-        const open = () => { drawer.classList.add('open'); backdrop.classList.add('open'); };
-        const close = () => { drawer.classList.remove('open'); backdrop.classList.remove('open'); };
-
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (drawer.classList.contains('open')) close(); else open();
+            setOpen(drawer, backdrop, btn, !drawer.classList.contains('open'));
         });
 
-        backdrop.addEventListener('click', close);
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+        // klik buiten menu sluit
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) setOpen(drawer, backdrop, btn, false);
+        });
+
+        // Esc sluit
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') setOpen(drawer, backdrop, btn, false);
+        });
 
         // accordion in het zijmenu (kopje -> open/dicht)
         document.addEventListener('click', (e) => {
@@ -33,46 +43,13 @@
 
         // klik op een link in de drawer -> sluiten
         drawer.addEventListener('click', (e) => {
-            if (e.target.closest('a')) close();
+            if (e.target.closest('a')) setOpen(drawer, backdrop, btn, false);
         });
     }
 
-    // init bij gewone pagina‑load
-    document.addEventListener('DOMContentLoaded', initMenu);
-    // init opnieuw nadat de header partial is ingevoegd
-    document.addEventListener('partials:loaded', initMenu);
+    // Exporteer voor include-partials.js (optioneel)
+    window.initMenu = bindMenu;
+
+    document.addEventListener('DOMContentLoaded', bindMenu);
+    document.addEventListener('partials:loaded', bindMenu);
 })();
-
-
-// Script/Javascript/menu.js
-function wireHamburger() {
-    const btn = document.getElementById('hamburgerBtn');
-    const menu = document.getElementById('sidemenu');
-    const backdrop = document.getElementById('backdrop');
-    if (!btn || !menu || !backdrop) return; // header nog niet in DOM
-
-    const setOpen = (open) => {
-        menu.classList.toggle('open', open);
-        backdrop.classList.toggle('open', open);
-        btn.setAttribute('aria-expanded', String(open));
-        menu.setAttribute('aria-hidden', String(!open));
-    };
-
-    btn.onclick = (e) => {
-        e.preventDefault();
-        setOpen(!menu.classList.contains('open'));
-    };
-
-    // klik naast de lade sluit
-    backdrop.onclick = (e) => { if (e.target === backdrop) setOpen(false); };
-
-    // Esc sluit
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') setOpen(false);
-    });
-}
-
-// werkt als de header al in de HTML staat…
-document.addEventListener('DOMContentLoaded', wireHamburger);
-// …en ook als de header via partials werd ingeladen
-document.addEventListener('partials:loaded', wireHamburger);

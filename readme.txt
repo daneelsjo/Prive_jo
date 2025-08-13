@@ -92,3 +92,6 @@ Zoekfunctie:
 
 - Alleen zichtbaar als "Alle taken" open staat
 - Zoekt in naam, data, omschrijving, prio, categorie
+
+- De header wordt als partial geladen uit /partials/header.html en triggert exact één keer het event 'partials:loaded'.
+- Instellingenpagina gebruikt 6 slots per modus; HTML-ID voor de modus-toggle is 'modeSwitchSettings'.

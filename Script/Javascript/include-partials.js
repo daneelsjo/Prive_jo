@@ -5,24 +5,25 @@
  */
 (async function () {
     const includeNodes = document.querySelectorAll("[data-include]");
+    const tasks = [];
 
     for (const el of includeNodes) {
         const src = el.getAttribute("data-include");
         if (!src) continue;
-
-        try {
-            const res = await fetch(src);
-            if (!res.ok) {
-                console.error(`Fout bij include: ${src} (${res.status})`);
-                continue;
-            }
-            el.innerHTML = await res.text();
-        } catch (err) {
-            console.error(`Include mislukt: ${src}`, err);
-        }
+        tasks.push(
+            fetch(src)
+                .then((res) => {
+                    if (!res.ok) throw new Error(`Fout bij include: ${src} (${res.status})`);
+                    return res.text();
+                })
+                .then((html) => { el.innerHTML = html; })
+                .catch((err) => console.error(`Include mislukt: ${src}`, err))
+        );
     }
 
-    // Laat andere scripts weten dat de partials in de DOM staan
+    await Promise.allSettled(tasks);
+
+    // Laat andere scripts weten dat de partials in de DOM staan (exact 1 keer).
     document.dispatchEvent(new CustomEvent("partials:loaded"));
 
     // Start menu als de init aanwezig is
@@ -30,6 +31,3 @@
         try { window.initMenu(); } catch (e) { console.error(e); }
     }
 })();
-
-// include-partials.js (onderaan, na het injecteren)
-document.dispatchEvent(new Event('partials:loaded'));

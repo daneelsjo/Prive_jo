@@ -8,16 +8,16 @@
     <link rel="stylesheet" href="../CSS/main.css">
     <link rel="stylesheet" href="../CSS/components-menu.css">
     <link rel="stylesheet" href="../CSS/components-sidemenu.css">
-    <link rel="stylesheet" href="../CSS/page-settings.css">
+    <link rel="stylesheet" href="../CSS/page-notes.css">
 </head>
 
-<body>
+<body class="notes-page">
     <!-- AUTH -->
     <div id="auth">
         <button id="login-btn">🔐 Inloggen met Google</button>
     </div>
 
-    <!-- gedeelde header (hamburger + topmenu) -->
+    <!-- gedeelde header -->
     <div data-include="../partials/header.html"></div>
 
     <!-- APP -->
@@ -31,7 +31,7 @@
 
                 <div class="card">
                     <div class="table-wrap">
-                        <table class="table">
+                        <table class="notes-table">
                             <thead>
                                 <tr>
                                     <th style="width: 220px;">Tijdstip</th>
@@ -44,7 +44,7 @@
                 </div>
             </main>
 
-            <aside class="rightcol"><!-- leeg op deze pagina --></aside>
+            <aside class="rightcol"><!-- leeg --></aside>
         </div>
     </div>
 
@@ -52,37 +52,6 @@
     <script src="../Script/Javascript/include-partials.js"></script>
     <script src="../Script/Javascript/menu.js"></script>
     <script type="module" src="../Script/Javascript/notes.js"></script>
-
-    <!-- Kleine tabel-styles (optioneel, of zet in jouw CSS/style.css) -->
-    <style>
-        .table-wrap {
-            width: 100%;
-            overflow: auto;
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .table th,
-        .table td {
-            border-bottom: 1px solid var(--border);
-            padding: .6rem .5rem;
-        }
-
-        .table tbody tr {
-            cursor: pointer;
-        }
-
-        .table tbody tr:hover {
-            background: rgba(0, 0, 0, .04);
-        }
-
-        :root[data-theme="dark"] .table tbody tr:hover {
-            background: rgba(255, 255, 255, .06);
-        }
-    </style>
 </body>
 
 </html>

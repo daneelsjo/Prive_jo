@@ -1,6 +1,4 @@
 /* ===== NOTITIESPAGINA ===== */
-
-/* Pagina layout */
 .notes-page .page {
     grid-template-columns: 1fr;
     padding: 1rem;
@@ -28,6 +26,11 @@
 }
 
 /* Tabelweergave voor notities */
+.table-wrap {
+    width: 100%;
+    overflow: auto;
+}
+
 .notes-table {
     width: 100%;
     border-collapse: collapse;
@@ -56,7 +59,7 @@
     background: rgba(255, 255, 255, 0.05);
 }
 
-/* Modal voor nieuwe/bewerkte notitie */
+/* Modal */
 #noteModal .modal-body {
     display: flex;
     flex-direction: column;
@@ -83,6 +86,5 @@
     .notes-table th:nth-child(3),
     .notes-table td:nth-child(3) {
         display: none;
-        /* evt. inhoud kolom verbergen op kleine schermen */
     }
 }

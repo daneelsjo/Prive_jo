@@ -69,9 +69,7 @@
     border-radius: 8px;
     padding: 2px;
     background: conic-gradient(#2563eb 0 25%, transparent 0 100%);
-    -webkit-mask:
-        linear-gradient(#000 0 0) content-box,
-        linear-gradient(#000 0 0);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     opacity: 0;

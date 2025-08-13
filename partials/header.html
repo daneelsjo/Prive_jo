@@ -1,91 +1,26 @@
-<header class="topbar">
-    <button id="hamburgerBtn" class="icon-btn" aria-controls="sidemenu" aria-expanded="false" title="Menu">
-        &#9776;
-    </button>
-
-    <nav class="mainnav">
-        <ul>
-            <li><a class="menu-link" href="https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox" target="_blank">Mail</a>
-            </li>
-            <li class="has-submenu"><a class="menu-link" href="#">Verdi</a>
-                <ul class="submenu">
-                    <li><a href="https://disparant.verdi.cloud/" target="_blank">Productie</a></li>
-                    <li><a href="https://disparant-staging.verdi.cloud/home" target="_blank">Staging</a></li>
-                    <li><a href="https://mobile-disparant.verdi.cloud/login" target="_blank">Mobile</a></li>
-                    <li><a href="https://mobile-disparant-staging.verdi.cloud/login" target="_blank">Mobile -
-                            staging</a></li>
-                </ul>
-            </li>
-
-            <li class="has-submenu"><a class="menu-link" href="#">Abi</a>
-                <ul class="submenu">
-                    <li><a href="https://www.ambuweb.be/" target="_blank">Ambuweb</a></li>
-                    <li><a href="https://abiweb.zonerand.be/" target="_blank">Abiweb</a></li>
-                    <li><a href="https://testabiweb.zonerand.be/" target="_blank">Abiweb‑TEST</a></li>
-                </ul>
-            </li>
-            <li class="has-submenu"><a class="menu-link" href="#">INA</a>
-                <ul class="submenu">
-                    <li><a href="https://hvzrand.ina.gemsotec.com" target="_blank">Productie</a></li>
-                    <li><a href="https://hvzrandacc.ina.gemsotec.com" target="_blank">ACC‑omgeving</a></li>
-                    <li><a href="https://keycloak.ina.gemsotec.com/auth/admin/hvzrand/console/" target="_blank">Keycloak
-                            Prod</a></li>
-                    <li><a href="https://keycloak.ina.gemsotec.com/auth/admin/hvzrandacc/console/"
-                            target="_blank">Keycloak
-                            ACC</a></li>
-                </ul>
-            </li>
-            <li class="has-submenu"><a class="menu-link" href="#">Ticketing</a>
-                <ul class="submenu">
-                    <li><a href="https://brandweerzonerand.freshservice.com/a/dashboard/default"
-                            target="_blank">Optech</a>
-                    </li>
-                    <li><a href="https://youtrack.verdi.be/" target="_blank">Verdi</a></li>
-                </ul>
-            </li>
-        </ul>
-    </nav>
-
-    <!-- Settings & Notes samen -->
-    <div class="header-icons">
-        <a id="notesLink" class="icon-btn" href="#" title="Notes">🗒️</a>
-        <a id="settingsLink" class="icon-btn" href="#" title="Instellingen">⚙️</a>
-
+<!-- partials/header.html -->
+<header class="topbar" role="banner">
+    <button id="hamburgerBtn" class="icon-btn" aria-label="Menu" aria-controls="sidemenu"
+        aria-expanded="false">☰</button>
+    <div style="display:flex; align-items:center; gap:.6rem; justify-self:center;">
+        <img src="IMG/JD_Web_Solutions.jpg" alt="JD Web Solutions" style="height:28px; width:auto; border-radius:6px;">
+        <strong>To-Do & Notes</strong>
     </div>
-
+    <nav class="header-icons" aria-label="Snelkoppelingen">
+        <a class="settings-icon" href="HTML/notes.html" title="Notities">📝</a>
+        <a class="settings-icon" href="HTML/settings.html" title="Instellingen">⚙️</a>
+    </nav>
 </header>
 
-<!-- Drawer (zijmenu) -->
-<nav id="sidemenu" class="sidemenu" aria-hidden="true">
-    <div class="sidemenu-section">
-        <h4>Links</h4>
+<!-- Zijmenu + backdrop -->
+<div id="backdrop" class="backdrop" aria-hidden="true"></div>
+<aside id="sidemenu" class="sidemenu" aria-hidden="true" role="dialog" aria-label="Zijmenu">
+    <nav class="sidemenu-section">
+        <h4>📂 Navigatie</h4>
         <ul>
-            <li><a href="https://drive.google.com/drive/u/0/my-drive" target="_blank">Google Drive</a></li>
+            <li><a href="index.html">Start</a></li>
+            <li><a href="HTML/notes.html">Notities</a></li>
+            <li><a href="HTML/settings.html">Instellingen</a></li>
         </ul>
-    </div>
-
-    <div class="sidemenu-section">
-        <h4>Apps</h4>
-        <ul>
-            <li><a href="https://script.google.com" target="_blank">Google Apps Script</a></li>
-            <li><a href="https://www.appsheet.com/start/504ba865-3785-4c6b-a33c-9d5edf2d3962" target="_blank">Optech</a>
-            </li>
-            <li><a href="https://www.appsheet.com/start/218e57f1-032f-4480-8b55-b2a38e944fef"
-                    target="_blank">Magazijn</a></li>
-        </ul>
-    </div>
-
-    <div class="sidemenu-section">
-        <h4>Interessante websites</h4>
-        <ul>
-            <li><a href="#" target="_blank">Zone Rand</a></li>
-            <li><a href="#" target="_blank">Transparand</a></li>
-            <li><a href="#" target="_blank">Modus Operandi</a></li>
-            <li><a href="#" target="_blank">Site VTO KO</a></li>
-            <li><a href="#" target="_blank">Computer!Totaal</a></li>
-        </ul>
-    </div>
-</nav>
-
-<!-- Donkere achtergrond achter de drawer -->
-<div id="backdrop" class="backdrop"></div>
+    </nav>
+</aside>

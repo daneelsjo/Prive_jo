@@ -1,12 +1,9 @@
 // Script/Javascript/notes.js
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 import {
-    getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, deleteDoc, query, orderBy
+    getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
-import {
-    getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 
 /** Firebase config (zelfde als main.js) */
 const firebaseConfig = {
@@ -30,7 +27,7 @@ const authDiv = document.getElementById("auth");
 const newNoteBtn = document.getElementById("newNoteBtn");
 const notesBody = document.getElementById("notesBody");
 
-/* Modal (zelfde stijl als main.js) */
+/* Modal */
 let _modalBackdrop = null;
 let _modalCard = null;
 function ensureModal() {
@@ -66,8 +63,7 @@ window.closeNoteModal = function () {
 };
 function btn(cls, label, onClick) {
     const b = document.createElement("button");
-    b.className = cls; b.textContent = label; b.onclick = onClick;
-    return b;
+    b.className = cls; b.textContent = label; b.onclick = onClick; return b;
 }
 
 /* AUTH */
@@ -80,10 +76,9 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 /* DATA */
-let notes = []; // {id, title, time (ISO), body, createdAt, updatedAt}
+let notes = []; // {id, title, time ISO, body, createdAt, updatedAt}
 
 function subscribeNotes() {
-    // sorteer op 'time' oplopend (oud → nieuw). Wil je nieuwste eerst? orderBy('time','desc')
     const q = query(collection(db, "notes"), orderBy("time", "asc"));
     onSnapshot(q, (snap) => {
         notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -115,8 +110,6 @@ function openNoteEditor(note = null) {
 
     const isNew = !note;
     titleEl.textContent = isNew ? "Nieuwe notitie" : "Notitie bewerken";
-
-    // datetime-local wil 'YYYY-MM-DDThh:mm'
     const dt = toInputDatetime(note?.time || new Date().toISOString());
 
     bodyEl.innerHTML = `
@@ -132,10 +125,9 @@ function openNoteEditor(note = null) {
     footEl.append(
         btn("primary", "💾 Opslaan", async () => {
             const title = (document.getElementById("noteTitle").value || "").trim();
-            const timeLocal = document.getElementById("noteTime").value; // 'YYYY-MM-DDThh:mm'
+            const timeLocal = document.getElementById("noteTime").value;
             const body = document.getElementById("noteBody").value || "";
-
-            const iso = fromInputDatetime(timeLocal); // ISO string
+            const iso = fromInputDatetime(timeLocal);
 
             if (isNew) {
                 await addDoc(collection(db, "notes"), {
@@ -162,39 +154,18 @@ function openNoteEditor(note = null) {
 
 /* Helpers */
 function escapeHtml(str) {
-    return String(str)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    return String(str).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
-
-/** '2025-08-11T09:30' → ISO; ontbrekende seconds aanvullen */
-function fromInputDatetime(v) {
-    if (!v) return new Date().toISOString();
-    // v = 'YYYY-MM-DDThh:mm'
-    return new Date(v).toISOString();
-}
-
-/** ISO → 'YYYY-MM-DDThh:mm' voor input */
+function fromInputDatetime(v) { if (!v) return new Date().toISOString(); return new Date(v).toISOString(); }
 function toInputDatetime(iso) {
     try {
-        const d = new Date(iso);
-        const pad = n => String(n).padStart(2, "0");
+        const d = new Date(iso); const pad = n => String(n).padStart(2, "0");
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    } catch (e) {
-        return "";
-    }
+    } catch { return ""; }
 }
-
-/** ISO → nette locale weergave */
 function formatLocal(iso) {
     try {
         const d = new Date(iso);
-        return d.toLocaleString(undefined, {
-            year: "numeric", month: "2-digit", day: "2-digit",
-            hour: "2-digit", minute: "2-digit"
-        });
-    } catch (e) { return iso || ""; }
+        return d.toLocaleString(undefined, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    } catch { return iso || ""; }
 }

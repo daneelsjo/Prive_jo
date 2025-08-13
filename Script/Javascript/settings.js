@@ -2,9 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebas
 import {
   getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
-import {
-  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 
 /** Firebase config */
 const firebaseConfig = {
@@ -56,20 +54,20 @@ loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   currentUser = user;
-  authDiv && (authDiv.style.display = "none");
-  appDiv && (appDiv.style.display = "block");
+  if (authDiv) authDiv.style.display = "none";
+  if (appDiv) appDiv.style.display = "block";
 
   await loadSettings();
   applyTheme(settings.theme || "system");
 
-  // Icon toggle voor modus (zoals index)
+  // Icon toggle voor modus
   if (modeSwitchSettings) {
     modeSwitchSettings.checked = (currentMode === "prive");
     modeSwitchSettings.onchange = async () => {
       currentMode = modeSwitchSettings.checked ? "prive" : "werk";
       await setDoc(doc(db, "settings", currentUser.uid), { preferredMode: currentMode }, { merge: true });
       renderModeSlots();
-    }
+    };
   }
 
   listenCategories();
@@ -79,9 +77,7 @@ onAuthStateChanged(auth, async (user) => {
 /* Theme helpers */
 function applyTheme(mode) {
   let final = mode;
-  if (mode === "system") {
-    final = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
+  if (mode === "system") final = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   document.documentElement.setAttribute("data-theme", final);
 }
 async function saveTheme() {
@@ -109,7 +105,7 @@ function listenCategories() {
   });
 }
 
-/* Categorie toevoegen (met max 6 per modus + witte modal melding) */
+/* Categorie toevoegen (max 6 per modus) */
 addCatBtn && (addCatBtn.onclick = async () => {
   const name = (catName.value || "").trim();
   const type = (catType.value || "werk").toLowerCase();
@@ -119,31 +115,22 @@ addCatBtn && (addCatBtn.onclick = async () => {
     return;
   }
 
-  // tel actieve categorieën in deze modus
-  const countInMode = (categories || [])
-    .filter(c => c && c.type === type && c.active !== false)
-    .length;
-
+  const countInMode = (categories || []).filter(c => c && c.type === type && c.active !== false).length;
   if (countInMode >= MAX_CATEGORIES_PER_MODE) {
     showSettingsMessage(
       "Categorie niet aangemaakt",
       `⚠️ Opgelet!<br>Er zijn al <strong>${MAX_CATEGORIES_PER_MODE}</strong> categorieën in modus <strong>${type}</strong>.<br>
        Gelieve eerst één te verwijderen.`
     );
-    return; // blokkeer aanmaak
+    return;
   }
 
-  // toevoegen mag
   await addDoc(collection(db, "categories"), { name, type, active: true });
-
-  // opschonen & UI refresh
   catName.value = "";
-  // als je een renderfunctie hebt, roep die even aan:
-  if (typeof renderModeSlots === "function") renderModeSlots();
+  renderModeSlots();
 });
 
-
-/* Categorie-lijst renderen + archiveerknop */
+/* Cat-lijst render + archiveren */
 function renderCatList() {
   if (!catList) return;
   catList.innerHTML = "";
@@ -174,12 +161,11 @@ window.archiveCategory = async function (id) {
 };
 
 /* ModeSlots (6 slots per modus) */
-/* ModeSlots (6 slots per modus) — met live kleur-preview op de rij */
 function renderModeSlots() {
   if (!modeSlotsDiv) return;
   modeSlotsDiv.innerHTML = "";
 
-  const slots = (settings.modeSlots?.[currentMode] || Array(4).fill({})).slice(0, 4);
+  const slots = (settings.modeSlots?.[currentMode] || Array(6).fill({})).slice(0, 6);
 
   for (let i = 0; i < 6; i++) {
     const slot = slots[i] || {};
@@ -196,94 +182,71 @@ function renderModeSlots() {
     row.style.background = initialColor;
     row.style.color = getContrast(initialColor);
 
-    // label
     const label = document.createElement("span");
     label.textContent = `Post-it ${i + 1}:`;
     label.style.fontWeight = "500";
 
-    // categorie
     const catSelect = document.createElement("select");
     catSelect.innerHTML = `<option value="">-- Geen --</option>`;
-    categories
-      .filter(c => c.type === currentMode)
-      .forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = c.id;
-        opt.textContent = c.name;
-        if (c.id === slot.categoryId) opt.selected = true;
-        catSelect.appendChild(opt);
-      });
+    categories.filter(c => c.type === currentMode).forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.name;
+      if (c.id === slot.categoryId) opt.selected = true;
+      catSelect.appendChild(opt);
+    });
     catSelect.dataset.slotIndex = i;
 
-    // kleur (beperkte set)
     const colorSelect = document.createElement("select");
     fixedColors.forEach(col => {
       const opt = document.createElement("option");
-      opt.value = col;
-      opt.textContent = col;
-      // wat extra styling op de optie — niet elke browser toont dit, maar kan geen kwaad
-      opt.style.backgroundColor = col;
-      opt.style.color = getContrast(col);
+      opt.value = col; opt.textContent = col;
+      opt.style.backgroundColor = col; opt.style.color = getContrast(col);
       if (initialColor === col) opt.selected = true;
       colorSelect.appendChild(opt);
     });
     colorSelect.dataset.slotIndex = i;
 
-    // klein swatchje rechts (altijd zichtbaar)
     const swatch = document.createElement("div");
     swatch.className = "swatch";
-    swatch.style.width = "28px";
-    swatch.style.height = "28px";
+    swatch.style.width = "28px"; swatch.style.height = "28px";
     swatch.style.borderRadius = "8px";
     swatch.style.border = "1px solid rgba(0,0,0,.15)";
     swatch.style.background = initialColor;
 
-    // kleurwijziging → rij + swatch updaten
     colorSelect.addEventListener("change", () => {
       const col = colorSelect.value;
       row.style.background = col;
       row.style.color = getContrast(col);
       swatch.style.background = col;
-      // lokaal in het 'slots' array bijhouden (handig als je meteen wilt saven)
       slots[i] = { ...(slots[i] || {}), categoryId: catSelect.value || null, color: col };
     });
-
-    // cat wijziging lokaal bijhouden
     catSelect.addEventListener("change", () => {
       slots[i] = { ...(slots[i] || {}), categoryId: catSelect.value || null, color: colorSelect.value };
     });
 
-    // opbouw
     row.appendChild(label);
     row.appendChild(catSelect);
     row.appendChild(colorSelect);
     row.appendChild(swatch);
 
-    // bewaar refs voor je save-functie (optioneel)
     row.dataset.slotIndex = i;
     modeSlotsDiv.appendChild(row);
   }
 
-  // Zorg dat de in‑memory slots meegaan met wat er nu gerenderd staat
   settings.modeSlots = settings.modeSlots || {};
   settings.modeSlots[currentMode] = slots;
 }
-
 
 /* Opslaan van slots */
 saveModeSlotsBtn && (saveModeSlotsBtn.onclick = async () => {
   const rows = Array.from(modeSlotsDiv.children);
   const newSlots = rows.map(row => {
     const selects = row.querySelectorAll("select");
-    return {
-      categoryId: selects[0].value || null,
-      color: selects[1].value
-    };
+    return { categoryId: selects[0].value || null, color: selects[1].value };
   });
-
   if (!settings.modeSlots) settings.modeSlots = {};
   settings.modeSlots[currentMode] = newSlots;
-
   await setDoc(doc(db, "settings", currentUser.uid), settings, { merge: true });
   alert("Opgeslagen!");
 });
@@ -297,6 +260,7 @@ function getContrast(hex) {
   return yiq >= 128 ? "#000" : "#fff";
 }
 
+/* Kleine modale melding (witte modal) */
 let _setModalBackdrop = null;
 let _setModalCard = null;
 
@@ -331,8 +295,6 @@ window.closeSettingsModal = function () {
   if (_setModalBackdrop) { _setModalBackdrop.classList.remove("open"); _setModalBackdrop.style.display = "none"; }
   if (_setModalCard) { _setModalCard.style.display = "none"; }
 }
-
-/* Eenvoudige info/waarschuwing in jouw witte modal. */
 function showSettingsMessage(title, html) {
   openSettingsModal();
   _setModalCard.querySelector("#setModalTitle").textContent = title;

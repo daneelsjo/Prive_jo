@@ -17,14 +17,13 @@
     <button id="login-btn">🔐 Inloggen met Google</button>
   </div>
 
-  <!-- gedeelde header (hamburger + topmenu) -->
+  <!-- gedeelde header -->
   <div data-include="partials/header.html"></div>
 
   <!-- APP -->
   <div id="app" style="display:none;">
     <div class="page">
       <main class="content">
-
         <!-- Werk/Privé icon-toggle -->
         <div class="mode-toggle">
           <input type="checkbox" id="modeSwitch" aria-label="Schakel tussen werk en privé" />
@@ -37,20 +36,17 @@
 
         <button id="jumpAllTasks" class="ghost">⬇️ Alle taken</button>
 
-
         <div class="workspace">
           <div id="postits" class="postits-row"></div>
         </div>
-        <!-- ALLE TAKEN onderaan de pagina -->
+
+        <!-- ALLE TAKEN -->
         <div class="alltasks-container card">
           <div class="alltasks-header">
             <button id="toggleAllTasks" class="primary">📁 ALLE TAKEN</button>
-
-            <!-- 🔍 verschijnt alleen wanneer het panel open is -->
             <input id="allTasksSearch" class="alltasks-search" type="search"
               placeholder="Zoek op naam, datum, prio, tekst…" style="display:none;">
           </div>
-
           <div id="allTasksPanel" style="display:none;">
             <div id="allTasksTable"></div>
           </div>
@@ -59,7 +55,6 @@
 
       <aside class="rightcol">
         <button id="newTaskBtn" class="primary">＋ NIEUW</button>
-
         <!-- Nieuw taak formulier -->
         <div id="formContainer" class="card" style="display:none;">
           <label>Taak:</label><input id="name" placeholder="Taaknaam" />
@@ -75,7 +70,7 @@
           <label>Categorie:</label>
           <input id="category" list="categoryList" placeholder="bv. Algemeen (werk)" />
           <datalist id="categoryList"></datalist>
-          <label>Omschrijving:</label> <textarea id="description" placeholder="Omschrijving (optioneel)"></textarea>
+          <label>Omschrijving:</label><textarea id="description" placeholder="Omschrijving (optioneel)"></textarea>
           <label>Document:</label><input id="link" placeholder="Link naar bestand (optioneel)" />
           <button id="addTodo" class="primary">✔️ Toevoegen</button>
         </div>
@@ -90,10 +85,9 @@
   </div>
 
   <!-- Scripts -->
-  <script src="Script/Javascript/menu.js"></script>
   <script src="Script/Javascript/include-partials.js"></script>
+  <script src="Script/Javascript/menu.js"></script>
   <script type="module" src="Script/Javascript/main.js"></script>
-
 </body>
 
 </html>

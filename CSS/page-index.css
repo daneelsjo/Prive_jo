@@ -74,7 +74,7 @@
   border-color: rgba(255, 255, 255, .35);
 }
 
-/* Tabel in het “Alle taken” paneel */
+/* “Alle taken” tabel */
 .alltasks-group {
   margin: .6rem 0;
 }
@@ -126,7 +126,6 @@
   vertical-align: middle;
 }
 
-/* vaste kolommen */
 .alltasks-table .col-prio {
   width: 64px;
 }
@@ -139,7 +138,6 @@
   width: 180px;
 }
 
-/* taak neemt restbreedte */
 .alltasks-table .col-task {
   width: auto;
 }
@@ -156,24 +154,7 @@
   background: rgba(255, 255, 255, .06);
 }
 
-/* prio dot in tabel */
-.td-prio {
-  text-align: center;
-}
-
-.prio-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, .25);
-}
-
-:root[data-theme="dark"] .prio-dot {
-  border-color: rgba(255, 255, 255, .35);
-}
-
-/* “ghost” knop bovenaan */
+/* “ghost” knop */
 button.ghost {
   background: transparent;
   border: 1px solid var(--border);
@@ -191,103 +172,12 @@ button.ghost:hover {
   background: rgba(255, 255, 255, .06);
 }
 
-/* warning stijl voor Onvoltooid-knop in modal */
-.primary.warning {
-  background: #f59e0b;
-  /* amber */
-  color: #fff;
-}
-
-.primary.warning:hover {
-  background: #d97706;
-}
-
-/* basisafmetingen + duidelijke achtergrond */
-.switch.icon-only {
-  --w: 96px;
-  /* iets breder */
-  --h: 36px;
-  --pad: 4px;
-  --knob: 28px;
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
-  justify-items: center;
-  width: var(--w);
-  height: var(--h);
-  background: rgba(255, 255, 255, .12);
-  /* zichtbaar in dark */
-  border-radius: 999px;
-  outline: 1px solid rgba(255, 255, 255, .25);
-  user-select: none;
-}
-
-:root[data-theme="light"] .switch.icon-only {
-  background: #f3f4f6;
-  outline-color: #e5e7eb;
-}
-
-/* de schuif-knop */
-.switch.icon-only .knob {
-  position: absolute;
-  top: var(--pad);
-  left: var(--pad);
-  width: var(--knob);
-  height: calc(var(--h) - var(--pad)*2);
-  background: #fff;
-  border-radius: 999px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
-  transition: transform .18s ease;
-}
-
-/* iconen iets transparant, actieve kant vol */
-.switch.icon-only .icon {
-  line-height: 1;
-  font-size: 16px;
-  opacity: .55;
-  transition: opacity .15s ease;
-}
-
-/* gecheckt = naar rechts, en prive-icoon vol */
-#modeSwitch:checked+.switch.icon-only .knob,
-#modeSwitchSettings:checked+.switch.icon-only .knob {
-  transform: translateX(calc(var(--w) - var(--pad)*2 - var(--knob)));
-}
-
-#modeSwitch:not(:checked)+.switch.icon-only .icon-work,
-#modeSwitchSettings:not(:checked)+.switch.icon-only .icon-work {
-  opacity: 1;
-}
-
-#modeSwitch:checked+.switch.icon-only .icon-prive,
-#modeSwitchSettings:checked+.switch.icon-only .icon-prive {
-  opacity: 1;
-}
-
-/* zorg dat de container niet “verdwijnt” */
-.mode-toggle {
-  margin: .75rem 0;
-  display: flex;
-}
-
-/* verberg de checkbox zelf */
-.mode-toggle input[type="checkbox"] {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Houd 'Voltooid: <datum>' op één regel */
+/* datums op één regel */
 .task-date {
   display: inline-flex;
-  /* één horizontale rij */
   align-items: baseline;
-  /* mooie uitlijning met tekst */
   gap: .35rem;
-  /* klein spatie tussen label en tijd */
   white-space: nowrap;
-  /* niet afbreken */
 }
 
 .task-date strong {
@@ -308,7 +198,6 @@ button.ghost:hover {
 
 .alltasks-search {
   flex: 1 1 420px;
-  /* wordt mooi breder naar rechts */
   max-width: 620px;
   padding: .55rem .7rem;
   border: 1px solid var(--border);

@@ -227,6 +227,15 @@ select {
   background: #ef4444;
 }
 
+.primary.warning {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.primary.warning:hover {
+  background: #d97706;
+}
+
 /* ========== HEADER ICONS ========== */
 .header-icons {
   display: flex;
@@ -240,7 +249,78 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-   padding: .25rem .35rem;
+  padding: .25rem .35rem;
   border-radius: .5rem;
   text-decoration: none;
+}
+
+/* ========== GEDEELDE SWITCH (werk/prive) ========== */
+.switch.icon-only {
+  --w: 96px;
+  --h: 36px;
+  --pad: 4px;
+  --knob: 28px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  justify-items: center;
+  width: var(--w);
+  height: var(--h);
+  background: rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  outline: 1px solid rgba(255, 255, 255, .25);
+  user-select: none;
+}
+
+:root[data-theme="light"] .switch.icon-only {
+  background: #f3f4f6;
+  outline-color: #e5e7eb;
+}
+
+.switch.icon-only .knob {
+  position: absolute;
+  top: var(--pad);
+  left: var(--pad);
+  width: var(--knob);
+  height: calc(var(--h) - var(--pad)*2);
+  background: #fff;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  transition: transform .18s ease;
+}
+
+.switch.icon-only .icon {
+  line-height: 1;
+  font-size: 16px;
+  opacity: .55;
+  transition: opacity .15s ease;
+}
+
+/* gecheckt = naar rechts, en privé-icoon vol */
+#modeSwitch:checked+.switch.icon-only .knob,
+#modeSwitchSettings:checked+.switch.icon-only .knob {
+  transform: translateX(calc(var(--w) - var(--pad)*2 - var(--knob)));
+}
+
+#modeSwitch:not(:checked)+.switch.icon-only .icon-work,
+#modeSwitchSettings:not(:checked)+.switch.icon-only .icon-work {
+  opacity: 1;
+}
+
+#modeSwitch:checked+.switch.icon-only .icon-prive,
+#modeSwitchSettings:checked+.switch.icon-only .icon-prive {
+  opacity: 1;
+}
+
+/* Zorg dat container niet verdwijnt + checkbox verbergen */
+.mode-toggle {
+  margin: .75rem 0;
+  display: flex;
+}
+
+.mode-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
