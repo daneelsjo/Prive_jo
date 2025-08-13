@@ -53,6 +53,9 @@ const toggleAllBtn = document.getElementById("toggleAllTasks");
 const allTasksPanel = document.getElementById("allTasksPanel");
 const allTasksTableDiv = document.getElementById("allTasksTable");
 const jumpBtn = document.getElementById("jumpAllTasks");
+const allTasksSearchEl = document.getElementById("allTasksSearch");
+
+
 jumpBtn && (jumpBtn.onclick = () => {
   if (allTasksPanel) {
     allTasksPanel.style.display = "block";
@@ -63,10 +66,28 @@ jumpBtn && (jumpBtn.onclick = () => {
 
 
 toggleAllBtn && (toggleAllBtn.onclick = () => {
-  const open = allTasksPanel.style.display !== "none";
-  allTasksPanel.style.display = open ? "none" : "block";
-  if (!open) renderAllTasks(); // render bij openen
+  const goingOpen = allTasksPanel.style.display === "none";
+  allTasksPanel.style.display = goingOpen ? "block" : "none";
+
+  if (allTasksSearchEl) {
+    allTasksSearchEl.style.display = goingOpen ? "block" : "none";
+    if (goingOpen) {
+      allTasksSearchEl.value = "";      // leegmaken bij openen
+      allTasksSearchEl.focus();
+    }
+  }
+  if (goingOpen) renderAllTasks();      // eerste render
 });
+
+function debounce(fn, ms = 200) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+allTasksSearchEl && allTasksSearchEl.addEventListener(
+  "input",
+  debounce(() => renderAllTasks(allTasksSearchEl.value || ""), 150)
+);
 
 
 function prioColor(p) {
@@ -620,15 +641,48 @@ function formatCompletedNL(todo) {
   });
 }
 
-function renderAllTasks() {
+function normalize(s) {
+  return (s || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // strip accenten
+}
+
+function matchesQuery(t, q) {
+  if (!q) return true;
+  const nq = normalize(q);
+
+  const cat = t.categoryId ? categories.find(c => c.id === t.categoryId) : null;
+  const catLabel = cat ? `${cat.name} (${cat.type})` : "overig";
+
+  // alles samenvoegen
+  const hay = [
+    t.name,
+    t.description,
+    t.link,
+    t.start, t.end,
+    t.completedAtStr,
+    catLabel,
+    `prio ${t.prio ?? 0}`,
+    String(t.prio ?? 0)
+  ].map(normalize).join(" ");
+
+  return hay.includes(nq);
+}
+
+function renderAllTasks(query = "") {
   if (!allTasksTableDiv) return;
 
+  // filter op query
+  const filtered = allTodos.filter(t => matchesQuery(t, query));
+
+  // groepeer per categorie-label
   const groups = new Map();
   const labelOf = (t) => {
     const c = t.categoryId ? categories.find(x => x.id === t.categoryId) : null;
     return c ? `${c.name} (${c.type})` : "Overig";
   };
-  allTodos.forEach(t => {
+  filtered.forEach(t => {
     const lbl = labelOf(t);
     if (!groups.has(lbl)) groups.set(lbl, []);
     groups.get(lbl).push(t);
@@ -637,6 +691,7 @@ function renderAllTasks() {
   const order = { 1: 0, 2: 1, 3: 2, 0: 3 };
   const prioRank = p => order[p ?? 0] ?? 3;
 
+  // één tabel
   const wrapper = document.createElement("div");
   const table = document.createElement("table");
   table.className = "alltasks-table unified";
@@ -654,6 +709,7 @@ function renderAllTasks() {
   `;
   const tbody = table.querySelector("tbody");
 
+  // sorteer groepen + rijen
   [...groups.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([label, list]) => {
@@ -682,17 +738,23 @@ function renderAllTasks() {
         const tdEnd = document.createElement("td"); tdEnd.textContent = t.end || "—";
 
         const tdDone = document.createElement("td");
-        tdDone.textContent = t.done ? (formatCompletedNL(t) || "✓") : "—";
+        if (t.done) {
+          const when = formatCompletedNL(t);
+          tdDone.textContent = when || "✓";
+        } else {
+          tdDone.textContent = "—";
+        }
 
         tr.append(tdPrio, tdName, tdStart, tdEnd, tdDone);
         tbody.appendChild(tr);
       });
     });
 
-  wrapper.appendChild(table);
   allTasksTableDiv.innerHTML = "";
+  wrapper.appendChild(table);
   allTasksTableDiv.appendChild(wrapper);
 }
+
 
 /* Als all-tasks paneel open is, hertekenen na renderTodos */
 function refreshAllTasksIfOpen() {

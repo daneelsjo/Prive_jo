@@ -294,3 +294,25 @@ button.ghost:hover {
   display: inline;
   font-weight: 700;
 }
+
+.alltasks-container {
+  margin-top: 1rem;
+}
+
+.alltasks-header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: .5rem;
+}
+
+.alltasks-search {
+  flex: 1 1 420px;
+  /* wordt mooi breder naar rechts */
+  max-width: 620px;
+  padding: .55rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: .6rem;
+  background: var(--card);
+  color: var(--fg);
+}
