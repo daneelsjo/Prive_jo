@@ -277,3 +277,7 @@ button.ghost:hover {
   opacity: 0;
   pointer-events: none;
 }
+
+.task-date {
+  white-space: nowrap;
+}
