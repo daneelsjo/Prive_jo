@@ -241,18 +241,13 @@ function renderTodos() {
   postits.innerHTML = "";
 
   // Filter op modus (of geen categorie → altijd tonen)
+  // ENKEL open taken voor de huidige modus
   const visibleTodos = allTodos.filter(t => {
-    // alleen huidige modus (of UNCATEGORIZED)
     const cat = t.categoryId ? categories.find(x => x.id === t.categoryId) : null;
     const inMode = !t.categoryId || (cat && cat.type === currentMode);
-    if (!inMode) return false;
-
-    // done → nog tonen als binnen 24u voltooid
-    if (t.done) return doneWithin24h(t);
-
-    // open taken → altijd tonen
-    return true;
+    return inMode && !t.done;   // voltooid = uit post-its
   });
+
 
 
   // groepeer per categoryId
@@ -333,15 +328,11 @@ function buildTaskRow(todo, inRest = false) {
 
 
   let datesText;
-  if (todo.done && doneWithin24h(todo)) {
-    const when = formatCompletedNL(todo);
-    // Maak <span> voor label en tijd zodat ze op één regel blijven
-    dateLine.innerHTML = `<strong>Voltooid:</strong> ${when || ""}`;
-  } else {
-    const s = todo.start || "?";
-    const e = todo.end || "?";
-    dateLine.textContent = `${s} - ${e}`;
-  }
+
+  const s = todo.start || "?";
+  const e = todo.end || "?";
+  dateLine.textContent = `${s} - ${e}`;
+
 
 
   wrap.appendChild(title);
@@ -573,17 +564,8 @@ function escapeHtml(str) {
 }
 
 /* Datums/TTL helpers */
-const ONE_DAY = 24 * 60 * 60 * 1000;
 const NINETY_DAYS = 90 * ONE_DAY;
 
-function doneWithin24h(t) {
-  if (!t?.done || !t?.completedAt) return false;
-  const ts = typeof t.completedAt === "string"
-    ? Date.parse(t.completedAt)
-    : (t.completedAt?.toDate ? t.completedAt.toDate().getTime() : NaN);
-  if (Number.isNaN(ts)) return false;
-  return (Date.now() - ts) < ONE_DAY;
-}
 
 function toISO(date = new Date()) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
@@ -671,10 +653,20 @@ function matchesQuery(t, q) {
 }
 
 function renderAllTasks(query = "") {
+
   if (!allTasksTableDiv) return;
+  // eerst filteren op huidige modus (werk/prive)
+  const inCurrentMode = (t) => {
+    const c = t.categoryId ? categories.find(x => x.id === t.categoryId) : null;
+    return !t.categoryId || (c && c.type === currentMode);
+  };
+
+  // => basislijst voor de tabel
+  const base = allTodos.filter(inCurrentMode);
+
 
   // filter op query
-  const filtered = allTodos.filter(t => matchesQuery(t, query));
+  const filtered = base.filter(t => matchesQuery(t, query));
 
   // groepeer per categorie-label
   const groups = new Map();
