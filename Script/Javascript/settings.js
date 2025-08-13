@@ -1,15 +1,15 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc
-} from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
-import { firebaseConfig } from "./firebase-config.js";
+  getFirebaseApp,
+  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, query, orderBy,
+  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
+} from "./firebase-config.js";
 
-
-const app = initializeApp(firebaseConfig);
+const app = getFirebaseApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+
+
 
 /* Elements */
 const loginBtn = document.getElementById("login-btn");
