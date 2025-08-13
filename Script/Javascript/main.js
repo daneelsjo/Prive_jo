@@ -138,12 +138,6 @@ function listenTodos() {
   });
 }
 
-function listenTodos() {
-  onSnapshot(collection(db, "todos"), (snapshot) => {
-    allTodos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderTodos();
-  });
-}
 
 /* ---------- FORM ---------- */
 newTaskBtn && (newTaskBtn.onclick = () => {
