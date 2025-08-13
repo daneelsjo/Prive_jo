@@ -40,20 +40,20 @@
         // definieer gewenste knoppen per pagina
         const variants = {
             index: [
-                { label: '📝 Notities', path: 'HTML/notes.html', title: 'Notities' },
-                { label: '⚙️ Instellingen', path: 'HTML/settings.html', title: 'Instellingen' }
+                { label: '📝', path: 'HTML/notes.html', title: 'Notities' },
+                { label: '⚙️', path: 'HTML/settings.html', title: 'Instellingen' }
             ],
             settings: [
-                { label: '📌 Post-its', path: 'index.html', title: 'Post-its' },
-                { label: '📝 Notities', path: 'HTML/notes.html', title: 'Notities' }
+                { label: '📌', path: 'index.html', title: 'Post-its' },
+                { label: '📝', path: 'HTML/notes.html', title: 'Notities' }
             ],
             notes: [
-                { label: '📌 Post-its', path: 'index.html', title: 'Post-its' },
-                { label: '⚙️ Instellingen', path: 'HTML/settings.html', title: 'Instellingen' }
+                { label: '📌', path: 'index.html', title: 'Post-its' },
+                { label: '⚙️', path: 'HTML/settings.html', title: 'Instellingen' }
             ],
             other: [
-                { label: '📌 Post-its', path: 'index.html', title: 'Post-its' },
-                { label: '📝 Notities', path: 'HTML/notes.html', title: 'Notities' }
+                { label: '📌', path: 'index.html', title: 'Post-its' },
+                { label: '📝', path: 'HTML/notes.html', title: 'Notities' }
             ]
         };
 
