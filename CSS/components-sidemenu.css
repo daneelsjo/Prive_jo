@@ -58,6 +58,7 @@
     color: var(--fg);
 }
 
+
 .sidemenu-section h4::after {
     content: "▸";
     margin-left: .4rem;

@@ -157,9 +157,12 @@
         }
     }
 
+
+
     // export voor include-partials
     window.initMenu = bindMenu;
 
     document.addEventListener('DOMContentLoaded', bindMenu);
     document.addEventListener('partials:loaded', bindMenu);
 })();
+
