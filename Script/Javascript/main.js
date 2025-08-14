@@ -52,6 +52,34 @@ applyTheme("system");
 
 
 
+function openTaskModal() {
+  // reset velden
+  document.getElementById("task-title").value = "";
+  document.getElementById("task-start").value = "";
+  document.getElementById("task-end").value = "";
+  document.getElementById("task-priority").value = "0";
+  document.getElementById("task-category-input").value = "";
+  document.getElementById("task-desc").value = "";
+  document.getElementById("task-link").value = "";
+
+  Modal.open("modal-task");
+}
+
+function fillBothCategoryLists() {
+  const fill = (el) => {
+    if (!el) return;
+    el.innerHTML = "";
+    categories.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = `${c.name} (${c.type})`;
+      el.appendChild(opt);
+    });
+  };
+  fill(document.getElementById("categoryList"));        // (oude formulier; mag ontbreken)
+  fill(document.getElementById("task-category-list"));  // modal datalist
+}
+
+
 // ───────────────────────────────────────────────────────────────────────────────
 // Data
 // ───────────────────────────────────────────────────────────────────────────────
@@ -102,7 +130,8 @@ onAuthStateChanged(auth, async (user) => {
     categories = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(c => c.active !== false);
-    fillCategoryDatalist();
+    fillBothCategoryLists();
+
     renderAll();
   });
 
@@ -136,23 +165,45 @@ if (modeSwitch) {
   };
 }
 
-function fillCategoryDatalist() {
-  if (!datalist) return;
-  datalist.innerHTML = "";
-  categories.forEach(c => {
-    const opt = document.createElement("option");
-    opt.value = `${c.name} (${c.type})`;
-    datalist.appendChild(opt);
-  });
-}
 
-if (newTaskBtn) {
-  newTaskBtn.onclick = () => {
-    if (!formContainer) return;
-    const show = formContainer.style.display !== "block";
-    formContainer.style.display = show ? "block" : "none";
-  };
-}
+
+// NIEUW knop → open modal
+newTaskBtn && (newTaskBtn.onclick = () => openTaskModal());
+
+// Opslaan in modal
+const taskSaveBtn = document.getElementById("task-save");
+taskSaveBtn && (taskSaveBtn.onclick = async () => {
+  const title = (document.getElementById("task-title").value || "").trim();
+  const start = document.getElementById("task-start").value;
+  const end = document.getElementById("task-end").value;
+  const prio = parseInt(document.getElementById("task-priority").value || "0", 10);
+  const catTxt = (document.getElementById("task-category-input").value || "").trim();
+  const desc = (document.getElementById("task-desc").value || "").trim();
+  const link = (document.getElementById("task-link").value || "").trim();
+
+  if (!title) { Modal.alert({ title: "Taak", html: "Geef een taaknaam op." }); return; }
+
+  const catMatch = parseCategory(catTxt);
+  const catDoc = catMatch
+    ? categories.find(c => c.name.toLowerCase() === catMatch.name && c.type === catMatch.type)
+    : null;
+
+  await addDoc(collection(db, "todos"), {
+    title,
+    description: desc,
+    link,
+    startDate: start ? new Date(start) : null,
+    endDate: end ? new Date(end) : null,
+    priority: prio,
+    categoryId: catDoc?.id || null,
+    uid: currentUser?.uid || null,          // belangrijk voor security rules
+    createdAt: new Date(),
+    done: false
+  });
+
+  Modal.close(); // klaar
+});
+
 
 if (toggleAllTasks) {
   toggleAllTasks.onclick = () => {

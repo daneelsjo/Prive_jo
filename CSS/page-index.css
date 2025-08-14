@@ -291,3 +291,41 @@ button.ghost:hover {
 .rightcol .card {
   width: 100%;
 }
+
+/* Modal formulier styling */
+.modal .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.modal .form-grid label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.modal .form-grid input,
+.modal .form-grid select,
+.modal .form-grid textarea {
+  width: 100%;
+  padding: .55rem .65rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--card, #fff);
+  color: var(--fg, #111);
+}
+
+.modal .form-grid textarea {
+  min-height: 100px;
+  grid-column: 1 / -1;
+  /* textarea over volle breedte */
+}
+
+:root[data-theme="dark"] .modal .form-grid input,
+:root[data-theme="dark"] .modal .form-grid select,
+:root[data-theme="dark"] .modal .form-grid textarea {
+  border-color: rgba(255, 255, 255, .18);
+  background: #0b1220;
+  color: #e5e7eb;
+}
