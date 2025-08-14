@@ -1,4 +1,4 @@
-// Script/Javascript/menu.js
+// Script/Javascript/menu.js — stabiele versie (geen dubbele bindingen)
 (() => {
     let wired = false;
 
@@ -16,16 +16,17 @@
     function setHeaderQuickLinks() {
         const el = document.getElementById("quickLinks");
         if (!el) return;
-        const v = {
+        const page = currentPage();
+        const linksByPage = {
             index: [{ emoji: "📝", title: "Notities", path: "HTML/notes.html" },
             { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }],
             settings: [{ emoji: "📌", title: "Post-its", path: "index.html" },
             { emoji: "📝", title: "Notities", path: "HTML/notes.html" }],
             notes: [{ emoji: "📌", title: "Post-its", path: "index.html" },
             { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }],
-        }[currentPage()];
+        }[page] || [];
         el.innerHTML = "";
-        (v || []).forEach(l => {
+        linksByPage.forEach(l => {
             const a = document.createElement("a");
             a.href = prefixPath(l.path);
             a.className = "icon-btn header-link";
@@ -35,9 +36,9 @@
         });
     }
 
-    // ── Drawer helpers ──────────────────────────────────────────────────────────
+    // ── Drawer control ───────────────────────────────────────────────────────────
     function ensureDrawerBase(drawer, bd) {
-        // zet keiharde inline styles zodat niks dit kan breken
+        // harde inline styles zodat CSS-conflicten geen kans hebben
         const S = drawer.style;
         S.setProperty("position", "fixed", "important");
         S.setProperty("top", "0", "important");
@@ -51,11 +52,11 @@
         S.setProperty("z-index", "2000", "important");
         S.setProperty("will-change", "transform", "important");
         S.setProperty("transition", "transform .25s ease", "important");
-        // dicht: vertaal naar links
-        if ((drawer.getAttribute("data-state") || "closed") !== "open") {
-            S.setProperty("transform", "translateX(-105%)", "important");
-        }
-
+        S.setProperty(
+            "transform",
+            (drawer.getAttribute("data-state") === "open") ? "translateX(0)" : "translateX(-105%)",
+            "important"
+        );
         if (bd) {
             const BS = bd.style;
             BS.setProperty("position", "fixed", "important");
@@ -65,12 +66,10 @@
             BS.setProperty("display", bd.hasAttribute("hidden") ? "none" : "block", "important");
         }
     }
-
     function openDrawer(drawer, bd, btn) {
         drawer.setAttribute("data-state", "open");
         drawer.setAttribute("aria-hidden", "false");
-        const S = drawer.style;
-        S.setProperty("transform", "translateX(0)", "important");
+        drawer.style.setProperty("transform", "translateX(0)", "important");
         bd && bd.removeAttribute("hidden");
         if (bd) bd.style.setProperty("display", "block", "important");
         btn && btn.setAttribute("aria-expanded", "true");
@@ -79,8 +78,7 @@
     function closeDrawer(drawer, bd, btn) {
         drawer.setAttribute("data-state", "closed");
         drawer.setAttribute("aria-hidden", "true");
-        const S = drawer.style;
-        S.setProperty("transform", "translateX(-105%)", "important");
+        drawer.style.setProperty("transform", "translateX(-105%)", "important");
         bd && bd.setAttribute("hidden", "");
         if (bd) bd.style.setProperty("display", "none", "important");
         btn && btn.setAttribute("aria-expanded", "false");
@@ -95,29 +93,28 @@
 
         ensureDrawerBase(drawer, bd);
 
-        const toggle = () => {
+        // idempotent: nooit stapelen
+        btn.onclick = (e) => {
+            e.preventDefault();
             const isOpen = drawer.getAttribute("data-state") === "open";
             isOpen ? closeDrawer(drawer, bd, btn) : openDrawer(drawer, bd, btn);
             if (window.DEBUG) console.log("[menu] drawer", isOpen ? "CLOSE" : "OPEN");
         };
+        bd.onclick = () => closeDrawer(drawer, bd, btn);
+        document.onkeydown = (e) => { if (e.key === "Escape") closeDrawer(drawer, bd, btn); };
 
-        btn.addEventListener("click", (e) => { e.preventDefault(); toggle(); });
-        bd.addEventListener("click", () => closeDrawer(drawer, bd, btn));
-        document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawer(drawer, bd, btn); });
-
-        // secties in de drawer
+        // secties in de drawer togglen
         drawer.querySelectorAll(".sidemenu-section h4").forEach(h => {
-            h.addEventListener("click", () => h.parentElement.classList.toggle("open"));
+            h.onclick = () => h.parentElement.classList.toggle("open");
         });
     }
 
-    // ── Neon main nav (bovenbalk) ───────────────────────────────────────────────
+    // ── Neon bovenmenu (ongewijzigd) ────────────────────────────────────────────
     function bindNeonMainnav() {
         const nav = document.querySelector(".mainnav");
         if (!nav) return;
-
         nav.querySelectorAll("li.has-submenu > a").forEach(a => {
-            a.addEventListener("click", (e) => {
+            a.onclick = (e) => {
                 if (a.getAttribute("href") !== "#") return;
                 e.preventDefault();
                 const li = a.parentElement;
@@ -125,22 +122,20 @@
                 nav.querySelectorAll("li.has-submenu.open").forEach(s => s !== li && s.classList.remove("open"));
                 li.classList.toggle("open", !open);
                 a.setAttribute("aria-expanded", String(!open));
-            });
+            };
         });
-
         document.addEventListener("click", (e) => {
             if (!nav.contains(e.target)) {
                 nav.querySelectorAll("li.has-submenu.open").forEach(li => li.classList.remove("open"));
             }
         });
-
         nav.querySelectorAll('a[data-newtab]').forEach(a => {
             a.target = "_blank"; a.rel = "noopener noreferrer";
         });
     }
 
     function initMenu() {
-        if (wired) return;
+        if (wired) return;           // ← voorkomt dubbele bindingen
         wired = true;
         setHeaderQuickLinks();
         bindHamburger();
@@ -148,18 +143,18 @@
         if (window.DEBUG) console.log("[menu] wired");
     }
 
-    window.initMenu = () => { wired = false; initMenu(); };
-    document.addEventListener("DOMContentLoaded", initMenu);
-    document.addEventListener("partials:loaded", () => { wired = false; initMenu(); });
+    // Belangrijk: ALLEEN binden na partials (header) is geladen
+    document.addEventListener("partials:loaded", initMenu);
 
-    // hulp voor debug
+    // Debug helper
     window.MenuDebug = () => {
         const d = document.getElementById("sidemenu");
-        const cs = d ? getComputedStyle(d) : null;
-        return d ? {
+        if (!d) return {};
+        const cs = getComputedStyle(d);
+        return {
             state: d.getAttribute("data-state"),
             left: cs.left, transform: cs.transform, display: cs.display, position: cs.position,
             rect: d.getBoundingClientRect()
-        } : {};
+        };
     };
 })();
