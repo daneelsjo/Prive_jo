@@ -1,8 +1,5 @@
 // Script/Javascript/menu.js
 
-window.DEBUG = true; MenuDebug();
-
-
 (() => {
     let wired = false;
 
@@ -136,3 +133,5 @@ window.DEBUG = true; MenuDebug();
         drawerClasses: document.getElementById("sidemenu")?.className
     });
 })();
+
+window.DEBUG = true; MenuDebug();
