@@ -2,20 +2,18 @@
 <html lang="nl">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Landingspagina Jo</title>
-  <link rel="stylesheet" href="CSS/main.css">
-  <link rel="stylesheet" href="CSS/components-menu.css">
-  <link rel="stylesheet" href="CSS/components-sidemenu.css">
-  <link rel="stylesheet" href="CSS/page-index.css">
+  <link rel="stylesheet" href="CSS/main.css" />
+  <link rel="stylesheet" href="CSS/components-menu.css" />
+  <link rel="stylesheet" href="CSS/components-sidemenu.css" />
+  <link rel="stylesheet" href="CSS/page-index.css" />
 </head>
 
 <body>
   <!-- AUTH -->
-  <div id="auth">
-    <button id="login-btn">🔐 Inloggen met Google</button>
-  </div>
+  <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
 
   <!-- gedeelde header -->
   <div data-include="partials/header.html"></div>
@@ -45,7 +43,7 @@
           <div class="alltasks-header">
             <button id="toggleAllTasks" class="primary">📁 ALLE TAKEN</button>
             <input id="allTasksSearch" class="alltasks-search" type="search"
-              placeholder="Zoek op naam, datum, prio, tekst…" style="display:none;">
+              placeholder="Zoek op naam, datum, prio, tekst…" style="display:none;" />
           </div>
           <div id="allTasksPanel" style="display:none;">
             <div id="allTasksTable"></div>
@@ -55,17 +53,18 @@
 
       <aside class="rightcol">
         <button id="newTaskBtn" class="primary">＋ NIEUW</button>
+
         <!-- Nieuw taak formulier -->
         <div id="formContainer" class="card" style="display:none;">
           <label>Taak:</label><input id="name" placeholder="Taaknaam" />
-          <label>Start datum:</label><input id="start" type="date" placeholder="Startdatum" />
-          <label>Eind datum:</label><input id="end" type="date" placeholder="Einddatum" />
+          <label>Start datum:</label><input id="start" type="date" />
+          <label>Eind datum:</label><input id="end" type="date" />
           <label>Prio:</label>
           <select id="priority">
-            <option value="0">PRIO 0</option>
-            <option value="1">PRIO 1</option>
-            <option value="2">PRIO 2</option>
-            <option value="3">PRIO 3</option>
+            <option value="0">0 - Laag</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3 - Hoog</option>
           </select>
           <label>Categorie:</label>
           <input id="category" list="categoryList" placeholder="bv. Algemeen (werk)" />
@@ -83,15 +82,15 @@
       </aside>
     </div>
   </div>
-  <!-- Modals partial -->
+
+  <!-- Modals -->
   <div data-include="partials/modals.html"></div>
-  <script type="module" src="Script/Javascript/modal.js"></script> <!-- ← deze regel toevoegen -->
+  <script type="module" src="Script/Javascript/modal.js"></script>
 
   <!-- Scripts -->
   <script src="Script/Javascript/include-partials.js"></script>
   <script src="Script/Javascript/menu.js"></script>
   <script type="module" src="Script/Javascript/main.js"></script>
-
 </body>
 
 </html>

@@ -4,7 +4,7 @@ import {
   // Auth
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
   // Firestore
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc, deleteDoc,
+  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, updateDoc, deleteDoc,
   query, orderBy
 } from "./firebase-config.js";
 
@@ -38,7 +38,7 @@ const categoryInput = document.getElementById("category");
 let settings = { modeSlots: { werk: Array(6).fill({}), prive: Array(6).fill({}) }, preferredMode: "werk" };
 let currentMode = "werk";
 let categories = []; // {id,name,type,color,active}
-let todos = [];      // {id,title,done,categoryId, ...}
+let todos = [];      // {id,title,done,categoryId,...}
 
 const fixedColors = ["#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688", "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"];
 
@@ -225,7 +225,6 @@ function buildAllTasksTable(filterText = "") {
   if (!allTasksTable) return;
   const ft = (filterText || "").toLowerCase();
 
-  // basic table
   const rows = todos
     .filter(t => {
       const blob = [t.title, t.description, t.link, t.priority, t.startDate, t.endDate].map(x => String(x || "")).join(" ").toLowerCase();

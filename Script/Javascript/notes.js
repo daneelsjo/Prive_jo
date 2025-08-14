@@ -4,7 +4,7 @@ import {
     // Auth
     getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
     // Firestore
-    getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc, deleteDoc,
+    getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc,
     query, orderBy
 } from "./firebase-config.js";
 
@@ -60,10 +60,8 @@ function renderNotes() {
         <button class="btn danger" data-del="${n.id}">🗑️ Verwijderen</button>
       </div>
     `;
-        const eb = li.querySelector('[data-edit]');
-        if (eb) eb.onclick = () => openNoteModal(n);
-        const dbtn = li.querySelector('[data-del]');
-        if (dbtn) dbtn.onclick = () => deleteNote(n.id);
+        const eb = li.querySelector('[data-edit]'); if (eb) eb.onclick = () => openNoteModal(n);
+        const db = li.querySelector('[data-del]'); if (db) db.onclick = () => deleteNote(n.id);
         notesList.appendChild(li);
     });
 }
@@ -95,46 +93,18 @@ window.openNoteModal = function (note = null) {
     }
 
     save.onclick = async () => {
-        const payload = {
-            title: (t.value || "").trim(),
-            body: (b.value || "").trim(),
-            when: w.value ? new Date(w.value) : null
-        };
+        const payload = { title: (t.value || "").trim(), body: (b.value || "").trim(), when: w.value ? new Date(w.value) : null };
         if (!payload.title) { Modal.alert({ title: "Titel vereist", html: "Vul een titel in." }); return; }
-        if (note) await updateExistingNote(note.id, payload);
-        else await createNewNote(payload);
+        if (note) await updateDoc(doc(db, "notes", note.id), { ...payload, updatedAt: new Date() });
+        else await addDoc(collection(db, "notes"), { ...payload, uid: currentUser?.uid || null, createdAt: new Date() });
         Modal.close();
     };
-    del.onclick = async () => { if (note) { await deleteNote(note.id); Modal.close(); } };
+    del.onclick = async () => { if (note) { await deleteDoc(doc(db, "notes", note.id)); Modal.close(); } };
 
     Modal.open('modal-note');
 };
 
-// CRUD
-async function createNewNote(data) {
-    await addDoc(collection(db, "notes"), {
-        ...data,
-        uid: currentUser?.uid || null,
-        createdAt: new Date()
-    });
-}
-async function updateExistingNote(id, data) {
-    await updateDoc(doc(db, "notes", id), { ...data, updatedAt: new Date() });
-}
-async function deleteNote(id) {
-    await deleteDoc(doc(db, "notes", id));
-}
-
 // UTIL
-function toInputLocal(d) {
-    const off = d.getTimezoneOffset();
-    const local = new Date(d.getTime() - off * 60000);
-    return local.toISOString().slice(0, 16);
-}
-function formatLocalDatetime(ts) {
-    const d = new Date(ts.seconds ? ts.seconds * 1000 : ts);
-    return d.toLocaleString();
-}
-function escapeHtml(s = "") {
-    return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
+function toInputLocal(d) { const off = d.getTimezoneOffset(); const local = new Date(d.getTime() - off * 60000); return local.toISOString().slice(0, 16); }
+function formatLocalDatetime(ts) { const d = new Date(ts.seconds ? ts.seconds * 1000 : ts); return d.toLocaleString(); }
+function escapeHtml(s = "") { return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

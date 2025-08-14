@@ -579,3 +579,26 @@ button.ghost {
 [hidden] {
   display: none !important;
 }
+
+.topbar {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: .5rem;
+  position: sticky;
+  top: 0;
+  background: var(--card, #fff);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  padding: .5rem .75rem;
+  z-index: 1400;
+}
+
+.topbar .brand {
+  justify-self: center;
+}
+
+.header-icons {
+  justify-self: end;
+  display: flex;
+  gap: .4rem;
+}
