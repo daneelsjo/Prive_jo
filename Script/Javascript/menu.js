@@ -1,5 +1,4 @@
 // Script/Javascript/menu.js
-
 (() => {
     let wired = false;
 
@@ -26,7 +25,6 @@
             notes: [{ emoji: "📌", title: "Post-its", path: "index.html" },
             { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }],
         };
-
         el.innerHTML = "";
         (variants[page] || variants.index).forEach(l => {
             const a = document.createElement("a");
@@ -45,7 +43,23 @@
             bd.className = "sidemenu-backdrop";
             document.body.appendChild(bd);
         }
+        // minimale inline-styles (valnet)
+        Object.assign(bd.style, {
+            position: "fixed", inset: "0", background: "rgba(0,0,0,.4)", zIndex: "1900",
+            display: bd.classList.contains("open") ? "block" : "none"
+        });
         return bd;
+    }
+
+    function ensureDrawerBase(drawer) {
+        // basislayout zodat hij altijd zichtbaar is
+        Object.assign(drawer.style, {
+            position: "fixed", top: "0", bottom: "0", left: "0", width: "300px",
+            background: "var(--card,#fff)", color: "var(--fg,#111)",
+            borderRight: "1px solid var(--border,#e5e7eb)", padding: "1rem",
+            overflow: "auto", zIndex: "2000", transition: "transform .25s ease",
+            transform: drawer.classList.contains("open") ? "translateX(0)" : "translateX(-100%)"
+        });
     }
 
     function bindHamburger() {
@@ -54,14 +68,17 @@
         if (!btn || !drawer) return;
 
         const bd = ensureBackdrop();
+        ensureDrawerBase(drawer);
 
         const setOpen = (open) => {
             drawer.classList.toggle("open", open);
             bd.classList.toggle("open", open);
             btn.setAttribute("aria-expanded", String(open));
             drawer.setAttribute("aria-hidden", String(!open));
-            // Fallback als CSS ontbreekt
-            drawer.style.transform = open ? "translateX(0)" : "";
+
+            // forceer zichtbaarheid ook zonder CSS
+            bd.style.display = open ? "block" : "none";
+            drawer.style.transform = open ? "translateX(0)" : "translateX(-100%)";
             document.body.style.overflow = open ? "hidden" : "";
             if (window.DEBUG) console.log("[menu] drawer", open ? "OPEN" : "CLOSE");
         };
@@ -73,7 +90,7 @@
         bd.addEventListener("click", () => setOpen(false));
         document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
 
-        // secties in de drawer togglen
+        // secties binnen de drawer togglen
         drawer.querySelectorAll(".sidemenu-section h4").forEach(h => {
             h.addEventListener("click", () => h.parentElement.classList.toggle("open"));
         });
@@ -109,7 +126,6 @@
     function initMenu() {
         if (wired) return;
         wired = true;
-
         setHeaderQuickLinks();
         bindHamburger();
         bindNeonMainnav();
@@ -126,12 +142,9 @@
     document.addEventListener("DOMContentLoaded", initMenu);
     document.addEventListener("partials:loaded", () => { wired = false; initMenu(); });
 
-    // kleine helper om snel te checken in console
     window.MenuDebug = () => ({
         btn: !!document.getElementById("hamburgerBtn"),
         drawer: !!document.getElementById("sidemenu"),
-        drawerClasses: document.getElementById("sidemenu")?.className
+        style: document.getElementById("sidemenu") ? getComputedStyle(document.getElementById("sidemenu")).cssText : null
     });
 })();
-
-window.DEBUG = true; MenuDebug();
