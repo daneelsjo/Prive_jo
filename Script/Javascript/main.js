@@ -201,7 +201,7 @@ taskSaveBtn && (taskSaveBtn.onclick = async () => {
     done: false
   });
 
-  Modal.close(); // klaar
+  Modal.close('modal-task'); // klaar
 });
 
 

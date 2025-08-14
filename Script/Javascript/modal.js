@@ -94,3 +94,10 @@
     window.Modal = Modal;
     document.addEventListener('DOMContentLoaded', ensureBackdrop);
 })();
+
+// in Script/Javascript/modal.js (eenmalig)
+document.addEventListener('keydown', e => { if (e.key === 'Escape') Modal.close(); });
+document.addEventListener('click', e => {
+    const m = e.target.closest('.modal');
+    if (m && e.target === m) Modal.close(); // klik buiten modal-card
+});
