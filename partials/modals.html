@@ -61,55 +61,53 @@
     </div>
 </div>
 
-<!-- Nieuwe taak (modal) -->
-<div class="modal" id="modal-task" aria-hidden="true" role="dialog" aria-labelledby="modal-task-title">
-    <div class="modal-card">
-        <div class="modal-head">
-            <h3 id="modal-task-title">Nieuwe taak</h3>
-            <button class="icon-btn close" data-close aria-label="Sluiten">✕</button>
+<!-- 5) Nieuwe taak -->
+<div id="modal-task" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-task-title" hidden>
+    <div class="modal-header">
+        <h3 id="modal-task-title">Nieuwe taak</h3>
+        <button class="modal-close" data-modal-close="modal-task" aria-label="Sluiten">✕</button>
+    </div>
+
+    <div class="modal-body">
+        <div class="form-grid">
+            <label>Taak:
+                <input id="task-title" placeholder="Taaknaam" />
+            </label>
+
+            <label>Start datum:
+                <input id="task-start" type="date" />
+            </label>
+
+            <label>Eind datum:
+                <input id="task-end" type="date" />
+            </label>
+
+            <label>Prio:
+                <select id="task-priority">
+                    <option value="0">0 - Laag</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3 - Hoog</option>
+                </select>
+            </label>
+
+            <label>Categorie:
+                <input id="task-category-input" list="task-category-list" placeholder="bv. Algemeen (werk)" />
+                <datalist id="task-category-list"></datalist>
+            </label>
+
+            <label>Omschrijving:
+                <textarea id="task-desc" placeholder="Omschrijving (optioneel)"></textarea>
+            </label>
+
+            <label>Document:
+                <input id="task-link" placeholder="Link naar bestand (optioneel)" />
+            </label>
         </div>
+    </div>
 
-        <div class="modal-body">
-            <div class="form-grid">
-                <label>Taak:
-                    <input id="task-title" placeholder="Taaknaam" />
-                </label>
-
-                <label>Start datum:
-                    <input id="task-start" type="date" />
-                </label>
-
-                <label>Eind datum:
-                    <input id="task-end" type="date" />
-                </label>
-
-                <label>Prio:
-                    <select id="task-priority">
-                        <option value="0">0 - Laag</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3 - Hoog</option>
-                    </select>
-                </label>
-
-                <label>Categorie:
-                    <input id="task-category-input" list="task-category-list" placeholder="bv. Algemeen (werk)" />
-                    <datalist id="task-category-list"></datalist>
-                </label>
-
-                <label>Omschrijving:
-                    <textarea id="task-desc" placeholder="Omschrijving (optioneel)"></textarea>
-                </label>
-
-                <label>Document:
-                    <input id="task-link" placeholder="Link naar bestand (optioneel)" />
-                </label>
-            </div>
-        </div>
-
-        <div class="modal-foot">
-            <button id="task-save" class="primary">✔️ Opslaan</button>
-            <button class="ghost" data-close>Annuleren</button>
-        </div>
+    <div class="modal-footer">
+        <button id="task-save" class="primary">✔️ Opslaan</button>
+        <button class="ghost" data-modal-close="modal-task">Annuleren</button>
     </div>
 </div>

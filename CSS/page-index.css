@@ -499,3 +499,43 @@ button.ghost:hover {
 .modal .modal-foot .ghost {
   min-width: 120px;
 }
+
+/* Formulierlay-out in de taakmodal */
+#modal-task .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+#modal-task .form-grid label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+#modal-task .form-grid input,
+#modal-task .form-grid select,
+#modal-task .form-grid textarea {
+  width: 100%;
+  padding: .55rem .65rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--card, #fff);
+  color: var(--fg, #111);
+}
+
+#modal-task .form-grid textarea {
+  min-height: 110px;
+  grid-column: 1 / -1;
+}
+
+/* Titel & knoppen netjes gecentreerd (main.css dekt dit al, maar deze regels
+   zorgen dat het zeker goed staat) */
+#modal-task .modal-header {
+  justify-content: center;
+}
+
+#modal-task .modal-footer {
+  justify-content: center;
+  gap: 10px;
+}
