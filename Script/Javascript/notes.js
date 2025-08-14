@@ -1,7 +1,7 @@
 // Script/Javascript/notes.js
 import {
     getFirebaseApp,
-    getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, deleteDoc, serverTimestamp, deleteField,
+    getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, query, orderBy,
     getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
 } from "./firebase-config.js";
 
@@ -9,6 +9,7 @@ const app = getFirebaseApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+
 
 /* Elements */
 const loginBtn = document.getElementById("login-btn");
