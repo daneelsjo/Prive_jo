@@ -20,10 +20,10 @@ const loginBtn = document.getElementById("login-btn");
 const authDiv = document.getElementById("auth");
 const appDiv = document.getElementById("app");
 
-const addNoteBtn = document.getElementById("addNoteBtn");
+const newNoteBtn = document.getElementById("newNoteBtn");
 const notesList = document.getElementById("notesList");
 
-// ---- AUTH ----
+// AUTH
 loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
 
 onAuthStateChanged(auth, async (user) => {
@@ -42,7 +42,6 @@ function subscribeNotes() {
     });
 }
 
-// ---- RENDER ----
 function renderNotes() {
     if (!notesList) return;
     notesList.innerHTML = "";
@@ -61,20 +60,17 @@ function renderNotes() {
         <button class="btn danger" data-del="${n.id}">🗑️ Verwijderen</button>
       </div>
     `;
-
-        const editBtn = li.querySelector('[data-edit]');
-        if (editBtn) editBtn.onclick = () => openNoteModal(n);
-
-        const delBtn = li.querySelector('[data-del]');
-        if (delBtn) delBtn.onclick = () => deleteNote(n.id);
-
+        const eb = li.querySelector('[data-edit]');
+        if (eb) eb.onclick = () => openNoteModal(n);
+        const dbtn = li.querySelector('[data-del]');
+        if (dbtn) dbtn.onclick = () => deleteNote(n.id);
         notesList.appendChild(li);
     });
 }
 
-addNoteBtn && (addNoteBtn.onclick = () => openNoteModal(null));
+newNoteBtn && (newNoteBtn.onclick = () => openNoteModal(null));
 
-// ---- MODAL HOOKS ----
+// MODAL HOOKS
 window.openNoteModal = function (note = null) {
     const titleEl = document.getElementById('modal-note-title');
     const t = document.getElementById('note-title');
@@ -114,7 +110,7 @@ window.openNoteModal = function (note = null) {
     Modal.open('modal-note');
 };
 
-// ---- CRUD ----
+// CRUD
 async function createNewNote(data) {
     await addDoc(collection(db, "notes"), {
         ...data,
@@ -129,9 +125,8 @@ async function deleteNote(id) {
     await deleteDoc(doc(db, "notes", id));
 }
 
-// ---- UTIL ----
+// UTIL
 function toInputLocal(d) {
-    // maakt yyyy-MM-ddTHH:mm (zonder TZ) in lokale tijd
     const off = d.getTimezoneOffset();
     const local = new Date(d.getTime() - off * 60000);
     return local.toISOString().slice(0, 16);

@@ -20,29 +20,39 @@ const loginBtn = document.getElementById("login-btn");
 const authDiv = document.getElementById("auth");
 const appDiv = document.getElementById("app");
 const postitsEl = document.getElementById("postits");
-const modeSwitch = document.getElementById("modeSwitch"); // index-pagina schuiver
+const modeSwitch = document.getElementById("modeSwitch");
+
+const newTaskBtn = document.getElementById("newTaskBtn");
+const formContainer = document.getElementById("formContainer");
+const addTodoBtn = document.getElementById("addTodo");
+
+const toggleAllTasks = document.getElementById("toggleAllTasks");
+const allTasksPanel = document.getElementById("allTasksPanel");
+const allTasksSearch = document.getElementById("allTasksSearch");
+const allTasksTable = document.getElementById("allTasksTable");
+
+const datalist = document.getElementById("categoryList");
+const categoryInput = document.getElementById("category");
 
 // Data
 let settings = { modeSlots: { werk: Array(6).fill({}), prive: Array(6).fill({}) }, preferredMode: "werk" };
 let currentMode = "werk";
 let categories = []; // {id,name,type,color,active}
-let todos = [];      // {id,title,done,categoryId,...}
+let todos = [];      // {id,title,done,categoryId, ...}
 
-/** Vaste kleuren (fallbacks) */
 const fixedColors = ["#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688", "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"];
 
-// ---- AUTH ----
+// AUTH
 loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   currentUser = user;
-  authDiv && (authDiv.style.display = "none");
-  appDiv && (appDiv.style.display = "block");
+  if (authDiv) authDiv.style.display = "none";
+  if (appDiv) appDiv.style.display = "block";
 
   // settings
-  const sref = doc(db, "settings", currentUser.uid);
-  onSnapshot(sref, (snap) => {
+  onSnapshot(doc(db, "settings", currentUser.uid), (snap) => {
     settings = snap.exists() ? (snap.data() || {}) : {};
     if (!settings.modeSlots) settings.modeSlots = { werk: Array(6).fill({}), prive: Array(6).fill({}) };
     currentMode = settings.preferredMode || "werk";
@@ -53,6 +63,7 @@ onAuthStateChanged(auth, async (user) => {
   // categories
   onSnapshot(collection(db, "categories"), (snap) => {
     categories = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.active !== false);
+    fillCategoryDatalist();
     renderAll();
   });
 
@@ -64,24 +75,95 @@ onAuthStateChanged(auth, async (user) => {
   });
 });
 
-// mode switch
+// mode toggle
 if (modeSwitch) {
   modeSwitch.onchange = async () => {
     currentMode = modeSwitch.checked ? "prive" : "werk";
-    if (currentUser) {
-      await setDoc(doc(db, "settings", currentUser.uid), { preferredMode: currentMode }, { merge: true });
-    }
+    if (currentUser) await setDoc(doc(db, "settings", currentUser.uid), { preferredMode: currentMode }, { merge: true });
     renderAll();
   };
 }
 
-// ---- RENDER ----
+// datalist vullen
+function fillCategoryDatalist() {
+  if (!datalist) return;
+  datalist.innerHTML = "";
+  categories.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = `${c.name} (${c.type})`;
+    datalist.appendChild(opt);
+  });
+}
+
+// nieuw-formulier toggles
+newTaskBtn && (newTaskBtn.onclick = () => {
+  if (!formContainer) return;
+  formContainer.style.display = (formContainer.style.display === "none" || !formContainer.style.display) ? "block" : "none";
+});
+
+// alle taken paneel
+toggleAllTasks && (toggleAllTasks.onclick = () => {
+  const open = allTasksPanel.style.display !== "block";
+  allTasksPanel.style.display = open ? "block" : "none";
+  allTasksSearch.style.display = open ? "inline-block" : "none";
+  if (open) buildAllTasksTable();
+});
+
+// zoeken in alle taken
+allTasksSearch && (allTasksSearch.oninput = () => buildAllTasksTable(allTasksSearch.value));
+
+// taak toevoegen
+addTodoBtn && (addTodoBtn.onclick = async () => {
+  const title = (document.getElementById("name").value || "").trim();
+  const start = document.getElementById("start").value;
+  const end = document.getElementById("end").value;
+  const prio = parseInt(document.getElementById("priority").value || "0", 10);
+  const catTxt = (categoryInput?.value || "").trim();
+  const desc = (document.getElementById("description").value || "").trim();
+  const link = (document.getElementById("link").value || "").trim();
+
+  if (!title) { Modal.alert({ title: "Taak", html: "Geef een taaknaam op." }); return; }
+
+  const catMatch = parseCategory(catTxt);
+  const catDoc = catMatch ? categories.find(c => c.name.toLowerCase() === catMatch.name && c.type === catMatch.type) : null;
+
+  await addDoc(collection(db, "todos"), {
+    title, description: desc, link,
+    startDate: start ? new Date(start) : null,
+    endDate: end ? new Date(end) : null,
+    priority: prio,
+    categoryId: catDoc?.id || null,
+    createdAt: new Date(),
+    done: false
+  });
+
+  // leeg maken
+  document.getElementById("name").value = "";
+  document.getElementById("start").value = "";
+  document.getElementById("end").value = "";
+  document.getElementById("priority").value = "0";
+  if (categoryInput) categoryInput.value = "";
+  document.getElementById("description").value = "";
+  document.getElementById("link").value = "";
+
+  if (formContainer) formContainer.style.display = "none";
+});
+
+// helpers
+function parseCategory(txt) {
+  // verwacht "Naam (werk)" of "Naam (prive)"
+  const m = txt.match(/^\s*(.+?)\s*\((werk|prive)\)\s*$/i);
+  if (!m) return null;
+  return { name: m[1].toLowerCase(), type: m[2].toLowerCase() };
+}
+
 function renderAll() {
   renderPostits();
+  if (allTasksPanel && allTasksPanel.style.display === "block") buildAllTasksTable(allTasksSearch.value);
 }
 
 function renderPostits() {
-  if (!postitsEl || !settings) return;
+  if (!postitsEl) return;
   postitsEl.innerHTML = "";
 
   const slots = (settings.modeSlots?.[currentMode] || Array(6).fill({})).slice(0, 6);
@@ -89,8 +171,8 @@ function renderPostits() {
   // groepeer todos per categorie
   const byCat = {};
   todos.forEach(t => {
-    if (!t.categoryId) return;
-    (byCat[t.categoryId] ||= []).push(t);
+    const cid = t.categoryId || "_none";
+    (byCat[cid] ||= []).push(t);
   });
 
   for (let i = 0; i < 6; i++) {
@@ -111,9 +193,15 @@ function renderPostits() {
       box.appendChild(buildTaskRow(todo));
     });
 
-    // optioneel: klik opent modal met volledige inhoud
     box.addEventListener('click', () => showPostit(cat, byCat[slot.categoryId] || []));
     postitsEl.appendChild(box);
+  }
+
+  // overige taken
+  const unc = document.getElementById("uncategorized-list");
+  if (unc) {
+    unc.innerHTML = "";
+    (byCat["_none"] || []).forEach(todo => { unc.appendChild(buildTaskRow(todo)); });
   }
 }
 
@@ -129,15 +217,43 @@ function buildTaskRow(todo) {
   `;
   const cb = row.querySelector("input");
   cb.onchange = () => updateDoc(doc(db, "todos", todo.id), { done: cb.checked, updatedAt: new Date() });
-
-  row.querySelector("button").onclick = async (e) => {
-    e.stopPropagation();
-    await deleteDoc(doc(db, "todos", todo.id));
-  };
+  row.querySelector("button").onclick = async (e) => { e.stopPropagation(); await deleteDoc(doc(db, "todos", todo.id)); };
   return row;
 }
 
-// ---- POST-IT MODAL ----
+function buildAllTasksTable(filterText = "") {
+  if (!allTasksTable) return;
+  const ft = (filterText || "").toLowerCase();
+
+  // basic table
+  const rows = todos
+    .filter(t => {
+      const blob = [t.title, t.description, t.link, t.priority, t.startDate, t.endDate].map(x => String(x || "")).join(" ").toLowerCase();
+      return !ft || blob.includes(ft);
+    })
+    .map(t => {
+      const cat = categories.find(c => c.id === t.categoryId);
+      return `
+        <tr>
+          <td>${escapeHtml(t.title || "")}</td>
+          <td>${cat ? escapeHtml(cat.name) : "-"}</td>
+          <td>${t.priority ?? "-"}</td>
+          <td>${t.startDate ? formatDate(t.startDate) : "-"}</td>
+          <td>${t.endDate ? formatDate(t.endDate) : "-"}</td>
+          <td>${t.done ? "✔️" : ""}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  allTasksTable.innerHTML = `
+    <table class="alltasks-table unified">
+      <thead><tr><th>Taak</th><th>Categorie</th><th>Prio</th><th>Start</th><th>Eind</th><th>Klaar</th></tr></thead>
+      <tbody>${rows || "<tr><td colspan='6'><em>Geen taken</em></td></tr>"}</tbody>
+    </table>
+  `;
+}
+
 window.showPostit = function (category, items) {
   document.getElementById('modal-postit-title').textContent = category.name || "Post-it";
   const body = document.getElementById('modal-postit-body');
@@ -156,7 +272,7 @@ window.showPostit = function (category, items) {
   Modal.open('modal-postit');
 };
 
-// ---- UTIL ----
+// UTIL
 function getContrast(hex) {
   const r = parseInt(hex.substr(1, 2), 16);
   const g = parseInt(hex.substr(3, 2), 16);
@@ -166,4 +282,8 @@ function getContrast(hex) {
 }
 function escapeHtml(s = "") {
   return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function formatDate(v) {
+  const d = new Date(v.seconds ? v.seconds * 1000 : v);
+  return d.toLocaleDateString();
 }

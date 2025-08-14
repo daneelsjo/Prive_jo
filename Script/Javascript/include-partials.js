@@ -1,71 +1,57 @@
 /**
  * include-partials.js
  * - Laadt <div data-include="..."></div> partials
- * - Dispatcht 'partials:loaded' exact 1x
+ * - Dispatcht 'partials:loaded' exact 1x na alle includes
  * - Zet favicon centraal (werkt op root + /HTML/ subpagina's)
  */
 (() => {
-    // === 1 plek om je icoon te kiezen ===
-    // Zet je .ico in /IMG/ en laat dit zo. Of pas het pad hier aan.
     const FAVICON_RELATIVE = "IMG/JD_Web_Solutions.ico";
-
     const isNested = () => /\/HTML\//.test(location.pathname);
-    const prefixPath = (p) => (isNested() ? "../" : "") + (p || "").replace(/^\.\//, "");
+    const prefixPath = (p = "") => (isNested() ? "../" : "") + p.replace(/^\.\//, "");
 
     function ensureFavicon() {
         const href = prefixPath(FAVICON_RELATIVE);
         const head = document.head || document.getElementsByTagName("head")[0];
 
-        // oude icon-links opruimen
+        // verwijder bestaande
         head.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(el => el.remove());
 
-        // nieuwe icon-links toevoegen
-        const icon = document.createElement("link");
-        icon.rel = "icon";
-        icon.type = "image/x-icon";
-        icon.href = href;
-        head.appendChild(icon);
-
-        const shortcut = document.createElement("link");
-        shortcut.rel = "shortcut icon";
-        shortcut.href = href;
-        head.appendChild(shortcut);
+        const link = document.createElement("link");
+        link.rel = "icon";
+        link.type = "image/x-icon";
+        link.href = href;
+        head.appendChild(link);
     }
 
     async function loadPartials() {
-        const includeNodes = document.querySelectorAll("[data-include]");
-        const tasks = [];
-
-        for (const el of includeNodes) {
-            const src = el.getAttribute("data-include");
-            if (!src) continue;
-            tasks.push(
-                fetch(src)
-                    .then((res) => {
-                        if (!res.ok) throw new Error(`Fout bij include: ${src} (${res.status})`);
-                        return res.text();
-                    })
-                    .then((html) => { el.innerHTML = html; })
-                    .catch((err) => console.error(`Include mislukt: ${src}`, err))
-            );
+        const hosts = Array.from(document.querySelectorAll("[data-include]"));
+        if (!hosts.length) {
+            ensureFavicon();
+            document.dispatchEvent(new CustomEvent("partials:loaded"));
+            return;
         }
 
-        await Promise.allSettled(tasks);
+        await Promise.all(hosts.map(async host => {
+            const src = host.getAttribute("data-include");
+            const url = prefixPath(src);
+            try {
+                const res = await fetch(url, { cache: "no-cache" });
+                const html = await res.text();
+                host.outerHTML = html;
+            } catch (e) {
+                console.error("Partial laden mislukt:", url, e);
+            }
+        }));
 
-        // favicon na partials zodat evt. <head>-manipulatie later niet overschreven wordt
         ensureFavicon();
-
-        // Laat andere scripts weten dat de partials klaar zijn (exact 1x)
         document.dispatchEvent(new CustomEvent("partials:loaded"));
 
-        // Optioneel: menu initialiseren als aanwezig
         if (typeof window.initMenu === "function") {
             try { window.initMenu(); } catch (e) { console.error(e); }
         }
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-        // favicon ook meteen zetten bij DOM-ready (voor pagina's zonder partials)
         ensureFavicon();
         loadPartials();
     });
