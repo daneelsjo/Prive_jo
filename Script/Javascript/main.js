@@ -437,3 +437,16 @@ function bindNewTaskButton() {
 // koppel zowel op DOMContentLoaded als wanneer partials klaar zijn
 document.addEventListener("DOMContentLoaded", bindNewTaskButton);
 document.addEventListener("partials:loaded", bindNewTaskButton);
+
+function bindTaskDocOpen() {
+  const btn = document.getElementById('task-link-open');
+  if (!btn) return;
+  btn.onclick = () => {
+    const raw = (document.getElementById('task-link').value || '').trim();
+    if (!raw) return;
+    const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    window.open(url, '_blank', 'noopener');
+  };
+}
+document.addEventListener('DOMContentLoaded', bindTaskDocOpen);
+document.addEventListener('partials:loaded', bindTaskDocOpen);

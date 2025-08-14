@@ -70,19 +70,19 @@
 
     <div class="modal-body">
         <div class="form-grid">
-            <label>Taak:
+            <label class="fld fld-title">Taak:
                 <input id="task-title" placeholder="Taaknaam" />
             </label>
 
-            <label>Start datum:
+            <label class="fld fld-start">Start datum:
                 <input id="task-start" type="date" />
             </label>
 
-            <label>Eind datum:
+            <label class="fld fld-end">Eind datum:
                 <input id="task-end" type="date" />
             </label>
 
-            <label>Prio:
+            <label class="fld fld-prio">Prio:
                 <select id="task-priority">
                     <option value="0">0 - Laag</option>
                     <option value="1">1</option>
@@ -91,17 +91,20 @@
                 </select>
             </label>
 
-            <label>Categorie:
+            <label class="fld fld-cat">Categorie:
                 <input id="task-category-input" list="task-category-list" placeholder="bv. Algemeen (werk)" />
                 <datalist id="task-category-list"></datalist>
             </label>
 
-            <label>Omschrijving:
+            <label class="fld fld-desc">Omschrijving:
                 <textarea id="task-desc" placeholder="Omschrijving (optioneel)"></textarea>
             </label>
 
-            <label>Document:
-                <input id="task-link" placeholder="Link naar bestand (optioneel)" />
+            <label class="fld fld-doc">Document:
+                <div class="input-with-action">
+                    <input id="task-link" placeholder="Link naar bestand (optioneel)" />
+                    <button type="button" id="task-link-open" class="btn tiny" title="Open link">Open</button>
+                </div>
             </label>
         </div>
     </div>

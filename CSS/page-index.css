@@ -539,3 +539,133 @@ button.ghost:hover {
   justify-content: center;
   gap: 10px;
 }
+
+/* ── Nieuwe taak modal: layout ───────────────────────────────────────────── */
+#modal-task .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "title title"
+    "start end"
+    "prio  cat"
+    "desc  desc"
+    "doc   doc";
+  gap: 12px;
+}
+
+#modal-task .fld-title {
+  grid-area: title;
+}
+
+#modal-task .fld-start {
+  grid-area: start;
+}
+
+#modal-task .fld-end {
+  grid-area: end;
+}
+
+#modal-task .fld-prio {
+  grid-area: prio;
+}
+
+#modal-task .fld-cat {
+  grid-area: cat;
+}
+
+#modal-task .fld-desc {
+  grid-area: desc;
+}
+
+#modal-task .fld-doc {
+  grid-area: doc;
+}
+
+#modal-task .form-grid label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+#modal-task input,
+#modal-task select,
+#modal-task textarea {
+  width: 100%;
+  padding: .55rem .65rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--card, #fff);
+  color: var(--fg, #111);
+}
+
+#modal-task textarea {
+  min-height: 110px;
+}
+
+/* input met actieknop ("Document: Open") */
+#modal-task .input-with-action {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#modal-task .btn.tiny {
+  padding: .45rem .6rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--card, #fff);
+  cursor: pointer;
+}
+
+:root[data-theme="dark"] #modal-task .btn.tiny {
+  border-color: rgba(255, 255, 255, .22);
+  background: #0b1220;
+  color: #e5e7eb;
+}
+
+/* ── Donkere modus: UI-iconen duidelijk ──────────────────────────────────── */
+/* Kalender-icoon bij <input type="date"> */
+:root[data-theme="dark"] #modal-task input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.4);
+  opacity: .9;
+}
+
+/* Selectpijl: vervang door licht icoon in dark, donker in light */
+#modal-task select {
+  appearance: none;
+  background-position: right 10px center;
+  background-repeat: no-repeat;
+  background-size: 12px;
+  padding-right: 28px;
+}
+
+/* light arrow (donker grijs) */
+#modal-task select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2357636b' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+}
+
+/* dark arrow (licht) */
+:root[data-theme='dark'] #modal-task select {
+  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23e5e7eb' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E\");
+}
+
+/* Modal header/footer polish (titel centreren + marge knoppen) */
+#modal-task .modal-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+#modal-task .modal-header h3 {
+  margin: 0;
+  text-align: center;
+  font-weight: 700;
+}
+
+#modal-task .modal-footer {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 6px 6px;
+}
