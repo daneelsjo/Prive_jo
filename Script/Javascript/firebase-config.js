@@ -1,9 +1,11 @@
 // Script/Javascript/firebase-config.js
+// Eén centrale plek voor Firebase-config + exports uit dezelfde SDK-versie.
+
 import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
 
-// 🔐 Publieke webconfig (voor web hoort deze client-side; beperk 'm op domeinen!)
+// Publieke webconfig (mag client-side; beveilig via HTTP referrers + Firestore rules + App Check)
 export const firebaseConfig = {
-    apiKey: "AIzaSyDo_zVn_4H1uM7EU-LhQV5XOYBcJmZ0Y3o",
+    apiKey: "AIzaSyBkVwWdSNwlPWjeNT_BRb7pFzkeVB2VT3Q",
     authDomain: "prive-jo.firebaseapp.com",
     projectId: "prive-jo",
     storageBucket: "prive-jo.firebasestorage.app",
@@ -16,15 +18,13 @@ export function getFirebaseApp() {
     return getApps().length ? getApp() : initializeApp(firebaseConfig);
 }
 
-// ---- Re-exports uit één versie-anker ----
-
-// Auth
+// ---- Exports: Auth ----
 export {
     getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 
-// Firestore
+// ---- Exports: Firestore (LET OP: inclusief query/orderBy/getDoc!) ----
 export {
-    getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc, deleteDoc,
-    serverTimestamp, deleteField, query, orderBy, where, limit
+    getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc,
+    deleteDoc, serverTimestamp, deleteField, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";

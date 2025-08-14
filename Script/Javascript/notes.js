@@ -11,6 +11,8 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 
+
+
 /* Elements */
 const loginBtn = document.getElementById("login-btn");
 const appDiv = document.getElementById("app");
