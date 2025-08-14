@@ -412,3 +412,28 @@ function formatDate(v) {
   const d = new Date(v.seconds ? v.seconds * 1000 : v);
   return d.toLocaleDateString();
 }
+
+// — Nieuw-taak modal robuust binden —
+function bindNewTaskButton() {
+  const btn = document.getElementById("newTaskBtn");
+  if (!btn) return;
+
+  btn.onclick = (e) => {
+    e.preventDefault();
+    const modalEl = document.getElementById("modal-task");
+
+    // Als de partial nog niet klaar is, wacht één keer op 'partials:loaded'
+    if (!modalEl) {
+      console.warn("[task] modal-task nog niet in DOM; wachten op partials…");
+      document.addEventListener("partials:loaded", () => {
+        openTaskModal();                    // probeert opnieuw, nu bestaat hij
+      }, { once: true });
+      return;
+    }
+    openTaskModal();                        // normaal pad
+  };
+}
+
+// koppel zowel op DOMContentLoaded als wanneer partials klaar zijn
+document.addEventListener("DOMContentLoaded", bindNewTaskButton);
+document.addEventListener("partials:loaded", bindNewTaskButton);

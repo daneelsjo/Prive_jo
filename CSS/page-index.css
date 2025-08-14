@@ -430,3 +430,72 @@ button.ghost:hover {
   min-height: 110px;
   grid-column: 1 / -1;
 }
+
+/* ─ Modal header: titel gecentreerd, close rechts zichtbaar ─ */
+.modal .modal-card {
+  position: relative;
+  border-radius: 16px;
+  padding: 14px 16px 16px;
+  /* extra ademruimte */
+  max-width: 760px;
+}
+
+.modal .modal-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* titel in het midden */
+  margin-bottom: 6px;
+}
+
+.modal .modal-head h3 {
+  margin: 0;
+  font-weight: 700;
+  text-align: center;
+  /* extra zekerheid */
+}
+
+.modal .modal-head .close {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid var(--border, #e5e7eb);
+  color: var(--fg, #111);
+}
+
+:root[data-theme="dark"] .modal .modal-head .close {
+  border-color: rgba(255, 255, 255, .22);
+  color: #e5e7eb;
+  /* zichtbaar in donkere modus */
+}
+
+.modal .modal-head .close:hover {
+  background: rgba(2, 132, 199, .12);
+}
+
+/* Body- en foot-marges */
+.modal .modal-body {
+  padding: 8px 6px 10px;
+}
+
+.modal .modal-foot {
+  display: flex;
+  justify-content: center;
+  /* knoppen centreren */
+  gap: 10px;
+  padding: 8px 6px 6px;
+  /* kleine marge rondom */
+}
+
+.modal .modal-foot .primary,
+.modal .modal-foot .ghost {
+  min-width: 120px;
+}
