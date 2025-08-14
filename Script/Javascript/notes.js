@@ -1,4 +1,8 @@
 // Script/Javascript/notes.js
+
+window.DEBUG = true;
+const log = (...a) => window.DEBUG && console.log(...a);
+// Script/Javascript/notes.js
 import {
     getFirebaseApp,
     // Auth
@@ -21,7 +25,8 @@ const authDiv = document.getElementById("auth");
 const appDiv = document.getElementById("app");
 
 const newNoteBtn = document.getElementById("newNoteBtn");
-const notesList = document.getElementById("notesList");
+// LET OP: tabel-body
+const notesBody = document.getElementById("notesBody");
 
 // AUTH
 loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
@@ -29,8 +34,8 @@ loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
 onAuthStateChanged(auth, async (user) => {
     if (!user) return;
     currentUser = user;
-    if (authDiv) authDiv.style.display = "none";
-    if (appDiv) appDiv.style.display = "block";
+    authDiv && (authDiv.style.display = "none");
+    appDiv && (appDiv.style.display = "block");
     subscribeNotes();
 });
 
@@ -43,32 +48,29 @@ function subscribeNotes() {
 }
 
 function renderNotes() {
-    if (!notesList) return;
-    notesList.innerHTML = "";
-    notes.forEach(n => {
-        const li = document.createElement("div");
-        li.className = "note-row";
+    if (!notesBody) return;
+    notesBody.innerHTML = notes.map(n => {
         const when = n.when ? formatLocalDatetime(n.when) : "";
-        li.innerHTML = `
-      <div class="note-head">
-        <strong>${escapeHtml(n.title || "(zonder titel)")}</strong>
-        <span class="note-when">${when}</span>
-      </div>
-      <div class="note-body">${escapeHtml(n.body || "")}</div>
-      <div class="note-actions">
-        <button class="btn" data-edit="${n.id}">✏️ Bewerken</button>
-        <button class="btn danger" data-del="${n.id}">🗑️ Verwijderen</button>
-      </div>
-    `;
-        const eb = li.querySelector('[data-edit]'); if (eb) eb.onclick = () => openNoteModal(n);
-        const db = li.querySelector('[data-del]'); if (db) db.onclick = () => deleteNote(n.id);
-        notesList.appendChild(li);
+        return `
+      <tr data-id="${n.id}">
+        <td>${escapeHtml(when)}</td>
+        <td>${escapeHtml(n.title || "(zonder titel)")}</td>
+      </tr>`;
+    }).join("");
+
+    // rij-klik = bewerken
+    notesBody.querySelectorAll("tr").forEach(tr => {
+        tr.onclick = () => {
+            const id = tr.getAttribute("data-id");
+            const note = notes.find(x => x.id === id);
+            if (note) openNoteModal(note);
+        };
     });
 }
 
 newNoteBtn && (newNoteBtn.onclick = () => openNoteModal(null));
 
-// MODAL HOOKS
+// MODAL
 window.openNoteModal = function (note = null) {
     const titleEl = document.getElementById('modal-note-title');
     const t = document.getElementById('note-title');
@@ -88,12 +90,16 @@ window.openNoteModal = function (note = null) {
         del.style.display = "";
     } else {
         titleEl.textContent = "Nieuwe notitie";
-        t.value = ""; w.value = ""; b.value = "";
+        t.value = ""; b.value = ""; w.value = "";
         del.style.display = "none";
     }
 
     save.onclick = async () => {
-        const payload = { title: (t.value || "").trim(), body: (b.value || "").trim(), when: w.value ? new Date(w.value) : null };
+        const payload = {
+            title: (t.value || "").trim(),
+            body: (b.value || "").trim(),
+            when: w.value ? new Date(w.value) : null
+        };
         if (!payload.title) { Modal.alert({ title: "Titel vereist", html: "Vul een titel in." }); return; }
         if (note) await updateDoc(doc(db, "notes", note.id), { ...payload, updatedAt: new Date() });
         else await addDoc(collection(db, "notes"), { ...payload, uid: currentUser?.uid || null, createdAt: new Date() });

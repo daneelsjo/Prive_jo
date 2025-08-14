@@ -1,4 +1,5 @@
 // Script/Javascript/modal.js
+
 (() => {
     if (window.Modal && window.__modalInited) return;
     window.__modalInited = true;

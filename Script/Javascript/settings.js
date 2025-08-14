@@ -1,4 +1,7 @@
 // Script/Javascript/settings.js
+window.DEBUG = true;
+const log = (...a) => window.DEBUG && console.log(...a);
+
 import {
   getFirebaseApp,
   // Firestore
