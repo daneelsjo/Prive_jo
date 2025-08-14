@@ -52,8 +52,18 @@ applyTheme("system");
 
 
 
+function bindOnce(el, ev, fn) {
+  if (!el) return;
+  const key = `__bound_${ev}`;
+  if (el[key]) return;
+  el.addEventListener(ev, fn);
+  el[key] = true;
+}
+
+// Open de taakmodal en reset velden
 function openTaskModal() {
-  // reset velden
+  const exists = document.getElementById('modal-task');
+  if (!exists) return; // wacht evt. op partials
   document.getElementById("task-title").value = "";
   document.getElementById("task-start").value = "";
   document.getElementById("task-end").value = "";
@@ -61,9 +71,9 @@ function openTaskModal() {
   document.getElementById("task-category-input").value = "";
   document.getElementById("task-desc").value = "";
   document.getElementById("task-link").value = "";
-
-  Modal.open("modal-task");
+  Modal.open('modal-task');
 }
+
 
 function fillBothCategoryLists() {
   const fill = (el) => {
@@ -413,40 +423,89 @@ function formatDate(v) {
   return d.toLocaleDateString();
 }
 
-// — Nieuw-taak modal robuust binden —
+// Nieuw-knop → modal
 function bindNewTaskButton() {
   const btn = document.getElementById("newTaskBtn");
-  if (!btn) return;
-
-  btn.onclick = (e) => {
+  bindOnce(btn, "click", (e) => {
     e.preventDefault();
-    const modalEl = document.getElementById("modal-task");
-
-    // Als de partial nog niet klaar is, wacht één keer op 'partials:loaded'
-    if (!modalEl) {
-      console.warn("[task] modal-task nog niet in DOM; wachten op partials…");
-      document.addEventListener("partials:loaded", () => {
-        openTaskModal();                    // probeert opnieuw, nu bestaat hij
-      }, { once: true });
+    if (!document.getElementById('modal-task')) {
+      // modal nog niet in DOM? éénmalig wachten op partials
+      document.addEventListener("partials:loaded", () => openTaskModal(), { once: true });
       return;
     }
-    openTaskModal();                        // normaal pad
-  };
+    openTaskModal();
+  });
 }
 
 // koppel zowel op DOMContentLoaded als wanneer partials klaar zijn
 document.addEventListener("DOMContentLoaded", bindNewTaskButton);
 document.addEventListener("partials:loaded", bindNewTaskButton);
 
+// “Open” naast Document-veld
 function bindTaskDocOpen() {
   const btn = document.getElementById('task-link-open');
-  if (!btn) return;
-  btn.onclick = () => {
+  bindOnce(btn, "click", () => {
     const raw = (document.getElementById('task-link').value || '').trim();
     if (!raw) return;
     const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
     window.open(url, '_blank', 'noopener');
-  };
+  });
 }
-document.addEventListener('DOMContentLoaded', bindTaskDocOpen);
-document.addEventListener('partials:loaded', bindTaskDocOpen);
+
+// Opslaan in Firestore
+function bindTaskSave() {
+  const save = document.getElementById('task-save');
+  bindOnce(save, "click", async () => {
+    const title = (document.getElementById("task-title").value || "").trim();
+    const start = document.getElementById("task-start").value;
+    const end = document.getElementById("task-end").value;
+    const prio = parseInt(document.getElementById("task-priority").value || "0", 10);
+    const catTxt = (document.getElementById("task-category-input").value || "").trim();
+    const desc = (document.getElementById("task-desc").value || "").trim();
+    const link = (document.getElementById("task-link").value || "").trim();
+
+    if (!title) { Modal.alert({ title: "Taak", html: "Geef een taaknaam op." }); return; }
+    if (!currentUser) { Modal.alert({ title: "Login vereist", html: "Meld je aan om taken op te slaan." }); return; }
+
+    const catMatch = parseCategory(catTxt);
+    const catDoc = catMatch
+      ? categories.find(c => c.name.toLowerCase() === catMatch.name && c.type === catMatch.type)
+      : null;
+
+    try {
+      // disable zolang we opslaan
+      save.disabled = true;
+
+      await addDoc(collection(db, "todos"), {
+        title,
+        description: desc,
+        link,
+        startDate: start ? new Date(start) : null,
+        endDate: end ? new Date(end) : null,
+        priority: prio,
+        categoryId: catDoc?.id || null,
+        uid: currentUser?.uid || null,   // belangrijk voor security rules
+        createdAt: new Date(),
+        done: false
+      });
+
+      Modal.close('modal-task');
+    } catch (err) {
+      console.error(err);
+      Modal.alert({ title: "Opslaan mislukt", html: "Kon de taak niet opslaan. Probeer opnieuw." });
+    } finally {
+      save.disabled = false;
+    }
+  });
+}
+
+// Koppel alles zowel bij DOM ready als zodra partials geladen zijn
+function wireTaskModal() {
+  // datalist vullen (bestaat nu in de modal)
+  if (typeof fillBothCategoryLists === "function") fillBothCategoryLists();
+  bindNewTaskButton();
+  bindTaskDocOpen();
+  bindTaskSave();
+}
+document.addEventListener("DOMContentLoaded", wireTaskModal);
+document.addEventListener("partials:loaded", wireTaskModal);
