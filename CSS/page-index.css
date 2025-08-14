@@ -42,16 +42,53 @@
 
 /* Task rows */
 .task-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: .55rem;
+  align-items: start;
   padding: .2rem 0;
+  cursor: pointer;
+  border-radius: 8px;
 }
 
 .task-row.done .task-text {
   text-decoration: line-through;
   opacity: .6;
+}
+
+.task-row:hover {
+  background: rgba(0, 0, 0, .05);
+}
+
+:root[data-theme="dark"] .task-row:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+.task-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--dot, #9ca3af);
+  margin-top: .35rem;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .15);
+}
+
+:root[data-theme="dark"] .task-dot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .20);
+}
+
+.task-texts {
+  line-height: 1.25;
+}
+
+.task-title {
+  font-weight: 600;
+}
+
+.task-deadline {
+  font-size: .85rem;
+  opacity: .8;
+  margin-top: .15rem;
 }
 
 #uncategorized-list>.task-row {
@@ -668,4 +705,17 @@ button.ghost:hover {
   justify-content: center;
   gap: 10px;
   padding: 8px 6px 6px;
+}
+
+/* ── Post-it header: gecentreerd + onderlijnd ─ */
+.postit .postit-head {
+  text-align: center;
+  font-weight: 700;
+  padding-bottom: .25rem;
+  border-bottom: 2px solid rgba(0, 0, 0, .15);
+  margin-bottom: .5rem;
+}
+
+:root[data-theme="dark"] .postit .postit-head {
+  border-bottom-color: rgba(255, 255, 255, .25);
 }

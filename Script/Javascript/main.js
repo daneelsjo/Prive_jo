@@ -36,6 +36,9 @@ const allTasksTable = document.getElementById("allTasksTable");
 
 const datalist = document.getElementById("categoryList");
 const categoryInput = document.getElementById("category");
+let editingTaskId = null; // huidige bewerk-id (null = nieuwe taak)
+
+
 // ───────────────────────────────────────────────────────────────────────────────
 // thema modus
 // ───────────────────────────────────────────────────────────────────────────────
@@ -61,18 +64,34 @@ function bindOnce(el, ev, fn) {
 }
 
 // Open de taakmodal en reset velden
-function openTaskModal() {
-  const exists = document.getElementById('modal-task');
-  if (!exists) return; // wacht evt. op partials
-  document.getElementById("task-title").value = "";
-  document.getElementById("task-start").value = "";
-  document.getElementById("task-end").value = "";
-  document.getElementById("task-priority").value = "0";
-  document.getElementById("task-category-input").value = "";
-  document.getElementById("task-desc").value = "";
-  document.getElementById("task-link").value = "";
-  Modal.open('modal-task');
+function openTaskModal(mode = "create", task = null) {
+  const isEdit = mode === "edit" && task;
+
+  // velden vullen
+  document.getElementById("task-title").value = isEdit ? (task.title || "") : "";
+  document.getElementById("task-start").value = isEdit && task.startDate ? new Date(task.startDate.seconds ? task.startDate.seconds * 1000 : task.startDate).toISOString().slice(0, 10) : "";
+  document.getElementById("task-end").value = isEdit && task.endDate ? new Date(task.endDate.seconds ? task.endDate.seconds * 1000 : task.endDate).toISOString().slice(0, 10) : "";
+  document.getElementById("task-priority").value = isEdit ? String(task.priority ?? 0) : "0";
+  document.getElementById("task-category-input").value = isEdit && task.categoryId
+    ? (() => { const c = categories.find(x => x.id === task.categoryId); return c ? `${c.name} (${c.type})` : ""; })()
+    : "";
+  document.getElementById("task-desc").value = isEdit ? (task.description || "") : "";
+  document.getElementById("task-link").value = isEdit ? (task.link || "") : "";
+
+  // knoppen tonen/verbergen
+  const delBtn = document.getElementById("task-delete");
+  const doneBtn = document.getElementById("task-toggle-done");
+  delBtn.style.display = isEdit ? "inline-flex" : "none";
+  doneBtn.style.display = isEdit ? "inline-flex" : "none";
+  if (isEdit) {
+    doneBtn.textContent = task.done ? "Heropenen" : "Voltooien";
+  }
+
+  editingTaskId = isEdit ? task.id : null;
+
+  Modal.open("modal-task");
 }
+
 
 
 function fillBothCategoryLists() {
@@ -296,9 +315,10 @@ function renderPostits() {
   // groepeer todos per categorie
   const byCat = {};
   todos.forEach(t => {
+    if (t.done) return; // ✅ voltooid niet tonen
     const cid = t.categoryId || "_none";
     (byCat[cid] ||= []).push(t);
-  });
+  });;
 
   for (let i = 0; i < 6; i++) {
     const slot = slots[i] || {};
@@ -332,24 +352,29 @@ function renderPostits() {
   }
 }
 
+function prioColor(p = 0) {
+  // 0=grijs, 1=groen, 2=amber, 3=rood
+  const map = { 0: "#9ca3af", 1: "#22c55e", 2: "#f59e0b", 3: "#ef4444" };
+  return map[p] || map[0];
+}
+
 function buildTaskRow(todo) {
   const row = document.createElement("div");
   row.className = "task-row";
   row.innerHTML = `
-    <label class="task-check">
-      <input type="checkbox" ${todo.done ? "checked" : ""}>
-      <span>${escapeHtml(todo.title || "(zonder titel)")}</span>
-    </label>
-    <button class="btn-icon sm danger" title="Verwijderen">🗑️</button>
+    <span class="task-dot" style="--dot:${prioColor(todo.priority)}"></span>
+    <div class="task-texts">
+      <div class="task-title">${escapeHtml(todo.title || "(zonder titel)")}</div>
+      ${todo.endDate ? `<div class="task-deadline">Deadline: ${formatDate(todo.endDate)}</div>` : ""}
+    </div>
   `;
-  const cb = row.querySelector("input");
-  cb.onchange = () => updateDoc(doc(db, "todos", todo.id), { done: cb.checked, updatedAt: new Date() });
-  row.querySelector("button").onclick = async (e) => {
+  row.onclick = (e) => {
     e.stopPropagation();
-    await deleteDoc(doc(db, "todos", todo.id));
+    openTaskModal("edit", todo);
   };
   return row;
 }
+
 
 function buildAllTasksTable(filterText = "") {
   if (!allTasksTable) return;
@@ -473,23 +498,38 @@ function bindTaskSave() {
       : null;
 
     try {
-      // disable zolang we opslaan
       save.disabled = true;
 
-      await addDoc(collection(db, "todos"), {
-        title,
-        description: desc,
-        link,
-        startDate: start ? new Date(start) : null,
-        endDate: end ? new Date(end) : null,
-        priority: prio,
-        categoryId: catDoc?.id || null,
-        uid: currentUser?.uid || null,   // belangrijk voor security rules
-        createdAt: new Date(),
-        done: false
-      });
+      if (editingTaskId) {
+        // UPDATE
+        await updateDoc(doc(db, "todos", editingTaskId), {
+          title,
+          description: desc,
+          link,
+          startDate: start ? new Date(start) : null,
+          endDate: end ? new Date(end) : null,
+          priority: prio,
+          categoryId: catDoc?.id || null,
+          updatedAt: new Date(),
+        });
+      } else {
+        // CREATE
+        await addDoc(collection(db, "todos"), {
+          title,
+          description: desc,
+          link,
+          startDate: start ? new Date(start) : null,
+          endDate: end ? new Date(end) : null,
+          priority: prio,
+          categoryId: catDoc?.id || null,
+          uid: currentUser?.uid || null,
+          createdAt: new Date(),
+          done: false
+        });
+      }
 
       Modal.close('modal-task');
+      editingTaskId = null;
     } catch (err) {
       console.error(err);
       Modal.alert({ title: "Opslaan mislukt", html: "Kon de taak niet opslaan. Probeer opnieuw." });
@@ -499,13 +539,41 @@ function bindTaskSave() {
   });
 }
 
+function bindTaskDelete() {
+  const del = document.getElementById('task-delete');
+  bindOnce(del, "click", async () => {
+    if (!editingTaskId) return;
+    if (!confirm("Taak verwijderen?")) return;
+    await deleteDoc(doc(db, "todos", editingTaskId));
+    Modal.close('modal-task');
+    editingTaskId = null;
+  });
+}
+
+function bindTaskToggleDone() {
+  const btn = document.getElementById('task-toggle-done');
+  bindOnce(btn, "click", async () => {
+    if (!editingTaskId) return;
+    // lees huidige taak uit lokale lijst
+    const t = todos.find(x => x.id === editingTaskId);
+    const newVal = !(t?.done);
+    await updateDoc(doc(db, "todos", editingTaskId), { done: newVal, updatedAt: new Date() });
+    // tekst wisselen
+    btn.textContent = newVal ? "Heropenen" : "Voltooien";
+    Modal.close('modal-task'); // sluit; de post-its verversen via onSnapshot
+    editingTaskId = null;
+  });
+}
+
 // Koppel alles zowel bij DOM ready als zodra partials geladen zijn
 function wireTaskModal() {
-  // datalist vullen (bestaat nu in de modal)
   if (typeof fillBothCategoryLists === "function") fillBothCategoryLists();
   bindNewTaskButton();
   bindTaskDocOpen();
   bindTaskSave();
+  bindTaskDelete();
+  bindTaskToggleDone();
 }
 document.addEventListener("DOMContentLoaded", wireTaskModal);
 document.addEventListener("partials:loaded", wireTaskModal);
+
