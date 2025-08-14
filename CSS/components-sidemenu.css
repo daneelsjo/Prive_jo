@@ -78,3 +78,14 @@
 .sidemenu-section a:hover {
     background: rgba(2, 132, 199, .12);
 }
+
+/* Accordion-gedrag: standaard dicht, open via .open */
+.sidemenu-section ul {
+    display: none;
+}
+
+.sidemenu-section.open ul {
+    display: grid;
+}
+
+/* je had al gap-styling; grid is prima */

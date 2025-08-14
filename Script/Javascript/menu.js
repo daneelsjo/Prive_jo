@@ -93,6 +93,8 @@
 
         ensureDrawerBase(drawer, bd);
 
+        setupSideAccordion(drawer); // bind accordion gedrag
+
         // idempotent: nooit stapelen
         btn.onclick = (e) => {
             e.preventDefault();
@@ -158,3 +160,36 @@
         };
     };
 })();
+
+
+function setupSideAccordion(drawer) {
+    const sections = drawer.querySelectorAll(".sidemenu-section");
+    sections.forEach(sec => {
+        sec.classList.remove("open"); // standaard dicht
+        const h = sec.querySelector("h4");
+        if (!h) return;
+        h.setAttribute("role", "button");
+        h.setAttribute("tabindex", "0");
+        h.setAttribute("aria-expanded", "false");
+
+        const toggle = () => {
+            const willOpen = !sec.classList.contains("open");
+            // sluit alle andere
+            sections.forEach(s => {
+                if (s !== sec) {
+                    s.classList.remove("open");
+                    const hh = s.querySelector("h4");
+                    hh && hh.setAttribute("aria-expanded", "false");
+                }
+            });
+            // toggle huidige
+            sec.classList.toggle("open", willOpen);
+            h.setAttribute("aria-expanded", String(willOpen));
+        };
+
+        h.onclick = toggle;
+        h.onkeydown = (e) => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+        };
+    });
+}
