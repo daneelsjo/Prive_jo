@@ -391,3 +391,102 @@ select {
 .btn-icon:active {
   transform: translateY(1px);
 }
+
+/* ===== Switch (werk/privé) – strakker + geen lekjes ===== */
+.switch.icon-only {
+  --w: 96px;
+  --h: 36px;
+  --pad: 4px;
+  --knob: 28px;
+  --track: #f3f4f6;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  place-items: center;
+  width: var(--w);
+  height: var(--h);
+  border-radius: 999px;
+  background: var(--track);
+  outline: 1px solid #e5e7eb;
+  overflow: hidden;
+  user-select: none;
+}
+
+:root[data-theme="dark"] .switch.icon-only {
+  --track: rgba(255, 255, 255, .12);
+  outline-color: rgba(255, 255, 255, .25);
+}
+
+.switch.icon-only .icon {
+  z-index: 1;
+  opacity: .55;
+  font-size: 16px;
+  line-height: 1;
+}
+
+#modeSwitchSettings:not(:checked)+.switch.icon-only .icon-work {
+  opacity: 1;
+}
+
+#modeSwitchSettings:checked+.switch.icon-only .icon-prive {
+  opacity: 1;
+}
+
+.switch.icon-only .knob {
+  position: absolute;
+  top: var(--pad);
+  left: var(--pad);
+  width: var(--knob);
+  height: calc(var(--h) - var(--pad)*2);
+  background: #fff;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  transition: transform .18s ease;
+  z-index: 2;
+}
+
+.switch.icon-only .knob::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  /* iets groter masker */
+  border-radius: inherit;
+  box-shadow: 0 0 0 4px var(--track);
+  pointer-events: none;
+}
+
+#modeSwitchSettings:checked+.switch.icon-only .knob {
+  transform: translateX(calc(var(--w) - var(--pad)*2 - var(--knob)));
+}
+
+/* ===== Mini-swatch & kleurselect ===== */
+.swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.select-color {
+  min-width: 140px;
+}
+
+.select-color option {
+  color: #111;
+}
+
+/* tekst zichtbaar op meeste achtergronden */
+
+/* ===== Neutrale rij voor 'Post-its per modus' ===== */
+.mode-slot-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 40px;
+  align-items: center;
+  gap: .6rem;
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .5rem .6rem;
+  margin-bottom: .6rem;
+}

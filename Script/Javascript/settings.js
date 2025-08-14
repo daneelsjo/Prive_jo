@@ -34,13 +34,8 @@ let categories = []; // {id,name,type,active,color?}
 let settings = {};
 let currentMode = "werk";
 
-/** Kleuren */
-const fixedColors = [
-  "#FFEB3B", "#F44336", "#4CAF50", "#2196F3",
-  "#E91E63", "#9C27B0", "#673AB7", "#3F51B5",
-  "#00BCD4", "#009688", "#8BC34A", "#CDDC39",
-  "#FFC107", "#FF9800", "#795548"
-];
+/** Vaste kleuren (enige toegelaten keuzes) */
+const fixedColors = ["#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688", "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"];
 const defaultColorFor = (type, idx) => fixedColors[idx % fixedColors.length];
 
 /* Auth */
@@ -54,7 +49,6 @@ onAuthStateChanged(auth, async (user) => {
   await loadSettings();
   applyTheme(settings.theme || "system");
 
-  // Icon toggle voor modus
   if (modeSwitchSettings) {
     currentMode = settings.preferredMode || "werk";
     modeSwitchSettings.checked = (currentMode === "prive");
@@ -100,22 +94,16 @@ function listenCategories() {
   });
 }
 
-/* Categorie toevoegen (max 6 per modus) — met default kleur per modus */
+/* Categorie toevoegen (max 6 per modus) — met default kleur uit vaste lijst */
 addCatBtn && (addCatBtn.onclick = async () => {
   const name = (catName.value || "").trim();
   const type = (catType.value || "werk").toLowerCase();
 
-  if (!name) {
-    showSettingsMessage("Categorie niet aangemaakt", "Vul een categorienaam in.");
-    return;
-  }
+  if (!name) { showSettingsMessage("Categorie niet aangemaakt", "Vul een categorienaam in."); return; }
 
   const listInMode = (categories || []).filter(c => c && c.type === type && c.active !== false);
   if (listInMode.length >= MAX_CATEGORIES_PER_MODE) {
-    showSettingsMessage(
-      "Categorie niet aangemaakt",
-      `⚠️ Er zijn al <strong>${MAX_CATEGORIES_PER_MODE}</strong> categorieën in modus <strong>${type}</strong>.`
-    );
+    showSettingsMessage("Categorie niet aangemaakt", `⚠️ Er zijn al <strong>${MAX_CATEGORIES_PER_MODE}</strong> categorieën in modus <strong>${type}</strong>.`);
     return;
   }
 
@@ -124,7 +112,7 @@ addCatBtn && (addCatBtn.onclick = async () => {
   catName.value = "";
 });
 
-/* Categorie-lijst met kleurkeuze + bewerken + archiveren */
+/* === Categorie-lijst: kleurvak + vaste kleurenkeuze + bewerken + verwijderen === */
 function renderCatList() {
   if (!catList) return;
   catList.innerHTML = "";
@@ -136,40 +124,44 @@ function renderCatList() {
     block.style.marginBottom = ".75rem";
     block.innerHTML = `<h3 style="margin:.25rem 0; text-align:center;">${type.toUpperCase()}</h3>`;
 
-    grouped[type].forEach(c => {
+    grouped[type].forEach((c, idx) => {
       const row = document.createElement("div");
       row.style.display = "grid";
-      row.style.gridTemplateColumns = "48px 1fr auto";
+      row.style.gridTemplateColumns = "32px 1fr 160px auto";
       row.style.alignItems = "center";
       row.style.gap = ".5rem";
       row.style.padding = ".25rem 0";
 
-      // Kleurkiezer (type=color)
-      const colorWrap = document.createElement("div");
-      colorWrap.style.display = "flex";
-      colorWrap.style.alignItems = "center";
-      colorWrap.style.justifyContent = "center";
+      // 1) Kleurvakje (toont gekozen kleur)
+      const sw = document.createElement("div");
+      sw.className = "swatch";
+      sw.style.background = normalizeHex(c.color || defaultColorFor(c.type, idx));
 
-      const colorInput = document.createElement("input");
-      colorInput.type = "color";
-      colorInput.value = normalizeHex(c.color || defaultColorFor(c.type, 0));
-      colorInput.title = "Kleur van deze categorie";
-      colorInput.style.width = "32px";
-      colorInput.style.height = "28px";
-      colorInput.style.border = "1px solid var(--border)";
-      colorInput.style.borderRadius = "6px";
-      colorInput.onchange = async () => {
-        const val = normalizeHex(colorInput.value);
-        await updateDoc(doc(db, "categories", c.id), { color: val });
-      };
-      colorWrap.appendChild(colorInput);
-
+      // 2) Naam
       const nameSpan = document.createElement("span");
       nameSpan.textContent = c.name;
 
+      // 3) Vaste kleuren-select
+      const select = document.createElement("select");
+      select.className = "select-color";
+      fixedColors.forEach(col => {
+        const opt = document.createElement("option");
+        opt.value = col; opt.textContent = col;
+        opt.style.backgroundColor = col; opt.style.color = getContrast(col);
+        if (normalizeHex(c.color || "") === col.toUpperCase()) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.onchange = async () => {
+        const val = normalizeHex(select.value);
+        sw.style.background = val;
+        await updateDoc(doc(db, "categories", c.id), { color: val });
+        // post-its voorbeeld onderaan meteen updaten
+        renderModeSlots();
+      };
+
+      // 4) Acties
       const actions = document.createElement("div");
-      actions.style.display = "flex";
-      actions.style.alignItems = "center";
+      actions.style.display = "flex"; actions.style.alignItems = "center";
 
       const editBtn = document.createElement("button");
       editBtn.className = "btn-icon sm neutral";
@@ -184,7 +176,8 @@ function renderCatList() {
       delBtn.onclick = () => archiveCategory(c.id);
 
       actions.append(editBtn, delBtn);
-      row.append(colorWrap, nameSpan, actions);
+
+      row.append(sw, nameSpan, select, actions);
       block.appendChild(row);
     });
 
@@ -193,8 +186,7 @@ function renderCatList() {
 }
 
 function normalizeHex(v) {
-  // Browser kan #fff geven; we willen altijd 7 chars.
-  if (!v) return "#ffffff";
+  if (!v) return "#FFFFFF";
   if (v.length === 4 && v.startsWith("#")) {
     const r = v[1], g = v[2], b = v[3];
     return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
@@ -256,30 +248,17 @@ window.editCategory = function (id) {
   footEl.append(saveBtn, cancelBtn);
 };
 
-/* ModeSlots (6 slots per modus) — GEEN kleurkeuze meer hier */
+/* === Post-its per modus: neutrale rijen, kleur enkel als preview-swatch === */
 function renderModeSlots() {
   if (!modeSlotsDiv) return;
   modeSlotsDiv.innerHTML = "";
 
-  // Slots uit settings (oude struct met {categoryId,color} wordt ondersteund; kleur wordt genegeerd)
   const slots = (settings.modeSlots?.[currentMode] || Array(6).fill({})).slice(0, 6);
 
   for (let i = 0; i < 6; i++) {
     const slot = slots[i] || {};
     const row = document.createElement("div");
-    row.style.display = "grid";
-    row.style.gridTemplateColumns = "110px 1fr 40px";
-    row.style.alignItems = "center";
-    row.style.gap = ".6rem";
-    row.style.borderRadius = "10px";
-    row.style.padding = ".5rem .6rem";
-    row.style.marginBottom = ".6rem";
-
-    // Bepaal kleur op basis van gekozen categorie (of fallback)
-    const catDoc = categories.find(c => c.id === slot.categoryId && c.type === currentMode);
-    const chosenColor = normalizeHex(catDoc?.color || defaultColorFor(currentMode, i));
-    row.style.background = chosenColor;
-    row.style.color = getContrast(chosenColor);
+    row.className = "mode-slot-row";
 
     const label = document.createElement("span");
     label.textContent = `Post-it ${i + 1}:`;
@@ -289,26 +268,23 @@ function renderModeSlots() {
     catSelect.innerHTML = `<option value="">-- Geen --</option>`;
     categories.filter(c => c.type === currentMode).forEach(c => {
       const opt = document.createElement("option");
-      opt.value = c.id;
-      opt.textContent = c.name;
+      opt.value = c.id; opt.textContent = c.name;
       if (c.id === slot.categoryId) opt.selected = true;
       catSelect.appendChild(opt);
     });
 
+    // kleur komt uit categorie; toon enkel een preview-swatch rechts
     const swatch = document.createElement("div");
-    swatch.style.width = "28px";
-    swatch.style.height = "28px";
-    swatch.style.borderRadius = "8px";
-    swatch.style.border = "1px solid rgba(0,0,0,.15)";
-    swatch.style.background = chosenColor;
+    swatch.className = "swatch";
+    const catDoc = categories.find(c => c.id === slot.categoryId && c.type === currentMode);
+    const col = normalizeHex(catDoc?.color || defaultColorFor(currentMode, i));
+    swatch.style.background = col;
 
     catSelect.addEventListener("change", () => {
-      const c = categories.find(x => x.id === catSelect.value);
-      const col = normalizeHex(c?.color || defaultColorFor(currentMode, i));
-      row.style.background = col;
-      row.style.color = getContrast(col);
-      swatch.style.background = col;
-      slots[i] = { categoryId: catSelect.value || null }; // kleur NIET meer bewaren
+      const chosen = categories.find(x => x.id === catSelect.value && x.type === currentMode);
+      const newCol = normalizeHex(chosen?.color || defaultColorFor(currentMode, i));
+      swatch.style.background = newCol;
+      slots[i] = { categoryId: catSelect.value || null }; // kleur niet opslaan
     });
 
     row.append(label, catSelect, swatch);
@@ -320,12 +296,12 @@ function renderModeSlots() {
   settings.modeSlots[currentMode] = slots;
 }
 
-/* Opslaan van slots (alleen categoryId) */
+/* Opslaan: alleen categoryId */
 saveModeSlotsBtn && (saveModeSlotsBtn.onclick = async () => {
   const rows = Array.from(modeSlotsDiv.children);
   const newSlots = rows.map(row => {
     const select = row.querySelector("select");
-    return { categoryId: select.value || null }; // kleur niet meer opslaan
+    return { categoryId: select.value || null };
   });
   settings.modeSlots = settings.modeSlots || {};
   settings.modeSlots[currentMode] = newSlots;
