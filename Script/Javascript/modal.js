@@ -1,13 +1,37 @@
 // Script/Javascript/modal.js
 (() => {
-    const backdrop = () => document.getElementById('modal-backdrop');
+    // voorkom dubbele initialisatie
+    if (window.Modal && window.__modalInited) return;
+    window.__modalInited = true;
+
+    const $ = (id) => document.getElementById(id);
+    const allModals = () => Array.from(document.querySelectorAll('.modal-card'));
+    const backdrop = () => $('modal-backdrop');
+
     let openId = null;
     let lastFocus = null;
 
-    function qs(id) { return document.getElementById(id); }
-    function visible(el) { el.hidden = false; el.setAttribute('aria-hidden', 'false'); }
-    function hidden(el) { el.hidden = true; el.setAttribute('aria-hidden', 'true'); }
+    function ensureBackdrop() {
+        if (!backdrop()) {
+            const bd = document.createElement('div');
+            bd.id = 'modal-backdrop';
+            bd.className = 'modal-backdrop';
+            bd.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(bd);
+        }
+    }
 
+    function show(el) {
+        el.hidden = false;
+        el.setAttribute('aria-hidden', 'false');
+    }
+    function hide(el) {
+        el.hidden = true;
+        el.setAttribute('aria-hidden', 'true');
+    }
+    function hideAllModals() {
+        allModals().forEach(hide);
+    }
     function lockBody(lock) {
         document.body.style.overflow = lock ? 'hidden' : '';
     }
@@ -20,76 +44,84 @@
         const first = focusables[0];
         const last = focusables[focusables.length - 1];
         if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
-        else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
+        if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
     }
 
     function onKeydown(e) {
         if (!openId) return;
-        const modal = qs(openId);
-        if (e.key === 'Escape') { Modal.close(); }
-        else if (e.key === 'Tab') { trapFocus(modal, e); }
+        const modal = $(openId);
+        if (!modal) return;
+        if (e.key === 'Escape') Modal.close();
+        else if (e.key === 'Tab') trapFocus(modal, e);
     }
 
     const Modal = {
         open(id) {
-            const modal = qs(id);
-            if (!modal) return;
-            // sluit andere
-            if (openId) Modal.close();
+            ensureBackdrop();
+            // sluit ALLES eerst (ook bij dubbele partials)
+            hideAllModals();
 
-            lastFocus = document.activeElement;
-            visible(backdrop()); visible(modal);
+            const m = $(id);
+            if (!m) return;
+            if (backdrop()) { show(backdrop()); }
+            show(m);
             lockBody(true);
-            openId = id;
 
-            document.addEventListener('keydown', onKeydown);
-            // focus eerste element
+            openId = id;
+            lastFocus = document.activeElement;
+
+            document.addEventListener('keydown', onKeydown, true);
+
+            // focus eerste focusbaar element
             setTimeout(() => {
-                const first = modal.querySelector(
-                    'input,textarea,button,[tabindex]:not([tabindex="-1"])'
-                );
-                (first || modal).focus();
+                const first = m.querySelector('input,textarea,button,[tabindex]:not([tabindex="-1"])');
+                (first || m).focus();
             }, 0);
         },
+
         close() {
-            if (!openId) return;
-            const modal = qs(openId);
-            hidden(modal); hidden(backdrop());
+            // sluit ALLE zichtbare modals
+            hideAllModals();
+            if (backdrop()) backdrop().setAttribute('aria-hidden', 'true');
             lockBody(false);
-            document.removeEventListener('keydown', onKeydown);
-            if (lastFocus) { try { lastFocus.focus(); } catch (_e) { } }
+            document.removeEventListener('keydown', onKeydown, true);
             openId = null;
+            if (lastFocus) { try { lastFocus.focus(); } catch (_) { } }
         },
-        // Helpers voor snelle alerts
+
         alert({ title = "Melding", html = "", okText = "OK", onOk = null } = {}) {
-            qs('modal-alert-title').textContent = title;
-            qs('modal-alert-body').innerHTML = html;
-            const ok = qs('modal-alert-ok');
-            ok.onclick = () => { if (onOk) onOk(); Modal.close(); };
+            ensureBackdrop();
+            const titleEl = $('modal-alert-title');
+            const bodyEl = $('modal-alert-body');
+            const okBtn = $('modal-alert-ok');
+            if (!titleEl || !bodyEl || !okBtn) return;
+
+            titleEl.textContent = title;
+            bodyEl.innerHTML = html;
+            okBtn.textContent = okText;
+            okBtn.onclick = () => { if (onOk) onOk(); Modal.close(); };
             Modal.open('modal-alert');
         },
-        isOpen(id) { return openId === id; }
+
+        isOpen(id) { return openId === id; },
     };
 
-    // backdrop klik sluit
+    // klik buiten of op een [data-modal-close] sluit altijd
     document.addEventListener('click', (e) => {
-        if (!openId) return;
-        if (e.target === backdrop()) Modal.close();
-        const closeBtn = e.target.closest('[data-modal-close]');
-        if (closeBtn) Modal.close();
-    });
+        const bd = backdrop();
+        if (!bd) return;
 
-    // Expose globally
+        // backdrop klik
+        if (e.target === bd) { Modal.close(); return; }
+
+        // specifieke close knoppen/links
+        const closer = e.target.closest('[data-modal-close]');
+        if (closer) { Modal.close(); }
+    }, true);
+
+    // export
     window.Modal = Modal;
 
-    // Zorg dat backdrop in DOM staat (als partial nog niet geladen is)
-    document.addEventListener('DOMContentLoaded', () => {
-        if (!backdrop()) {
-            const bd = document.createElement('div');
-            bd.id = 'modal-backdrop';
-            bd.className = 'modal-backdrop';
-            bd.hidden = true;
-            document.body.appendChild(bd);
-        }
-    });
+    // fallback: zorg dat backdrop bestaat na DOM-ready
+    document.addEventListener('DOMContentLoaded', ensureBackdrop);
 })();

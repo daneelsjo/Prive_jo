@@ -495,3 +495,7 @@ button.ghost {
   padding: .5rem .6rem;
   margin-bottom: .6rem;
 }
+
+[hidden] {
+  display: none !important;
+}
