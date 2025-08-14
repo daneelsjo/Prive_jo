@@ -490,3 +490,49 @@ select {
   padding: .5rem .6rem;
   margin-bottom: .6rem;
 }
+
+/* Verberg ruwe checkbox bij de modus-schuiver (label blijft werken) */
+.mode-toggle input[type="checkbox"],
+#modeSwitch,
+#modeSwitchSettings {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* Swatch clickable + palette */
+.swatch {
+  cursor: pointer;
+}
+
+.color-palette {
+  position: absolute;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: .5rem;
+  box-shadow: var(--shadow);
+  padding: .45rem;
+  display: grid;
+  grid-template-columns: repeat(8, 22px);
+  gap: .4rem;
+  z-index: 2500;
+}
+
+.color-palette .opt {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, .25);
+  cursor: pointer;
+}
+
+:root[data-theme="dark"] .color-palette .opt {
+  border-color: rgba(255, 255, 255, .35);
+}
+
+.color-palette .opt.sel {
+  outline: 2px solid #0003;
+}

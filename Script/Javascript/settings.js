@@ -1,8 +1,6 @@
 import {
   getFirebaseApp,
-  // Firestore
   getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc,
-  // Auth
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
 } from "./firebase-config.js";
 
@@ -34,7 +32,7 @@ let categories = []; // {id,name,type,active,color?}
 let settings = {};
 let currentMode = "werk";
 
-/** Vaste kleuren (enige toegelaten keuzes) */
+/** Vaste kleuren */
 const fixedColors = ["#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688", "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"];
 const defaultColorFor = (type, idx) => fixedColors[idx % fixedColors.length];
 
@@ -94,7 +92,7 @@ function listenCategories() {
   });
 }
 
-/* Categorie toevoegen (max 6 per modus) — met default kleur uit vaste lijst */
+/* Toevoegen categorie (max 6 / modus) */
 addCatBtn && (addCatBtn.onclick = async () => {
   const name = (catName.value || "").trim();
   const type = (catType.value || "werk").toLowerCase();
@@ -112,7 +110,7 @@ addCatBtn && (addCatBtn.onclick = async () => {
   catName.value = "";
 });
 
-/* === Categorie-lijst: kleurvak + vaste kleurenkeuze + bewerken + verwijderen === */
+/* === Categorie-lijst: links swatch (klik = palet), rechts alleen actiekolom === */
 function renderCatList() {
   if (!catList) return;
   catList.innerHTML = "";
@@ -127,39 +125,30 @@ function renderCatList() {
     grouped[type].forEach((c, idx) => {
       const row = document.createElement("div");
       row.style.display = "grid";
-      row.style.gridTemplateColumns = "32px 1fr 160px auto";
+      row.style.gridTemplateColumns = "32px 1fr auto";
       row.style.alignItems = "center";
       row.style.gap = ".5rem";
       row.style.padding = ".25rem 0";
 
-      // 1) Kleurvakje (toont gekozen kleur)
+      // 1) Klikbare swatch (kleur kiezen via palet)
       const sw = document.createElement("div");
       sw.className = "swatch";
-      sw.style.background = normalizeHex(c.color || defaultColorFor(c.type, idx));
+      sw.title = "Kleur kiezen";
+      const current = normalizeHex(c.color || defaultColorFor(c.type, idx));
+      sw.style.background = current;
+      sw.addEventListener("click", (e) => {
+        openColorPalette(sw, current, async (picked) => {
+          sw.style.background = picked;
+          await updateDoc(doc(db, "categories", c.id), { color: picked });
+          renderModeSlots(); // preview updaten
+        });
+      });
 
       // 2) Naam
       const nameSpan = document.createElement("span");
       nameSpan.textContent = c.name;
 
-      // 3) Vaste kleuren-select
-      const select = document.createElement("select");
-      select.className = "select-color";
-      fixedColors.forEach(col => {
-        const opt = document.createElement("option");
-        opt.value = col; opt.textContent = col;
-        opt.style.backgroundColor = col; opt.style.color = getContrast(col);
-        if (normalizeHex(c.color || "") === col.toUpperCase()) opt.selected = true;
-        select.appendChild(opt);
-      });
-      select.onchange = async () => {
-        const val = normalizeHex(select.value);
-        sw.style.background = val;
-        await updateDoc(doc(db, "categories", c.id), { color: val });
-        // post-its voorbeeld onderaan meteen updaten
-        renderModeSlots();
-      };
-
-      // 4) Acties
+      // 3) Acties
       const actions = document.createElement("div");
       actions.style.display = "flex"; actions.style.alignItems = "center";
 
@@ -177,12 +166,51 @@ function renderCatList() {
 
       actions.append(editBtn, delBtn);
 
-      row.append(sw, nameSpan, select, actions);
+      row.append(sw, nameSpan, actions);
       block.appendChild(row);
     });
 
     catList.appendChild(block);
   });
+}
+
+/* Palette widget (1 instantie) */
+let paletteEl = null;
+let paletteCloser = null;
+function openColorPalette(anchorEl, currentColor, onPick) {
+  if (!paletteEl) {
+    paletteEl = document.createElement("div");
+    paletteEl.className = "color-palette";
+    document.body.appendChild(paletteEl);
+  }
+  paletteEl.innerHTML = "";
+  fixedColors.forEach(col => {
+    const o = document.createElement("div");
+    o.className = "opt" + (normalizeHex(col) === normalizeHex(currentColor) ? " sel" : "");
+    o.style.background = col;
+    o.title = col;
+    o.addEventListener("click", () => { onPick(normalizeHex(col)); closePalette(); });
+    paletteEl.appendChild(o);
+  });
+
+  // positie onder de swatch
+  const r = anchorEl.getBoundingClientRect();
+  paletteEl.style.left = `${window.scrollX + r.left}px`;
+  paletteEl.style.top = `${window.scrollY + r.bottom + 6}px`;
+  paletteEl.style.display = "grid";
+
+  // buiten klik sluit
+  paletteCloser = (e) => {
+    if (!paletteEl.contains(e.target)) closePalette();
+  };
+  setTimeout(() => document.addEventListener("click", paletteCloser), 0);
+}
+function closePalette() {
+  if (paletteEl) paletteEl.style.display = "none";
+  if (paletteCloser) {
+    document.removeEventListener("click", paletteCloser);
+    paletteCloser = null;
+  }
 }
 
 function normalizeHex(v) {
@@ -228,9 +256,7 @@ window.editCategory = function (id) {
     if (!newName) { alert("Geef een naam op."); return; }
 
     const dup = categories.some(x =>
-      x.id !== cat.id &&
-      x.type === cat.type &&
-      x.active !== false &&
+      x.id !== cat.id && x.type === cat.type && x.active !== false &&
       (x.name || "").toLowerCase() === newName.toLowerCase()
     );
     if (dup) { showSettingsMessage("Naam bestaat al", `Er bestaat al een categorie “${newName}” in modus ${cat.type}.`); return; }
@@ -248,7 +274,7 @@ window.editCategory = function (id) {
   footEl.append(saveBtn, cancelBtn);
 };
 
-/* === Post-its per modus: neutrale rijen, kleur enkel als preview-swatch === */
+/* === Post-its per modus: neutrale rijen + kleur-preview uit categorie === */
 function renderModeSlots() {
   if (!modeSlotsDiv) return;
   modeSlotsDiv.innerHTML = "";
@@ -273,7 +299,7 @@ function renderModeSlots() {
       catSelect.appendChild(opt);
     });
 
-    // kleur komt uit categorie; toon enkel een preview-swatch rechts
+    // kleur-preview rechts (geen input)
     const swatch = document.createElement("div");
     swatch.className = "swatch";
     const catDoc = categories.find(c => c.id === slot.categoryId && c.type === currentMode);
@@ -284,7 +310,7 @@ function renderModeSlots() {
       const chosen = categories.find(x => x.id === catSelect.value && x.type === currentMode);
       const newCol = normalizeHex(chosen?.color || defaultColorFor(currentMode, i));
       swatch.style.background = newCol;
-      slots[i] = { categoryId: catSelect.value || null }; // kleur niet opslaan
+      slots[i] = { categoryId: catSelect.value || null }; // geen kleur opslaan
     });
 
     row.append(label, catSelect, swatch);
@@ -296,7 +322,7 @@ function renderModeSlots() {
   settings.modeSlots[currentMode] = slots;
 }
 
-/* Opslaan: alleen categoryId */
+/* Opslaan slots: alleen categoryId */
 saveModeSlotsBtn && (saveModeSlotsBtn.onclick = async () => {
   const rows = Array.from(modeSlotsDiv.children);
   const newSlots = rows.map(row => {
