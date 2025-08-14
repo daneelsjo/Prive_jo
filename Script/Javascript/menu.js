@@ -52,19 +52,23 @@
     }
 
     function ensureDrawerBase(drawer) {
-        // basislayout zodat hij ALTIJD zichtbaar kan worden (zelfs zonder CSS-bestand)
-        Object.assign(drawer.style, {
-            position: "fixed",
-            top: "0", bottom: "0", left: "-300px", right: "auto",
-            width: "300px",
-            background: "var(--card,#fff)", color: "var(--fg,#111)",
-            borderRight: "1px solid var(--border,#e5e7eb)",
-            padding: "1rem",
-            overflow: "auto",
-            zIndex: "2000",
-            transition: "transform .25s ease, left .25s ease",
-            transform: "translateX(0)" // we sturen met 'left'
-        });
+        // Basislayout, hard met !important zodat hij altijd zichtbaar kán worden
+        const S = drawer.style;
+        S.setProperty("position", "fixed", "important");
+        S.setProperty("top", "0", "important");
+        S.setProperty("bottom", "0", "important");
+        S.setProperty("left", "-320px", "important"); // start buiten beeld
+        S.setProperty("right", "auto", "important");
+        S.setProperty("width", "300px", "important");
+        S.setProperty("background", "var(--card,#fff)", "important");
+        S.setProperty("color", "var(--fg,#111)", "important");
+        S.setProperty("border-right", "1px solid var(--border,#e5e7eb)", "important");
+        S.setProperty("padding", "1rem", "important");
+        S.setProperty("overflow", "auto", "important");
+        S.setProperty("z-index", "9999", "important");
+        S.setProperty("transition", "left .25s ease", "important");
+        S.setProperty("transform", "none", "important");  // geen translate meer
+        S.setProperty("display", "block", "important");   // altijd renderen
     }
 
     function bindHamburger() {
@@ -81,17 +85,19 @@
             btn.setAttribute("aria-expanded", String(open));
             drawer.setAttribute("aria-hidden", String(!open));
 
-            // 🔧 Brute-force inline: schuif echt in beeld / uit beeld
+            // Brute-force zichtbaar/verstoppen (override met !important)
+            const DS = drawer.style, BS = bd.style;
             if (open) {
-                drawer.style.display = "block";
-                drawer.style.left = "0px";                // ← zichtbaar
-                drawer.style.transform = "translateX(0)"; // fallback
-                bd.style.display = "block";
+                DS.setProperty("left", "0px", "important");      // IN beeld
+                DS.setProperty("transform", "none", "important");
+                DS.setProperty("display", "block", "important");
+                BS.setProperty("display", "block", "important");
+                BS.setProperty("z-index", "9998", "important");
                 document.body.style.overflow = "hidden";
             } else {
-                drawer.style.left = "-300px";             // ← verstopt buiten beeld
-                drawer.style.transform = "translateX(0)";
-                bd.style.display = "none";
+                DS.setProperty("left", "-320px", "important");   // UIT beeld
+                DS.setProperty("transform", "none", "important");
+                BS.setProperty("display", "none", "important");
                 document.body.style.overflow = "";
             }
             if (window.DEBUG) console.log("[menu] drawer", open ? "OPEN" : "CLOSE");
@@ -99,7 +105,7 @@
 
         btn.addEventListener("click", (e) => {
             e.preventDefault();
-            setOpen(!(drawer.classList.contains("open")));
+            setOpen(!drawer.classList.contains("open"));
         });
         bd.addEventListener("click", () => setOpen(false));
         document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
@@ -108,6 +114,7 @@
             h.addEventListener("click", () => h.parentElement.classList.toggle("open"));
         });
     }
+
 
 
     function bindNeonMainnav() {
