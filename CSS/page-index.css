@@ -207,17 +207,7 @@ button.ghost:hover {
 }
 
 /* ── Breedte & grid tuning voor index ─────────────────────────────────────── */
-.page {
-  /* maak de werkruimte breder */
-  max-width: 1600px;
-  /* was vermoedelijk ~1100px */
-  margin-inline: auto;
-  padding-inline: 12px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  /* content + rechterkolom */
-  gap: 20px;
-}
+
 
 @media (max-width: 1200px) {
   .page {
@@ -237,22 +227,67 @@ button.ghost:hover {
   max-width: none;
 }
 
-/* post-its in een responsief grid – vullen de breedte mooi op */
-#postits.postits-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
-  align-items: start;
-}
 
-/* kaartjes iets ruimer zodat tekst minder snel wrapt */
-.postit {
-  min-height: 260px;
-  padding: 16px;
-}
 
 /* (optioneel) de “Alle taken”-zoekbalk 100% breed laten lopen */
 .alltasks-header,
 .alltasks-container {
+  width: 100%;
+}
+
+/* ===== Full-width layout ===== */
+.page {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding-inline: 12px;
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  /* content + rechterkolom */
+  gap: 16px;
+}
+
+.content,
+.workspace {
+  max-width: none;
+}
+
+/* small screens: rechterkolom onderaan */
+@media (max-width: 1200px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .rightcol {
+    order: 2;
+  }
+}
+
+/* ===== Post-its: max 2 rijen, zoveel kolommen als nodig ===== */
+#postits.postits-row {
+  display: grid;
+
+  /* VUL EERST Rijen, dan nieuwe kolom (max 2 rijen) */
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, minmax(260px, auto));
+  grid-auto-columns: minmax(320px, 1fr);
+
+  gap: 16px;
+  align-items: start;
+  justify-content: start;
+  /* kolommen sluiten links aan */
+  width: 100%;
+}
+
+/* kaartje zelf iets ruimer */
+.postit {
+  padding: 16px;
+  min-height: 260px;
+  border-radius: 14px;
+}
+
+/* optioneel: maak de “Alle taken”/rechts kolom iets compacter */
+.rightcol .card {
   width: 100%;
 }
