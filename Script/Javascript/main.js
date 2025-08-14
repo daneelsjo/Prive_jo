@@ -243,7 +243,12 @@ function renderTodos() {
     const catDoc = categories.find(c => c.id === slot.categoryId && c.type === currentMode);
     if (!catDoc) continue;
 
-    const color = slot.color || fixedColors[i % fixedColors.length];
+    // kleur komt voortaan van de categorie; val terug op oude slotkleur of vaste defaults
+    const color =
+      (catDoc.color ? String(catDoc.color).toUpperCase() : null) ||
+      (slot.color ? String(slot.color).toUpperCase() : null) ||
+      fixedColors[i % fixedColors.length];
+
     const box = document.createElement("div");
     box.className = "postit";
     box.style.background = color;
@@ -255,6 +260,7 @@ function renderTodos() {
     });
     postits.appendChild(box);
   }
+
 
   // Overige taken (niet in slots of helemaal zonder categorie)
   const slotCatIds = new Set(slots.map(s => s?.categoryId).filter(Boolean));

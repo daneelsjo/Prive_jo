@@ -1,17 +1,16 @@
 import {
   getFirebaseApp,
+  // Firestore
   getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc,
+  // Auth
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
 } from "./firebase-config.js";
 
+/** Firebase init */
 const app = getFirebaseApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
-
-
-
-
 
 /* Elements */
 const loginBtn = document.getElementById("login-btn");
@@ -31,30 +30,33 @@ const themeSaveBtn = document.getElementById("saveTheme");
 const MAX_CATEGORIES_PER_MODE = 6;
 
 let currentUser = null;
-let categories = []; // {id,name,type,active}
+let categories = []; // {id,name,type,active,color?}
 let settings = {};
 let currentMode = "werk";
 
+/** Kleuren */
 const fixedColors = [
   "#FFEB3B", "#F44336", "#4CAF50", "#2196F3",
   "#E91E63", "#9C27B0", "#673AB7", "#3F51B5",
   "#00BCD4", "#009688", "#8BC34A", "#CDDC39",
   "#FFC107", "#FF9800", "#795548"
 ];
+const defaultColorFor = (type, idx) => fixedColors[idx % fixedColors.length];
 
 /* Auth */
 loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   currentUser = user;
-  if (authDiv) authDiv.style.display = "none";
-  if (appDiv) appDiv.style.display = "block";
+  authDiv && (authDiv.style.display = "none");
+  appDiv && (appDiv.style.display = "block");
 
   await loadSettings();
   applyTheme(settings.theme || "system");
 
   // Icon toggle voor modus
   if (modeSwitchSettings) {
+    currentMode = settings.preferredMode || "werk";
     modeSwitchSettings.checked = (currentMode === "prive");
     modeSwitchSettings.onchange = async () => {
       currentMode = modeSwitchSettings.checked ? "prive" : "werk";
@@ -98,7 +100,7 @@ function listenCategories() {
   });
 }
 
-/* Categorie toevoegen (max 6 per modus) */
+/* Categorie toevoegen (max 6 per modus) — met default kleur per modus */
 addCatBtn && (addCatBtn.onclick = async () => {
   const name = (catName.value || "").trim();
   const type = (catType.value || "werk").toLowerCase();
@@ -108,22 +110,21 @@ addCatBtn && (addCatBtn.onclick = async () => {
     return;
   }
 
-  const countInMode = (categories || []).filter(c => c && c.type === type && c.active !== false).length;
-  if (countInMode >= MAX_CATEGORIES_PER_MODE) {
+  const listInMode = (categories || []).filter(c => c && c.type === type && c.active !== false);
+  if (listInMode.length >= MAX_CATEGORIES_PER_MODE) {
     showSettingsMessage(
       "Categorie niet aangemaakt",
-      `⚠️ Opgelet!<br>Er zijn al <strong>${MAX_CATEGORIES_PER_MODE}</strong> categorieën in modus <strong>${type}</strong>.<br>
-       Gelieve eerst één te verwijderen.`
+      `⚠️ Er zijn al <strong>${MAX_CATEGORIES_PER_MODE}</strong> categorieën in modus <strong>${type}</strong>.`
     );
     return;
   }
 
-  await addDoc(collection(db, "categories"), { name, type, active: true });
+  const color = defaultColorFor(type, listInMode.length);
+  await addDoc(collection(db, "categories"), { name, type, active: true, color });
   catName.value = "";
-  renderModeSlots();
 });
 
-/* Cat-lijst render + archiveren */
+/* Categorie-lijst met kleurkeuze + bewerken + archiveren */
 function renderCatList() {
   if (!catList) return;
   catList.innerHTML = "";
@@ -134,46 +135,151 @@ function renderCatList() {
     const block = document.createElement("div");
     block.style.marginBottom = ".75rem";
     block.innerHTML = `<h3 style="margin:.25rem 0; text-align:center;">${type.toUpperCase()}</h3>`;
+
     grouped[type].forEach(c => {
       const row = document.createElement("div");
-      row.style.display = "flex";
-      row.style.justifyContent = "space-between";
+      row.style.display = "grid";
+      row.style.gridTemplateColumns = "48px 1fr auto";
       row.style.alignItems = "center";
       row.style.gap = ".5rem";
-      row.innerHTML = `
-        <span>${c.name}</span>
-        <button class="primary" style="background:#ef4444" onclick="archiveCategory('${c.id}')">🗑️</button>
-      `;
+      row.style.padding = ".25rem 0";
+
+      // Kleurkiezer (type=color)
+      const colorWrap = document.createElement("div");
+      colorWrap.style.display = "flex";
+      colorWrap.style.alignItems = "center";
+      colorWrap.style.justifyContent = "center";
+
+      const colorInput = document.createElement("input");
+      colorInput.type = "color";
+      colorInput.value = normalizeHex(c.color || defaultColorFor(c.type, 0));
+      colorInput.title = "Kleur van deze categorie";
+      colorInput.style.width = "32px";
+      colorInput.style.height = "28px";
+      colorInput.style.border = "1px solid var(--border)";
+      colorInput.style.borderRadius = "6px";
+      colorInput.onchange = async () => {
+        const val = normalizeHex(colorInput.value);
+        await updateDoc(doc(db, "categories", c.id), { color: val });
+      };
+      colorWrap.appendChild(colorInput);
+
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = c.name;
+
+      const actions = document.createElement("div");
+      actions.style.display = "flex";
+      actions.style.alignItems = "center";
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "btn-icon sm neutral";
+      editBtn.title = "Categorie hernoemen";
+      editBtn.textContent = "✏️";
+      editBtn.onclick = () => editCategory(c.id);
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn-icon sm danger";
+      delBtn.title = "Categorie verwijderen";
+      delBtn.textContent = "🗑️";
+      delBtn.onclick = () => archiveCategory(c.id);
+
+      actions.append(editBtn, delBtn);
+      row.append(colorWrap, nameSpan, actions);
       block.appendChild(row);
     });
+
     catList.appendChild(block);
   });
 }
+
+function normalizeHex(v) {
+  // Browser kan #fff geven; we willen altijd 7 chars.
+  if (!v) return "#ffffff";
+  if (v.length === 4 && v.startsWith("#")) {
+    const r = v[1], g = v[2], b = v[3];
+    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+  }
+  return v.toUpperCase();
+}
+
 window.archiveCategory = async function (id) {
   await updateDoc(doc(db, "categories", id), { active: false });
 };
 
-/* ModeSlots (6 slots per modus) */
+/* Hernoemen categorie */
+window.editCategory = function (id) {
+  const cat = categories.find(x => x.id === id);
+  if (!cat) return;
+
+  openSettingsModal();
+  const titleEl = _setModalCard.querySelector("#setModalTitle");
+  const bodyEl = _setModalCard.querySelector("#setModalBody");
+  const footEl = _setModalCard.querySelector("#setModalFooter");
+
+  titleEl.textContent = "Categorie hernoemen";
+  bodyEl.innerHTML = ""; footEl.innerHTML = "";
+
+  const label = document.createElement("label");
+  label.textContent = `Nieuwe naam voor “${cat.name}”`;
+  const input = document.createElement("input");
+  input.id = "editCatName";
+  input.value = cat.name;
+  input.style.width = "100%";
+
+  bodyEl.append(label, input);
+
+  const saveBtn = document.createElement("button");
+  saveBtn.className = "primary";
+  saveBtn.textContent = "💾 Opslaan";
+  saveBtn.onclick = async () => {
+    const newName = (input.value || "").trim();
+    if (!newName) { alert("Geef een naam op."); return; }
+
+    const dup = categories.some(x =>
+      x.id !== cat.id &&
+      x.type === cat.type &&
+      x.active !== false &&
+      (x.name || "").toLowerCase() === newName.toLowerCase()
+    );
+    if (dup) { showSettingsMessage("Naam bestaat al", `Er bestaat al een categorie “${newName}” in modus ${cat.type}.`); return; }
+
+    await updateDoc(doc(db, "categories", id), { name: newName });
+    closeSettingsModal();
+  };
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.className = "primary";
+  cancelBtn.style.background = "#6b7280";
+  cancelBtn.textContent = "Annuleren";
+  cancelBtn.onclick = closeSettingsModal;
+
+  footEl.append(saveBtn, cancelBtn);
+};
+
+/* ModeSlots (6 slots per modus) — GEEN kleurkeuze meer hier */
 function renderModeSlots() {
   if (!modeSlotsDiv) return;
   modeSlotsDiv.innerHTML = "";
 
+  // Slots uit settings (oude struct met {categoryId,color} wordt ondersteund; kleur wordt genegeerd)
   const slots = (settings.modeSlots?.[currentMode] || Array(6).fill({})).slice(0, 6);
 
   for (let i = 0; i < 6; i++) {
     const slot = slots[i] || {};
     const row = document.createElement("div");
     row.style.display = "grid";
-    row.style.gridTemplateColumns = "110px 1fr 160px 40px";
+    row.style.gridTemplateColumns = "110px 1fr 40px";
     row.style.alignItems = "center";
     row.style.gap = ".6rem";
     row.style.borderRadius = "10px";
     row.style.padding = ".5rem .6rem";
     row.style.marginBottom = ".6rem";
 
-    const initialColor = slot.color || fixedColors[i % fixedColors.length];
-    row.style.background = initialColor;
-    row.style.color = getContrast(initialColor);
+    // Bepaal kleur op basis van gekozen categorie (of fallback)
+    const catDoc = categories.find(c => c.id === slot.categoryId && c.type === currentMode);
+    const chosenColor = normalizeHex(catDoc?.color || defaultColorFor(currentMode, i));
+    row.style.background = chosenColor;
+    row.style.color = getContrast(chosenColor);
 
     const label = document.createElement("span");
     label.textContent = `Post-it ${i + 1}:`;
@@ -188,41 +294,24 @@ function renderModeSlots() {
       if (c.id === slot.categoryId) opt.selected = true;
       catSelect.appendChild(opt);
     });
-    catSelect.dataset.slotIndex = i;
-
-    const colorSelect = document.createElement("select");
-    fixedColors.forEach(col => {
-      const opt = document.createElement("option");
-      opt.value = col; opt.textContent = col;
-      opt.style.backgroundColor = col; opt.style.color = getContrast(col);
-      if (initialColor === col) opt.selected = true;
-      colorSelect.appendChild(opt);
-    });
-    colorSelect.dataset.slotIndex = i;
 
     const swatch = document.createElement("div");
-    swatch.className = "swatch";
-    swatch.style.width = "28px"; swatch.style.height = "28px";
+    swatch.style.width = "28px";
+    swatch.style.height = "28px";
     swatch.style.borderRadius = "8px";
     swatch.style.border = "1px solid rgba(0,0,0,.15)";
-    swatch.style.background = initialColor;
+    swatch.style.background = chosenColor;
 
-    colorSelect.addEventListener("change", () => {
-      const col = colorSelect.value;
+    catSelect.addEventListener("change", () => {
+      const c = categories.find(x => x.id === catSelect.value);
+      const col = normalizeHex(c?.color || defaultColorFor(currentMode, i));
       row.style.background = col;
       row.style.color = getContrast(col);
       swatch.style.background = col;
-      slots[i] = { ...(slots[i] || {}), categoryId: catSelect.value || null, color: col };
-    });
-    catSelect.addEventListener("change", () => {
-      slots[i] = { ...(slots[i] || {}), categoryId: catSelect.value || null, color: colorSelect.value };
+      slots[i] = { categoryId: catSelect.value || null }; // kleur NIET meer bewaren
     });
 
-    row.appendChild(label);
-    row.appendChild(catSelect);
-    row.appendChild(colorSelect);
-    row.appendChild(swatch);
-
+    row.append(label, catSelect, swatch);
     row.dataset.slotIndex = i;
     modeSlotsDiv.appendChild(row);
   }
@@ -231,14 +320,14 @@ function renderModeSlots() {
   settings.modeSlots[currentMode] = slots;
 }
 
-/* Opslaan van slots */
+/* Opslaan van slots (alleen categoryId) */
 saveModeSlotsBtn && (saveModeSlotsBtn.onclick = async () => {
   const rows = Array.from(modeSlotsDiv.children);
   const newSlots = rows.map(row => {
-    const selects = row.querySelectorAll("select");
-    return { categoryId: selects[0].value || null, color: selects[1].value };
+    const select = row.querySelector("select");
+    return { categoryId: select.value || null }; // kleur niet meer opslaan
   });
-  if (!settings.modeSlots) settings.modeSlots = {};
+  settings.modeSlots = settings.modeSlots || {};
   settings.modeSlots[currentMode] = newSlots;
   await setDoc(doc(db, "settings", currentUser.uid), settings, { merge: true });
   alert("Opgeslagen!");
