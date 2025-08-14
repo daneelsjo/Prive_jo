@@ -1,6 +1,9 @@
+// Script/Javascript/settings.js
 import {
   getFirebaseApp,
+  // Firestore
   getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc,
+  // Auth
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
 } from "./firebase-config.js";
 
@@ -32,7 +35,7 @@ let categories = []; // {id,name,type,active,color?}
 let settings = {};
 let currentMode = "werk";
 
-/** Vaste kleuren */
+/** Vaste kleuren (enige toegelaten keuzes) */
 const fixedColors = ["#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688", "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"];
 const defaultColorFor = (type, idx) => fixedColors[idx % fixedColors.length];
 
@@ -71,7 +74,7 @@ async function saveTheme() {
   const picked = [...document.querySelectorAll('input[name="theme"]')].find(r => r.checked)?.value || "system";
   await setDoc(doc(db, "settings", currentUser.uid), { theme: picked }, { merge: true });
   applyTheme(picked);
-  alert("Weergave opgeslagen");
+  Modal.alert({ title: "Weergave", html: "Opgeslagen." });
 }
 
 /* Settings laden */
@@ -92,7 +95,7 @@ function listenCategories() {
   });
 }
 
-/* Toevoegen categorie (max 6 / modus) */
+/* Categorie toevoegen (max 6 per modus) — met default kleur uit vaste lijst */
 addCatBtn && (addCatBtn.onclick = async () => {
   const name = (catName.value || "").trim();
   const type = (catType.value || "werk").toLowerCase();
@@ -110,7 +113,7 @@ addCatBtn && (addCatBtn.onclick = async () => {
   catName.value = "";
 });
 
-/* === Categorie-lijst: links swatch (klik = palet), rechts alleen actiekolom === */
+/* === Categorie-lijst: links swatch, midden kleurkeuze (palet zonder hexcodes), rechts acties === */
 function renderCatList() {
   if (!catList) return;
   catList.innerHTML = "";
@@ -125,30 +128,29 @@ function renderCatList() {
     grouped[type].forEach((c, idx) => {
       const row = document.createElement("div");
       row.style.display = "grid";
-      row.style.gridTemplateColumns = "32px 1fr auto";
+      row.style.gridTemplateColumns = "32px 1fr 40px auto"; // swatch | naam | kleurknop | acties
       row.style.alignItems = "center";
       row.style.gap = ".5rem";
       row.style.padding = ".25rem 0";
+      row.style.position = "relative";
 
-      // 1) Klikbare swatch (kleur kiezen via palet)
+      // 1) Kleurvakje vóór de naam
       const sw = document.createElement("div");
       sw.className = "swatch";
-      sw.title = "Kleur kiezen";
-      const current = normalizeHex(c.color || defaultColorFor(c.type, idx));
-      sw.style.background = current;
-      sw.addEventListener("click", (e) => {
-        openColorPalette(sw, current, async (picked) => {
-          sw.style.background = picked;
-          await updateDoc(doc(db, "categories", c.id), { color: picked });
-          renderModeSlots(); // preview updaten
-        });
-      });
+      sw.style.background = normalizeHex(c.color || defaultColorFor(c.type, idx));
 
       // 2) Naam
       const nameSpan = document.createElement("span");
       nameSpan.textContent = c.name;
 
-      // 3) Acties
+      // 3) Kleurkeuze (palet)
+      const picker = makeColorPicker(normalizeHex(c.color || defaultColorFor(c.type, idx)), async (val) => {
+        sw.style.background = val;
+        await updateDoc(doc(db, "categories", c.id), { color: val });
+        renderModeSlots(); // update de previews onderaan
+      });
+
+      // 4) Acties
       const actions = document.createElement("div");
       actions.style.display = "flex"; actions.style.alignItems = "center";
 
@@ -166,7 +168,7 @@ function renderCatList() {
 
       actions.append(editBtn, delBtn);
 
-      row.append(sw, nameSpan, actions);
+      row.append(sw, nameSpan, picker, actions);
       block.appendChild(row);
     });
 
@@ -174,43 +176,49 @@ function renderCatList() {
   });
 }
 
-/* Palette widget (1 instantie) */
-let paletteEl = null;
-let paletteCloser = null;
-function openColorPalette(anchorEl, currentColor, onPick) {
-  if (!paletteEl) {
-    paletteEl = document.createElement("div");
-    paletteEl.className = "color-palette";
-    document.body.appendChild(paletteEl);
-  }
-  paletteEl.innerHTML = "";
+/* Custom kleurpicker (zonder tekst) */
+function makeColorPicker(initialColor, onPick) {
+  const wrap = document.createElement("div");
+  wrap.style.position = "relative";
+
+  const btn = document.createElement("button");
+  btn.className = "color-btn";
+  btn.title = "Kleur kiezen";
+  btn.style.background = initialColor;
+  wrap.appendChild(btn);
+
+  const pop = document.createElement("div");
+  pop.className = "color-pop";
   fixedColors.forEach(col => {
-    const o = document.createElement("div");
-    o.className = "opt" + (normalizeHex(col) === normalizeHex(currentColor) ? " sel" : "");
+    const o = document.createElement("button");
+    o.className = "color-option";
     o.style.background = col;
-    o.title = col;
-    o.addEventListener("click", () => { onPick(normalizeHex(col)); closePalette(); });
-    paletteEl.appendChild(o);
+    o.onclick = (e) => {
+      e.preventDefault();
+      btn.style.background = col;
+      onPick(col.toUpperCase());
+      close();
+    };
+    pop.appendChild(o);
   });
 
-  // positie onder de swatch
-  const r = anchorEl.getBoundingClientRect();
-  paletteEl.style.left = `${window.scrollX + r.left}px`;
-  paletteEl.style.top = `${window.scrollY + r.bottom + 6}px`;
-  paletteEl.style.display = "grid";
-
-  // buiten klik sluit
-  paletteCloser = (e) => {
-    if (!paletteEl.contains(e.target)) closePalette();
-  };
-  setTimeout(() => document.addEventListener("click", paletteCloser), 0);
-}
-function closePalette() {
-  if (paletteEl) paletteEl.style.display = "none";
-  if (paletteCloser) {
-    document.removeEventListener("click", paletteCloser);
-    paletteCloser = null;
+  function open() {
+    if (wrap.querySelector(".color-pop")) return;
+    wrap.appendChild(pop);
+    requestAnimationFrame(() => pop.classList.add("open"));
+    document.addEventListener("click", onDocClick, true);
   }
+  function close() {
+    pop.classList.remove("open");
+    pop.remove();
+    document.removeEventListener("click", onDocClick, true);
+  }
+  function onDocClick(e) {
+    if (!wrap.contains(e.target)) close();
+  }
+  btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); wrap.querySelector(".color-pop") ? close() : open(); });
+
+  return wrap;
 }
 
 function normalizeHex(v) {
@@ -226,55 +234,41 @@ window.archiveCategory = async function (id) {
   await updateDoc(doc(db, "categories", id), { active: false });
 };
 
-/* Hernoemen categorie */
+/* Hernoemen categorie (via Modal) */
+function showSettingsMessage(title, html) {
+  Modal.alert({ title, html });
+}
 window.editCategory = function (id) {
   const cat = categories.find(x => x.id === id);
   if (!cat) return;
 
-  openSettingsModal();
-  const titleEl = _setModalCard.querySelector("#setModalTitle");
-  const bodyEl = _setModalCard.querySelector("#setModalBody");
-  const footEl = _setModalCard.querySelector("#setModalFooter");
-
-  titleEl.textContent = "Categorie hernoemen";
-  bodyEl.innerHTML = ""; footEl.innerHTML = "";
-
-  const label = document.createElement("label");
-  label.textContent = `Nieuwe naam voor “${cat.name}”`;
-  const input = document.createElement("input");
-  input.id = "editCatName";
+  document.getElementById('modal-rename-title').textContent = "Categorie hernoemen";
+  const input = document.getElementById('rename-input');
   input.value = cat.name;
-  input.style.width = "100%";
 
-  bodyEl.append(label, input);
+  const save = document.getElementById('rename-save');
+  const cancel = document.getElementById('rename-cancel');
 
-  const saveBtn = document.createElement("button");
-  saveBtn.className = "primary";
-  saveBtn.textContent = "💾 Opslaan";
-  saveBtn.onclick = async () => {
+  save.onclick = async () => {
     const newName = (input.value || "").trim();
-    if (!newName) { alert("Geef een naam op."); return; }
-
+    if (!newName) { Modal.alert({ title: "Ongeldige naam", html: "Geef een naam op." }); return; }
     const dup = categories.some(x =>
-      x.id !== cat.id && x.type === cat.type && x.active !== false &&
+      x.id !== cat.id &&
+      x.type === cat.type &&
+      x.active !== false &&
       (x.name || "").toLowerCase() === newName.toLowerCase()
     );
-    if (dup) { showSettingsMessage("Naam bestaat al", `Er bestaat al een categorie “${newName}” in modus ${cat.type}.`); return; }
+    if (dup) { Modal.alert({ title: "Naam bestaat al", html: `Er bestaat al een categorie “${newName}” in modus ${cat.type}.` }); return; }
 
     await updateDoc(doc(db, "categories", id), { name: newName });
-    closeSettingsModal();
+    Modal.close();
   };
+  cancel.onclick = () => Modal.close();
 
-  const cancelBtn = document.createElement("button");
-  cancelBtn.className = "primary";
-  cancelBtn.style.background = "#6b7280";
-  cancelBtn.textContent = "Annuleren";
-  cancelBtn.onclick = closeSettingsModal;
-
-  footEl.append(saveBtn, cancelBtn);
+  Modal.open('modal-rename');
 };
 
-/* === Post-its per modus: neutrale rijen + kleur-preview uit categorie === */
+/* === Post-its per modus: neutrale rijen, enkel preview-swatch rechts === */
 function renderModeSlots() {
   if (!modeSlotsDiv) return;
   modeSlotsDiv.innerHTML = "";
@@ -299,7 +293,6 @@ function renderModeSlots() {
       catSelect.appendChild(opt);
     });
 
-    // kleur-preview rechts (geen input)
     const swatch = document.createElement("div");
     swatch.className = "swatch";
     const catDoc = categories.find(c => c.id === slot.categoryId && c.type === currentMode);
@@ -310,7 +303,7 @@ function renderModeSlots() {
       const chosen = categories.find(x => x.id === catSelect.value && x.type === currentMode);
       const newCol = normalizeHex(chosen?.color || defaultColorFor(currentMode, i));
       swatch.style.background = newCol;
-      slots[i] = { categoryId: catSelect.value || null }; // geen kleur opslaan
+      slots[i] = { categoryId: catSelect.value || null }; // kleur niet opslaan
     });
 
     row.append(label, catSelect, swatch);
@@ -322,7 +315,7 @@ function renderModeSlots() {
   settings.modeSlots[currentMode] = slots;
 }
 
-/* Opslaan slots: alleen categoryId */
+/* Opslaan: alleen categoryId */
 saveModeSlotsBtn && (saveModeSlotsBtn.onclick = async () => {
   const rows = Array.from(modeSlotsDiv.children);
   const newSlots = rows.map(row => {
@@ -332,62 +325,5 @@ saveModeSlotsBtn && (saveModeSlotsBtn.onclick = async () => {
   settings.modeSlots = settings.modeSlots || {};
   settings.modeSlots[currentMode] = newSlots;
   await setDoc(doc(db, "settings", currentUser.uid), settings, { merge: true });
-  alert("Opgeslagen!");
+  Modal.alert({ title: "Post-its", html: "Opgeslagen!" });
 });
-
-/* Helpers */
-function getContrast(hex) {
-  const r = parseInt(hex.substr(1, 2), 16);
-  const g = parseInt(hex.substr(3, 2), 16);
-  const b = parseInt(hex.substr(5, 2), 16);
-  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 128 ? "#000" : "#fff";
-}
-
-/* Kleine modale melding (witte modal) */
-let _setModalBackdrop = null;
-let _setModalCard = null;
-
-function ensureSettingsModal() {
-  if (!_setModalBackdrop) {
-    _setModalBackdrop = document.createElement("div");
-    _setModalBackdrop.className = "modal-backdrop";
-    document.body.appendChild(_setModalBackdrop);
-  }
-  if (!_setModalCard) {
-    _setModalCard = document.createElement("div");
-    _setModalCard.className = "modal-card";
-    _setModalCard.innerHTML = `
-      <div class="modal-header">
-        <h3 id="setModalTitle"></h3>
-        <button class="modal-close" title="Sluiten" onclick="closeSettingsModal()">✕</button>
-      </div>
-      <div class="modal-body" id="setModalBody"></div>
-      <div class="modal-footer" id="setModalFooter"></div>
-    `;
-    document.body.appendChild(_setModalCard);
-  }
-}
-function openSettingsModal() {
-  ensureSettingsModal();
-  _setModalBackdrop.classList.add("open");
-  _setModalBackdrop.style.display = "block";
-  _setModalCard.style.display = "flex";
-  _setModalBackdrop.onclick = (e) => { if (e.target === _setModalBackdrop) closeSettingsModal(); };
-}
-window.closeSettingsModal = function () {
-  if (_setModalBackdrop) { _setModalBackdrop.classList.remove("open"); _setModalBackdrop.style.display = "none"; }
-  if (_setModalCard) { _setModalCard.style.display = "none"; }
-}
-function showSettingsMessage(title, html) {
-  openSettingsModal();
-  _setModalCard.querySelector("#setModalTitle").textContent = title;
-  _setModalCard.querySelector("#setModalBody").innerHTML = `<div style="text-align:center">${html}</div>`;
-  const foot = _setModalCard.querySelector("#setModalFooter");
-  foot.innerHTML = "";
-  const okBtn = document.createElement("button");
-  okBtn.className = "primary";
-  okBtn.textContent = "OK";
-  okBtn.onclick = closeSettingsModal;
-  foot.appendChild(okBtn);
-}

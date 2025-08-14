@@ -1,8 +1,11 @@
 // Script/Javascript/notes.js
 import {
     getFirebaseApp,
-    getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, query, orderBy,
-    getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
+    // Auth
+    getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
+    // Firestore
+    getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc, deleteDoc,
+    query, orderBy
 } from "./firebase-config.js";
 
 const app = getFirebaseApp();
@@ -10,155 +13,133 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+let currentUser = null;
+let notes = [];
 
-
-
-/* Elements */
 const loginBtn = document.getElementById("login-btn");
-const appDiv = document.getElementById("app");
 const authDiv = document.getElementById("auth");
-const newNoteBtn = document.getElementById("newNoteBtn");
-const notesBody = document.getElementById("notesBody");
+const appDiv = document.getElementById("app");
 
-/* Modal */
-let _modalBackdrop = null;
-let _modalCard = null;
-function ensureModal() {
-    if (!_modalBackdrop) {
-        _modalBackdrop = document.createElement("div");
-        _modalBackdrop.className = "modal-backdrop";
-        document.body.appendChild(_modalBackdrop);
-    }
-    if (!_modalCard) {
-        _modalCard = document.createElement("div");
-        _modalCard.className = "modal-card";
-        _modalCard.innerHTML = `
-      <div class="modal-header">
-        <h3 id="modalTitle"></h3>
-        <button class="modal-close" title="Sluiten" onclick="closeNoteModal()">✕</button>
-      </div>
-      <div class="modal-body" id="modalBody"></div>
-      <div class="modal-footer" id="modalFooter"></div>
-    `;
-        document.body.appendChild(_modalCard);
-    }
-}
-function openModal() {
-    ensureModal();
-    _modalBackdrop.classList.add("open");
-    _modalBackdrop.style.display = "block";
-    _modalCard.style.display = "flex";
-    _modalBackdrop.onclick = (e) => { if (e.target === _modalBackdrop) closeNoteModal(); };
-}
-window.closeNoteModal = function () {
-    if (_modalBackdrop) { _modalBackdrop.classList.remove("open"); _modalBackdrop.style.display = "none"; }
-    if (_modalCard) { _modalCard.style.display = "none"; }
-};
-function btn(cls, label, onClick) {
-    const b = document.createElement("button");
-    b.className = cls; b.textContent = label; b.onclick = onClick; return b;
-}
+const addNoteBtn = document.getElementById("addNoteBtn");
+const notesList = document.getElementById("notesList");
 
-/* AUTH */
+// ---- AUTH ----
 loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
+
 onAuthStateChanged(auth, async (user) => {
     if (!user) return;
-    authDiv.style.display = "none";
-    appDiv.style.display = "block";
+    currentUser = user;
+    if (authDiv) authDiv.style.display = "none";
+    if (appDiv) appDiv.style.display = "block";
     subscribeNotes();
 });
 
-/* DATA */
-let notes = []; // {id, title, time ISO, body, createdAt, updatedAt}
-
 function subscribeNotes() {
-    const q = query(collection(db, "notes"), orderBy("time", "asc"));
+    const q = query(collection(db, "notes"), orderBy("when", "desc"));
     onSnapshot(q, (snap) => {
         notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         renderNotes();
     });
 }
 
+// ---- RENDER ----
 function renderNotes() {
-    notesBody.innerHTML = "";
+    if (!notesList) return;
+    notesList.innerHTML = "";
     notes.forEach(n => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-      <td>${formatLocal(n.time)}</td>
-      <td>${escapeHtml(n.title || "(geen titel)")}</td>
+        const li = document.createElement("div");
+        li.className = "note-row";
+        const when = n.when ? formatLocalDatetime(n.when) : "";
+        li.innerHTML = `
+      <div class="note-head">
+        <strong>${escapeHtml(n.title || "(zonder titel)")}</strong>
+        <span class="note-when">${when}</span>
+      </div>
+      <div class="note-body">${escapeHtml(n.body || "")}</div>
+      <div class="note-actions">
+        <button class="btn" data-edit="${n.id}">✏️ Bewerken</button>
+        <button class="btn danger" data-del="${n.id}">🗑️ Verwijderen</button>
+      </div>
     `;
-        tr.addEventListener("click", () => openNoteEditor(n));
-        notesBody.appendChild(tr);
+
+        const editBtn = li.querySelector('[data-edit]');
+        if (editBtn) editBtn.onclick = () => openNoteModal(n);
+
+        const delBtn = li.querySelector('[data-del]');
+        if (delBtn) delBtn.onclick = () => deleteNote(n.id);
+
+        notesList.appendChild(li);
     });
 }
 
-/* UI: nieuw / edit */
-newNoteBtn?.addEventListener("click", () => openNoteEditor());
+addNoteBtn && (addNoteBtn.onclick = () => openNoteModal(null));
 
-function openNoteEditor(note = null) {
-    openModal();
-    const titleEl = _modalCard.querySelector("#modalTitle");
-    const bodyEl = _modalCard.querySelector("#modalBody");
-    const footEl = _modalCard.querySelector("#modalFooter");
+// ---- MODAL HOOKS ----
+window.openNoteModal = function (note = null) {
+    const titleEl = document.getElementById('modal-note-title');
+    const t = document.getElementById('note-title');
+    const w = document.getElementById('note-when');
+    const b = document.getElementById('note-body');
+    const save = document.getElementById('note-save');
+    const del = document.getElementById('note-delete');
 
-    const isNew = !note;
-    titleEl.textContent = isNew ? "Nieuwe notitie" : "Notitie bewerken";
-    const dt = toInputDatetime(note?.time || new Date().toISOString());
+    if (note) {
+        titleEl.textContent = "Notitie bewerken";
+        t.value = note.title || "";
+        b.value = note.body || "";
+        if (note.when) {
+            const d = new Date(note.when.seconds ? note.when.seconds * 1000 : note.when);
+            w.value = toInputLocal(d);
+        } else { w.value = ""; }
+        del.style.display = "";
+    } else {
+        titleEl.textContent = "Nieuwe notitie";
+        t.value = ""; w.value = ""; b.value = "";
+        del.style.display = "none";
+    }
 
-    bodyEl.innerHTML = `
-    <label>Titel</label>
-    <input id="noteTitle" placeholder="Titel" value="${escapeHtml(note?.title || "")}">
-    <label>Tijdstip</label>
-    <input id="noteTime" type="datetime-local" value="${dt}">
-    <label>Notitie</label>
-    <textarea id="noteBody" placeholder="Schrijf hier je punten...">${escapeHtml(note?.body || "")}</textarea>
-  `;
+    save.onclick = async () => {
+        const payload = {
+            title: (t.value || "").trim(),
+            body: (b.value || "").trim(),
+            when: w.value ? new Date(w.value) : null
+        };
+        if (!payload.title) { Modal.alert({ title: "Titel vereist", html: "Vul een titel in." }); return; }
+        if (note) await updateExistingNote(note.id, payload);
+        else await createNewNote(payload);
+        Modal.close();
+    };
+    del.onclick = async () => { if (note) { await deleteNote(note.id); Modal.close(); } };
 
-    footEl.innerHTML = "";
-    footEl.append(
-        btn("primary", "💾 Opslaan", async () => {
-            const title = (document.getElementById("noteTitle").value || "").trim();
-            const timeLocal = document.getElementById("noteTime").value;
-            const body = document.getElementById("noteBody").value || "";
-            const iso = fromInputDatetime(timeLocal);
+    Modal.open('modal-note');
+};
 
-            if (isNew) {
-                await addDoc(collection(db, "notes"), {
-                    title, time: iso, body,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                });
-            } else {
-                await setDoc(doc(db, "notes", note.id), {
-                    title, time: iso, body,
-                    updatedAt: new Date().toISOString()
-                }, { merge: true });
-            }
-            closeNoteModal();
-        }),
-        !isNew ? btn("primary danger", "🗑️ Verwijderen", async () => {
-            const ok = confirm("Deze notitie verwijderen?");
-            if (!ok) return;
-            await deleteDoc(doc(db, "notes", note.id));
-            closeNoteModal();
-        }) : null
-    );
+// ---- CRUD ----
+async function createNewNote(data) {
+    await addDoc(collection(db, "notes"), {
+        ...data,
+        uid: currentUser?.uid || null,
+        createdAt: new Date()
+    });
+}
+async function updateExistingNote(id, data) {
+    await updateDoc(doc(db, "notes", id), { ...data, updatedAt: new Date() });
+}
+async function deleteNote(id) {
+    await deleteDoc(doc(db, "notes", id));
 }
 
-/* Helpers */
-function escapeHtml(str) {
-    return String(str).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+// ---- UTIL ----
+function toInputLocal(d) {
+    // maakt yyyy-MM-ddTHH:mm (zonder TZ) in lokale tijd
+    const off = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - off * 60000);
+    return local.toISOString().slice(0, 16);
 }
-function fromInputDatetime(v) { if (!v) return new Date().toISOString(); return new Date(v).toISOString(); }
-function toInputDatetime(iso) {
-    try {
-        const d = new Date(iso); const pad = n => String(n).padStart(2, "0");
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    } catch { return ""; }
+function formatLocalDatetime(ts) {
+    const d = new Date(ts.seconds ? ts.seconds * 1000 : ts);
+    return d.toLocaleString();
 }
-function formatLocal(iso) {
-    try {
-        const d = new Date(iso);
-        return d.toLocaleString(undefined, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-    } catch { return iso || ""; }
+function escapeHtml(s = "") {
+    return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
