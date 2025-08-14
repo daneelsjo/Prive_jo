@@ -52,13 +52,18 @@
     }
 
     function ensureDrawerBase(drawer) {
-        // basislayout zodat hij altijd zichtbaar is
+        // basislayout zodat hij ALTIJD zichtbaar kan worden (zelfs zonder CSS-bestand)
         Object.assign(drawer.style, {
-            position: "fixed", top: "0", bottom: "0", left: "0", width: "300px",
+            position: "fixed",
+            top: "0", bottom: "0", left: "-300px", right: "auto",
+            width: "300px",
             background: "var(--card,#fff)", color: "var(--fg,#111)",
-            borderRight: "1px solid var(--border,#e5e7eb)", padding: "1rem",
-            overflow: "auto", zIndex: "2000", transition: "transform .25s ease",
-            transform: drawer.classList.contains("open") ? "translateX(0)" : "translateX(-100%)"
+            borderRight: "1px solid var(--border,#e5e7eb)",
+            padding: "1rem",
+            overflow: "auto",
+            zIndex: "2000",
+            transition: "transform .25s ease, left .25s ease",
+            transform: "translateX(0)" // we sturen met 'left'
         });
     }
 
@@ -76,25 +81,34 @@
             btn.setAttribute("aria-expanded", String(open));
             drawer.setAttribute("aria-hidden", String(!open));
 
-            // forceer zichtbaarheid ook zonder CSS
-            bd.style.display = open ? "block" : "none";
-            drawer.style.transform = open ? "translateX(0)" : "translateX(-100%)";
-            document.body.style.overflow = open ? "hidden" : "";
+            // 🔧 Brute-force inline: schuif echt in beeld / uit beeld
+            if (open) {
+                drawer.style.display = "block";
+                drawer.style.left = "0px";                // ← zichtbaar
+                drawer.style.transform = "translateX(0)"; // fallback
+                bd.style.display = "block";
+                document.body.style.overflow = "hidden";
+            } else {
+                drawer.style.left = "-300px";             // ← verstopt buiten beeld
+                drawer.style.transform = "translateX(0)";
+                bd.style.display = "none";
+                document.body.style.overflow = "";
+            }
             if (window.DEBUG) console.log("[menu] drawer", open ? "OPEN" : "CLOSE");
         };
 
         btn.addEventListener("click", (e) => {
             e.preventDefault();
-            setOpen(!drawer.classList.contains("open"));
+            setOpen(!(drawer.classList.contains("open")));
         });
         bd.addEventListener("click", () => setOpen(false));
         document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
 
-        // secties binnen de drawer togglen
         drawer.querySelectorAll(".sidemenu-section h4").forEach(h => {
             h.addEventListener("click", () => h.parentElement.classList.toggle("open"));
         });
     }
+
 
     function bindNeonMainnav() {
         const nav = document.querySelector(".mainnav");
