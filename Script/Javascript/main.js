@@ -36,6 +36,21 @@ const allTasksTable = document.getElementById("allTasksTable");
 
 const datalist = document.getElementById("categoryList");
 const categoryInput = document.getElementById("category");
+// ───────────────────────────────────────────────────────────────────────────────
+// thema modus
+// ───────────────────────────────────────────────────────────────────────────────
+
+function applyTheme(mode) {
+  let final = mode;
+  if (!final || final === "system") {
+    final = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  document.documentElement.setAttribute("data-theme", final);
+}
+// zet alvast iets vóór login
+applyTheme("system");
+
+
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Data

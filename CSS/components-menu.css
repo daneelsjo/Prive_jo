@@ -109,36 +109,65 @@
     opacity: .65;
 }
 
-/* ===== NEON ROND DE TEKST (geen vierkant) ===== */
+/* Neon topmenu — zonder vierkant er rond, goed leesbaar op licht & donker */
+:root {
+    --neon-light: #0ea5e9;
+    --neon-dark: #a5f3fc;
+}
+
+/* basis */
+.mainnav a {
+    text-decoration: none;
+    color: var(--fg, #111);
+}
+
+:root[data-theme="dark"] .mainnav a {
+    color: #e5e7eb;
+}
+
+/* neon-tekst: alleen text-shadow (geen border/box) */
 .menu-link .label {
-    background: linear-gradient(90deg, rgba(37, 99, 235, .15), #60a5fa, rgba(37, 99, 235, .15));
-    background-size: 300% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    /* laat de gradient door de tekst lopen */
-    text-shadow:
-        0 0 6px rgba(96, 165, 250, .7),
-        0 0 14px rgba(37, 99, 235, .45);
-    /* “gloed” rond de letters */
-    transition: text-shadow .2s ease;
+    display: inline-block;
+    padding: .35rem .7rem;
+    border-radius: .75rem;
+    font-weight: 600;
+    letter-spacing: .2px;
+    transition: transform .2s ease, text-shadow .2s ease;
 }
 
-.menu-link:hover .label,
-.menu-link:focus-visible .label {
-    animation: neonSweepText 1.6s linear infinite;
+/* licht thema: donkerdere basiskleur + subtiele blauwe gloed */
+:root:not([data-theme="dark"]) .menu-link .label {
+    color: var(--neon-light);
     text-shadow:
-        0 0 8px rgba(96, 165, 250, .9),
-        0 0 20px rgba(37, 99, 235, .65),
-        0 0 30px rgba(37, 99, 235, .35);
+        0 0 4px rgba(14, 165, 233, .45),
+        0 0 10px rgba(14, 165, 233, .35);
 }
 
-@keyframes neonSweepText {
-    from {
-        background-position: 200% 0;
+/* donker thema: lichtere basiskleur + sterkere cyan gloed */
+:root[data-theme="dark"] .menu-link .label {
+    color: var(--neon-dark);
+    text-shadow:
+        0 0 6px rgba(0, 255, 255, .9),
+        0 0 14px rgba(0, 255, 255, .55),
+        0 0 24px rgba(0, 255, 255, .35);
+}
+
+/* zachte “pulse” i.p.v. draaiend vierkant */
+@keyframes neonPulse {
+
+    0%,
+    100% {
+        filter: brightness(1);
     }
 
-    to {
-        background-position: -200% 0;
+    50% {
+        filter: brightness(1.15);
     }
 }
+
+.menu-link:hover .label {
+    transform: translateY(-1px);
+    animation: neonPulse 1.8s ease-in-out infinite;
+}
+
+/* submenu’s blijven zoals ze waren */
