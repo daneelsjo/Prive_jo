@@ -501,28 +501,6 @@ button.ghost {
 }
 
 /* --- quick fix: topbar layout + icons right --- */
-.topbar {
-  display: grid;
-  grid-template-columns: 48px 1fr auto;
-  align-items: center;
-  gap: .5rem;
-  position: sticky;
-  top: 0;
-  background: var(--card, #fff);
-  border-bottom: 1px solid var(--border, #e5e7eb);
-  padding: .5rem .75rem;
-  z-index: 1400;
-}
-
-.topbar .brand {
-  justify-self: center;
-}
-
-.header-icons {
-  justify-self: end;
-  display: flex;
-  gap: .4rem;
-}
 
 .icon-btn {
   border: 1px solid var(--border, #e5e7eb);
@@ -580,6 +558,7 @@ button.ghost {
   display: none !important;
 }
 
+/* Header – iconen rechts en zichtbaar */
 .topbar {
   display: grid;
   grid-template-columns: 48px 1fr auto;
@@ -600,5 +579,23 @@ button.ghost {
 .header-icons {
   justify-self: end;
   display: flex;
+  align-items: center;
   gap: .4rem;
+}
+
+.header-icons .header-link {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--fg, #111);
+}
+
+:root[data-theme="dark"] .header-icons .header-link {
+  border-color: rgba(255, 255, 255, .25);
+  color: #e5e7eb;
 }
