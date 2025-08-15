@@ -358,7 +358,7 @@ function renderAllTasksTable() {
   const table = document.getElementById("allTasksTable");
   if (!table) return;
 
-  // ✅ maak schoon en zet altijd een echte thead + tbody
+  // schoon leegmaken en altijd echte thead/tbody opbouwen
   while (table.firstChild) table.removeChild(table.firstChild);
 
   const thead = document.createElement("thead");
@@ -372,7 +372,6 @@ function renderAllTasksTable() {
   thead.appendChild(trh);
   table.appendChild(thead);
 
-  // ✅ zorg dat er altijd een tbody is (ook als het element geen <table> zou zijn)
   let tbody = table.tBodies?.[0] || table.querySelector("tbody");
   if (!tbody) {
     tbody = document.createElement("tbody");
@@ -380,15 +379,20 @@ function renderAllTasksTable() {
   }
 
   const q = (document.getElementById("allTasksSearch")?.value || "").toLowerCase();
+
+  // quick lookup op categorie
   const catById = Object.fromEntries(categories.map(c => [c.id, c]));
 
-  // filter op zoekterm
+  // ✅ toon alleen taken waarvan de categorie bij de huidige modus hoort
+  //    (tasks zonder categorie vallen buiten de tabel)
   const filtered = todos.filter(t => {
+    const cat = catById[t.categoryId];
+    if (!cat || cat.type !== currentMode) return false;
     const hay = ((t.title || "") + " " + (t.description || "")).toLowerCase();
     return q ? hay.includes(q) : true;
   });
 
-  // groepeer per categorie-naam
+  // groepeer per categorienaam
   const groups = new Map();
   for (const t of filtered) {
     const name = catById[t.categoryId]?.name || "— Geen categorie —";
@@ -396,7 +400,6 @@ function renderAllTasksTable() {
     groups.get(name).push(t);
   }
 
-  // vul tabel
   const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
   for (const g of groupNames) {
     const trGroup = document.createElement("tr");
@@ -443,6 +446,7 @@ function renderAllTasksTable() {
     }
   }
 }
+
 
 
 /* ────────────────────────────────────────────────────────────────────────────

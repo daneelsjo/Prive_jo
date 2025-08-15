@@ -807,3 +807,80 @@ button.ghost:hover {
   gap: 12px;
   padding: 10px 10px 12px;
 }
+
+/* Laat het paneel met de tabel de volledige grid-breedte innemen */
+#allTasksPanel {
+  grid-column: 1 / -1;
+  /* span over beide kolommen */
+  width: 100%;
+}
+
+@media (max-width: 1200px) {
+  #allTasksPanel {
+    grid-column: 1;
+  }
+}
+
+/* Tabel: full width + compactere look */
+#allTasksTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+#allTasksTable th,
+#allTasksTable td {
+  padding: .55rem .7rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-theme="dark"] #allTasksTable th,
+:root[data-theme="dark"] #allTasksTable td {
+  border-bottom-color: rgba(255, 255, 255, .14);
+}
+
+#allTasksTable th {
+  text-align: left;
+  font-weight: 700;
+}
+
+#allTasksTable .prio-cell {
+  width: 46px;
+}
+
+#allTasksTable .group-row td {
+  padding: .8rem .6rem .45rem;
+  font-weight: 800;
+  background: transparent;
+  border-bottom-color: transparent;
+}
+
+/* Hover/active states */
+#allTasksTable .task-tr {
+  cursor: pointer;
+}
+
+#allTasksTable .task-tr:hover {
+  background: rgba(2, 132, 199, .08);
+}
+
+:root[data-theme="dark"] #allTasksTable .task-tr:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+/* Prio dot zoals bij de post-its */
+#allTasksTable .prio-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--dot, #9ca3af);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .12);
+}
+
+:root[data-theme="dark"] #allTasksTable .prio-dot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .20);
+}
