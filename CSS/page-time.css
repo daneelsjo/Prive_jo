@@ -201,3 +201,20 @@
 #modal-time textarea {
     width: 100%;
 }
+
+.time-page .date-header {
+    background: transparent;
+    font-weight: 700;
+}
+
+.time-page .seg-row .badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: .75rem;
+    background: rgba(0, 0, 0, .08);
+}
+
+:root[data-theme="dark"] .time-page .seg-row .badge {
+    background: rgba(255, 255, 255, .12);
+}

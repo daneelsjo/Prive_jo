@@ -9,6 +9,7 @@ import {
     onSnapshot, query, where
 } from "./firebase-config.js";
 
+
 /* ──────────────────────────────────────────────────────────────
    Firebase
    ────────────────────────────────────────────────────────────── */
@@ -35,6 +36,16 @@ const timeTable = document.getElementById("timeTable")?.querySelector("tbody");
 let currentUser = null;
 let monthLogs = []; // [{id,date,type,start,beginbreak,endbreak,end,minutes,remark,uid}]
 let todayLog = null;
+let monthSegments = []; // i.p.v. monthLogs
+
+// stream alle segmenten van deze user
+const qSeg = query(collection(db, SEG_COL), where("uid", "==", currentUser.uid));
+onSnapshot(qSeg, (snap) => {
+    monthSegments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setWorkButtonLabelFromSegments();
+    if (root) renderTable(); // tijdspagina
+});
+
 
 /* ──────────────────────────────────────────────────────────────
    Helpers
@@ -93,17 +104,18 @@ function rowClassByType(t) {
    ────────────────────────────────────────────────────────────── */
 function ensureHeaderButton() {
     const host = document.getElementById("quickLinks");
-    if (!host || document.getElementById("workTimerBtn")) return;
-
-    const btn = document.createElement("button");
-    btn.id = "workTimerBtn";
-    btn.className = "primary";
-    btn.textContent = "Start werktijd";
-    btn.style.whiteSpace = "nowrap";
-    btn.title = "Tijdsregistratie";
-
-    btn.addEventListener("click", onWorkButtonClick);
-    host.prepend(btn);
+    if (!host) return;
+    let btn = document.getElementById("workTimerBtn");
+    if (!btn) {
+        btn = document.createElement("button");
+        btn.id = "workTimerBtn";
+        btn.className = "primary";
+        btn.textContent = "Start werktijd";
+        btn.style.whiteSpace = "nowrap";
+        host.prepend(btn); // toon links van de iconen
+    }
+    // altijd (her)koppelen
+    btn.onclick = onWorkButtonClick;
 }
 
 function setWorkButtonLabel(entry) {
@@ -118,38 +130,60 @@ function setWorkButtonLabel(entry) {
     btn.textContent = "Start werktijd";
 }
 
-async function onWorkButtonClick() {
-    if (!currentUser) { Modal?.alert?.({ title: "Login nodig", html: "Log in om je werktijd te registreren." }); return; }
-    const today = new Date();
-    const dateISO = fmtDateISO(today);
-    const id = `${currentUser.uid}_${dateISO}`;
-    const ref = doc(db, "timelogs", id);
+const SEG_COL = "timelogSegments";
 
-    // herlaad laatste snapshot uit memory
-    const e = todayLog || { uid: currentUser.uid, date: dateISO, type: "standard" };
-
-    if (!e.start) {
-        await setDoc(ref, { uid: currentUser.uid, date: dateISO, type: "standard", start: nowHM(), minutes: 0 }, { merge: true });
-        return;
-    }
-    if (e.start && !e.beginbreak && !e.end) {
-        await updateDoc(ref, { beginbreak: nowHM() });
-        return;
-    }
-    if (e.beginbreak && !e.endbreak && !e.end) {
-        await updateDoc(ref, { endbreak: nowHM() });
-        return;
-    }
-    if (!e.end) {
-        const payload = { end: nowHM() };
-        // bereken minutes
-        const sim = { ...e, ...payload };
-        const mins = computeMinutes(sim);
-        await updateDoc(ref, { ...payload, minutes: mins });
-        return;
-    }
-    // Eindsituatie: dag afgerond → niets doen; label wordt toch "Start werktijd"
+async function getOpenSegmentToday() {
+    // simpele client-filter op de snapshotlijst (we nemen 'laatste' open)
+    const todayISO = fmtDateISO(new Date());
+    const open = monthSegments
+        .filter(s => s.date === todayISO && !s.end && s.type === "standard" && s.uid === currentUser?.uid)
+        .sort((a, b) => (hmToMin(b.start || "00:00") || 0) - (hmToMin(a.start || "00:00") || 0));
+    return open[0] || null;
 }
+
+async function onWorkButtonClick() {
+    if (!currentUser) {
+        try { await signInWithPopup(auth, provider); } catch { return; }
+    }
+    const todayISO = fmtDateISO(new Date());
+    let seg = await getOpenSegmentToday();
+
+    if (!seg) {
+        // nieuw segment starten
+        const ref = doc(collection(db, SEG_COL));
+        await setDoc(ref, {
+            uid: currentUser.uid, date: todayISO, type: "standard",
+            start: nowHM(), beginbreak: null, endbreak: null, end: null,
+            remark: null, minutes: 0, createdAt: Date.now(), updatedAt: Date.now()
+        });
+        return;
+    }
+    // toggle binnen bestaand segment
+    if (!seg.beginbreak && !seg.end) {
+        await updateDoc(doc(db, SEG_COL, seg.id), { beginbreak: nowHM(), updatedAt: Date.now() });
+        return;
+    }
+    if (seg.beginbreak && !seg.endbreak && !seg.end) {
+        await updateDoc(doc(db, SEG_COL, seg.id), { endbreak: nowHM(), updatedAt: Date.now() });
+        return;
+    }
+    if (!seg.end) {
+        const end = nowHM();
+        const mins = computeMinutes({ ...seg, end });
+        await updateDoc(doc(db, SEG_COL, seg.id), { end, minutes: mins, updatedAt: Date.now() });
+    }
+}
+
+function setWorkButtonLabelFromSegments() {
+    const btn = document.getElementById("workTimerBtn");
+    if (!btn) return;
+    const seg = monthSegments.find(s => s.date === fmtDateISO(new Date()) && s.type === "standard" && !s.end);
+    if (!seg) { btn.textContent = "Start werktijd"; return; }
+    if (seg.start && !seg.beginbreak) { btn.textContent = "Neem pauze"; return; }
+    if (seg.beginbreak && !seg.endbreak) { btn.textContent = "Einde pauze"; return; }
+    btn.textContent = "Einde werkdag";
+}
+
 
 /* ──────────────────────────────────────────────────────────────
    Auth
@@ -216,53 +250,75 @@ function renderTable() {
     const [Y, M] = (monthPicker.value || "").split("-").map(Number);
     if (!Y || !M) return;
 
-    while (timeTable.firstChild) timeTable.removeChild(timeTable.firstChild);
+    timeTable.innerHTML = "";
 
     const first = new Date(Y, M - 1, 1);
-    const last = monthEnd(first);
+    const last = new Date(Y, M, 0);
 
-    // snelle lookup per datum
+    // groepeer op datum
     const byDate = new Map();
-    monthLogs.forEach(e => { byDate.set(e.date, e); });
+    monthSegments.forEach(s => {
+        const d = s.date;
+        if (!d) return;
+        const dt = new Date(d);
+        if (dt.getFullYear() !== Y || (dt.getMonth() + 1) !== M) return; // filter maand
+        if (!byDate.has(d)) byDate.set(d, []);
+        byDate.get(d).push(s);
+    });
 
     let runningWeek = null, weekSum = 0;
+
     for (let day = 1; day <= last.getDate(); day++) {
         const d = new Date(Y, M - 1, day);
         const dateISO = fmtDateISO(d);
-        const entry = byDate.get(dateISO) || null;
-        const minutes = computeMinutes(entry || {});
-        const w = isoWeek(d);
+        const segs = (byDate.get(dateISO) || []).sort((a, b) => (hmToMin(a.start || "00:00") || 0) - (hmToMin(b.start || "00:00") || 0));
 
-        // week-onderbreking → toon totale rij
+        const w = isoWeek(d);
         if (runningWeek !== null && w !== runningWeek) {
             addWeekRow(runningWeek, weekSum);
             weekSum = 0;
         }
-        runningWeek = (runningWeek === null ? w : (w));
+        runningWeek = (runningWeek === null ? w : w);
 
-        if (entry) weekSum += minutes;
+        // Dagtotaal
+        const dayMinutes = segs.reduce((sum, s) => {
+            const m = computeMinutes(s);
+            return sum + (s.type === "sport" ? 0 : m);
+        }, 0);
+        weekSum += dayMinutes;
 
-        const tr = document.createElement("tr");
-        const cls = rowClassByType(entry?.type);
-        if (cls) tr.classList.add(cls);
-
-        tr.dataset.date = dateISO;
-
-        tr.innerHTML = `
+        // 1) datumkop
+        const hdr = document.createElement("tr");
+        hdr.className = "date-header";
+        hdr.innerHTML = `
       <td>${weekdayShort(d)} ${day}</td>
-      <td>${entry?.start || ""}</td>
-      <td>${entry?.beginbreak || ""}</td>
-      <td>${entry?.endbreak || ""}</td>
-      <td>${entry?.end || ""}</td>
-      <td>${minutes ? minToHM(minutes) : ""}</td>
-      <td>${entry?.remark ? escapeHtml(entry.remark) : ""}</td>
+      <td></td><td></td><td></td><td></td>
+      <td>${dayMinutes ? minToHM(dayMinutes) : ""}</td>
+      <td class="muted">Klik om nieuw segment toe te voegen</td>
     `;
+        hdr.addEventListener("click", () => openTimeModal({ date: dateISO })); // nieuwe
+        timeTable.appendChild(hdr);
 
-        tr.addEventListener("click", () => openTimeModal({ date: dateISO }));
-
-        timeTable.appendChild(tr);
+        // 2) segment-rijen
+        segs.forEach(seg => {
+            const tr = document.createElement("tr");
+            const cls = rowClassByType(seg.type);
+            if (cls) tr.classList.add(cls);
+            tr.classList.add("seg-row");
+            tr.innerHTML = `
+        <td></td>
+        <td>${seg.start || ""}</td>
+        <td>${seg.beginbreak || ""}</td>
+        <td>${seg.endbreak || ""}</td>
+        <td>${seg.end || ""}</td>
+        <td>${computeMinutes(seg) ? minToHM(computeMinutes(seg)) : ""}</td>
+        <td><span class="badge">${(seg.type || "standard")[0].toUpperCase() + (seg.type || "standard").slice(1)}</span> ${seg.remark ? escapeHtml(seg.remark) : ""}</td>
+      `;
+            tr.addEventListener("click", (ev) => { ev.stopPropagation(); openTimeModal({ id: seg.id }); });
+            timeTable.appendChild(tr);
+        });
     }
-    // eind-week
+
     if (runningWeek !== null) addWeekRow(runningWeek, weekSum);
 
     function addWeekRow(weekNo, totalMin) {
@@ -273,6 +329,7 @@ function renderTable() {
     }
 }
 
+
 function escapeHtml(s = "") { return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 
 /* ──────────────────────────────────────────────────────────────
@@ -281,84 +338,64 @@ function escapeHtml(s = "") { return s.replace(/[&<>"']/g, c => ({ "&": "&amp;",
 let editingId = null;
 
 function openTimeModal(opts = {}) {
-    const d = opts.date ? fromISO(opts.date) : new Date();
-    const dateISO = fmtDateISO(d);
-    const id = `${currentUser?.uid || "x"}_${dateISO}`;
-    const entry = monthLogs.find(x => x.id === id) || null;
+    const get = id => document.getElementById(id);
+    let seg = null;
+    if (opts.id) seg = monthSegments.find(s => s.id === opts.id) || null;
 
-    const elDate = document.getElementById("tr-date");
-    const elType = document.getElementById("tr-type");
-    const elStart = document.getElementById("tr-start");
-    const elBB = document.getElementById("tr-beginbreak");
-    const elBE = document.getElementById("tr-endbreak");
-    const elEnd = document.getElementById("tr-end");
-    const elRemark = document.getElementById("tr-remark");
-    const del = document.getElementById("tr-delete");
-    const save = document.getElementById("tr-save");
+    const dISO = seg?.date || opts.date || fmtDateISO(new Date());
+    get("tr-date").value = dISO;
+    get("tr-type").value = seg?.type || "standard";
+    get("tr-start").value = seg?.start || "";
+    get("tr-beginbreak").value = seg?.beginbreak || "";
+    get("tr-endbreak").value = seg?.endbreak || "";
+    get("tr-end").value = seg?.end || "";
+    get("tr-remark").value = seg?.remark || "";
 
-    elDate.value = dateISO;
-    elType.value = opts.type || entry?.type || "standard";
-    elStart.value = entry?.start || "";
-    elBB.value = entry?.beginbreak || "";
-    elBE.value = entry?.endbreak || "";
-    elEnd.value = entry?.end || "";
-    elRemark.value = entry?.remark || "";
-
-    del.style.display = entry ? "" : "none";
-    editingId = entry ? entry.id : null;
-
-    // type-specifieke defaults
-    function applyTypeDefaults() {
-        const t = elType.value;
-        const timeDisabled = (t === "sport"); // sport = enkel opmerking
-        elStart.disabled = elBB.disabled = elBE.disabled = elEnd.disabled = timeDisabled;
-
-        if (t === "feestdag" && !entry) {
-            elStart.value = "07:00";
-            elEnd.value = "15:36";
-            elBB.value = ""; elBE.value = "";
-            elRemark.placeholder = "Feestdag (optioneel detail)…";
-        } else if (t === "sport") {
-            elStart.value = ""; elBB.value = ""; elBE.value = ""; elEnd.value = "";
-            if (!elRemark.value) elRemark.placeholder = "Sport 15u - 17u";
-        } else if (!entry && (t === "recup" || t === "verlof" || t === "oefening" || t === "andere")) {
-            elRemark.placeholder = t.charAt(0).toUpperCase() + t.slice(1);
-        }
-    }
-    applyTypeDefaults();
-    elType.onchange = applyTypeDefaults;
-
-    // handlers
-    save.onclick = async () => {
-        if (!currentUser) return;
-        const payload = {
-            uid: currentUser.uid,
-            date: elDate.value,
-            type: elType.value || "standard",
-            start: elStart.value || null,
-            beginbreak: elBB.value || null,
-            endbreak: elBE.value || null,
-            end: elEnd.value || null,
-            remark: (elRemark.value || "").trim() || null
-        };
-        // bereken minutes
-        const mins = computeMinutes(payload);
-        payload.minutes = mins;
-
-        const ref = doc(db, "timelogs", `${currentUser.uid}_${payload.date}`);
-        await setDoc(ref, payload, { merge: true });
-        Modal.close("modal-time");
-    };
-
-    del.onclick = async () => {
-        if (!editingId) return;
-        if (!confirm("Deze tijdsregistratie verwijderen?")) return;
-        await deleteDoc(doc(db, "timelogs", editingId));
-        Modal.close("modal-time");
-    };
+    // delete/edit id doorgeven
+    const saveBtn = get("tr-save");
+    const delBtn = get("tr-delete");
+    saveBtn.dataset.editingId = seg?.id || "";
+    delBtn.dataset.editingId = seg?.id || "";
+    delBtn.style.display = seg ? "" : "none";
 
     Modal.open("modal-time");
 }
+
+document.getElementById("tr-save")?.addEventListener("click", saveSegmentFromModal);
+document.getElementById("tr-delete")?.addEventListener("click", deleteSegmentFromModal);
+
+
+async function saveSegmentFromModal() {
+    const get = id => document.getElementById(id);
+    const id = get("tr-save")?.dataset?.editingId || null; // we steken id tijdelijk in data-attr
+    const date = get("tr-date").value;
+    const type = (get("tr-type").value || "standard").toLowerCase();
+    const payload = {
+        uid: currentUser.uid, date, type,
+        start: get("tr-start").value || null,
+        beginbreak: get("tr-beginbreak").value || null,
+        endbreak: get("tr-endbreak").value || null,
+        end: get("tr-end").value || null,
+        remark: (get("tr-remark").value || "").trim() || null
+    };
+    if (type === "feestdag" && !payload.start && !payload.end) { payload.start = "07:00"; payload.end = "15:36"; }
+    payload.minutes = computeMinutes(payload);
+
+    if (id) await updateDoc(doc(db, SEG_COL, id), { ...payload, updatedAt: Date.now() });
+    else await setDoc(doc(collection(db, SEG_COL)), { ...payload, createdAt: Date.now(), updatedAt: Date.now() });
+
+    Modal.close("modal-time");
+}
+
+async function deleteSegmentFromModal() {
+    const btn = document.getElementById("tr-delete");
+    const id = btn?.dataset?.editingId;
+    if (!id) return;
+    if (!confirm("Dit segment verwijderen?")) return;
+    await deleteDoc(doc(db, SEG_COL, id));
+    Modal.close("modal-time");
+}
+
 
 // --- Helpers ---
 function tval(id) { const v = (document.getElementById(id).value || "").trim(); return v || null; }
