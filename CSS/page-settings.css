@@ -1,52 +1,176 @@
+/* ============ BASIS LAYOUT ============ */
 .settings-page .page {
     grid-template-columns: 1fr;
-}
-
-.settings-page .rightcol {
-    display: none;
-}
-
-.settings-page .content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    padding: 1rem;
 }
 
 .settings-page .card {
-    width: min(50%, 820px);
-    min-width: 420px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto 1rem;
 }
 
-.settings-page .card h2 {
+/* ============ CATEGORIEËN ============ */
+.cat-group-title {
     text-align: center;
-    margin-top: 0;
+    margin: .25rem 0 1rem;
+    font-weight: 800;
 }
 
-.settings-page .mode-toggle {
-    display: flex;
-    justify-content: center;
-    margin-bottom: .75rem;
+.cat-items {
+    display: grid;
+    gap: .5rem;
 }
 
-.settings-page #catName {
-    max-width: 260px;
+.cat-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    align-items: center;
+    gap: .6rem;
+    padding: .35rem .5rem;
+    border-radius: .6rem;
 }
 
-.settings-page #catType {
-    width: 260px;
-    max-width: 260px;
+.cat-row:hover {
+    background: rgba(0, 0, 0, .05);
 }
 
-@media (max-width: 900px) {
-    .settings-page .card {
-        width: 100%;
-        min-width: 0;
-    }
+:root[data-theme="dark"] .cat-row:hover {
+    background: rgba(255, 255, 255, .06);
 }
 
-#modeSlots>div span:first-child {
-    white-space: nowrap;
-    min-width: 90px;
-    display: inline-block;
+.color-swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, .25);
+    background: var(--swatch, #FFEB3B);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, .08);
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .color-swatch {
+    border-color: rgba(255, 255, 255, .35);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, .12);
+}
+
+.cat-name {
+    font-weight: 600;
+}
+
+.cat-actions {
+    display: inline-flex;
+    gap: .35rem;
+}
+
+.icon-btn {
+    border: 1px solid var(--border, #e5e7eb);
+    background: var(--card, #fff);
+    color: var(--fg, #111);
+    padding: .35rem .5rem;
+    border-radius: .55rem;
+    cursor: pointer;
+}
+
+.icon-btn.danger {
+    border-color: transparent;
+    background: #ef4444;
+    color: #fff;
+}
+
+.icon-btn:hover {
+    filter: brightness(1.06);
+}
+
+/* Verwijder de oude smalle kleurstreep rechts (als die nog bestond) */
+.cat-row .cat-color-bar {
+    display: none !important;
+}
+
+/* ============ KLEUR-POPOVER ============ */
+.color-popover {
+    position: absolute;
+    z-index: 1000;
+    display: none;
+    background: var(--card, #fff);
+    color: var(--fg, #111);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    padding: .5rem;
+    box-shadow: 0 12px 26px rgba(0, 0, 0, .16);
+}
+
+:root[data-theme="dark"] .color-popover {
+    background: #0b1220;
+    color: #e5e7eb;
+    border-color: rgba(255, 255, 255, .18);
+}
+
+.color-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 20px);
+    gap: 8px;
+}
+
+.color-opt {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--c);
+    border: 1px solid rgba(0, 0, 0, .25);
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .color-opt {
+    border-color: rgba(255, 255, 255, .35);
+}
+
+.color-opt.active {
+    outline: 2px solid rgba(59, 130, 246, .45);
+}
+
+/* ============ MODESLOTS ============ */
+.modeslots-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .6rem;
+}
+
+.modeslot {
+    display: grid;
+    grid-template-columns: 22px 18px 1fr;
+    align-items: center;
+    gap: .45rem;
+}
+
+.slot-index {
+    font-weight: 700;
+    opacity: .75;
+}
+
+.slot-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    background: var(--swatch, #e5e7eb);
+    border: 1px solid rgba(0, 0, 0, .25);
+}
+
+:root[data-theme="dark"] .slot-color {
+    border-color: rgba(255, 255, 255, .35);
+}
+
+.modeslot select {
+    width: 100%;
+    padding: .4rem .5rem;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: .5rem;
+    background: var(--card, #fff);
+    color: var(--fg, #111);
+}
+
+:root[data-theme="dark"] .modeslot select {
+    border-color: rgba(255, 255, 255, .18);
+    background: #0b1220;
+    color: #e5e7eb;
 }
