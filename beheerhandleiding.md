@@ -156,6 +156,7 @@ service cloud.firestore {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="../IMG/JD_Web_Solutions.ico">
   <title>Paginatitel</title>
  <script>
         (function () {

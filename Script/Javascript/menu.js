@@ -18,13 +18,28 @@
         if (!el) return;
         const page = currentPage();
         const linksByPage = {
-            index: [{ emoji: "📝", title: "Notities", path: "HTML/notes.html" },
-            { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }],
-            settings: [{ emoji: "📌", title: "Post-its", path: "index.html" },
-            { emoji: "📝", title: "Notities", path: "HTML/notes.html" }],
-            notes: [{ emoji: "📌", title: "Post-its", path: "index.html" },
-            { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }],
-        }[page] || [];
+            index: [
+                { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
+                { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
+                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }
+            ],
+            settings: [
+                { emoji: "📌", title: "Post-its", path: "index.html" },
+                { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
+                { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" }
+            ],
+            notes: [
+                { emoji: "📌", title: "Post-its", path: "index.html" },
+                { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
+                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }
+            ],
+            tijd: [
+                { emoji: "📌", title: "Post-its", path: "../index.html" },
+                { emoji: "📝", title: "Notities", path: "notes.html" },
+                { emoji: "⚙️", title: "Instellingen", path: "settings.html" }
+            ]
+        };
+        [page] || [];
         el.innerHTML = "";
         linksByPage.forEach(l => {
             const a = document.createElement("a");

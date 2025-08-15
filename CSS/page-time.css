@@ -1,0 +1,199 @@
+/* ===== TIJDSPAGINA ===== */
+.time-page .page {
+    grid-template-columns: 1fr 360px;
+    gap: 16px;
+    padding: 12px;
+}
+
+@media (max-width: 1200px) {
+    .time-page .page {
+        grid-template-columns: 1fr;
+    }
+
+    .time-page .rightcol {
+        order: 2;
+    }
+}
+
+.toolbar .toolbar-row {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.toolbar .spacer {
+    flex: 1;
+}
+
+.toolbar .quick-actions {
+    display: flex;
+    gap: .4rem;
+    flex-wrap: wrap;
+}
+
+/* Tabel */
+.time-page .table-wrap {
+    width: 100%;
+    overflow: auto;
+}
+
+.time-page .time-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.time-page .time-table th,
+.time-page .time-table td {
+    padding: .55rem .7rem;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+}
+
+:root[data-theme="dark"] .time-page .time-table th,
+:root[data-theme="dark"] .time-page .time-table td {
+    border-bottom-color: rgba(255, 255, 255, .14);
+}
+
+.time-page .time-table tr:hover {
+    background: rgba(2, 132, 199, .08);
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .time-page .time-table tr:hover {
+    background: rgba(255, 255, 255, .06);
+}
+
+.muted {
+    opacity: .75;
+    font-size: .9rem;
+}
+
+/* Weektotaal rij */
+.time-page .week-total {
+    background: transparent;
+    font-weight: 800;
+}
+
+.time-page .week-total td {
+    padding-top: .8rem;
+}
+
+/* Kleuren per type */
+.time-page tr.type-feestdag {
+    background: #f3f4f6;
+}
+
+/* licht grijs */
+.time-page tr.type-sport {
+    background: #fef9c3;
+}
+
+/* geel */
+.time-page tr.type-recup {
+    background: #ffedd5;
+}
+
+/* oranje licht */
+.time-page tr.type-verlof {
+    background: #fee2e2;
+}
+
+/* licht rood */
+.time-page tr.type-oefening {
+    background: #dcfce7;
+}
+
+/* licht groen */
+.time-page tr.type-andere {
+    background: #dbeafe;
+}
+
+/* licht blauw */
+
+/* Modal layout */
+
+
+#modal-time .fld-beginbreak {
+    grid-area: beginbreak;
+}
+
+#modal-time .fld-endbreak {
+    grid-area: endbreak;
+}
+
+
+#modal-time .fld-remark {
+    grid-area: remark;
+}
+
+#modal-time input,
+#modal-time select,
+#modal-time textarea {
+    width: 100%;
+    padding: .55rem .65rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--fg);
+}
+
+#modal-time textarea {
+    min-height: 110px;
+}
+
+/* grid layout zoals bij notes/tasks */
+#modal-time .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    grid-template-areas:
+        "date  type"
+        "start end"
+        "bstart bend"
+        "note  note";
+}
+
+#modal-time .fld-date {
+    grid-area: date;
+}
+
+#modal-time .fld-type {
+    grid-area: type;
+}
+
+#modal-time .fld-start {
+    grid-area: start;
+}
+
+#modal-time .fld-end {
+    grid-area: end;
+}
+
+#modal-time .fld-bstart {
+    grid-area: bstart;
+}
+
+#modal-time .fld-bend {
+    grid-area: bend;
+}
+
+#modal-time .fld-note {
+    grid-area: note;
+}
+
+#modal-time label {
+    display: grid;
+    gap: 6px;
+    font-weight: 600;
+}
+
+#modal-time input,
+#modal-time select,
+#modal-time textarea {
+    width: 100%;
+}
