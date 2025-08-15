@@ -87,11 +87,12 @@ onAuthStateChanged(auth, async (user) => {
     });
 
     // Notes stream — filter minimaal op uid (server-side); type filteren we client-side
-    const qNotes = query(collection(db, "notes"), where("uid", "==", currentUser.uid), orderBy("when", "desc"));
+    const qNotes = query(collection(db, "notes"), where("uid", "==", currentUser.uid));
     onSnapshot(qNotes, (snap) => {
         notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderNotes();
+        renderNotes(); // in renderNotes sorteren we al op 'when' desc
     });
+
 });
 
 /* ────────────────────────────────────────────────────────────────────────────

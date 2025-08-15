@@ -8,6 +8,7 @@
     const FAVICON_RELATIVE = "IMG/JD_Web_Solutions.ico";
     const isNested = () => /\/HTML\//.test(location.pathname);
     const prefixPath = (p = "") => (isNested() ? "../" : "") + p.replace(/^\.\//, "");
+    const url = new URL(src, document.baseURI).href;
 
     function ensureFavicon() {
         const href = prefixPath(FAVICON_RELATIVE);
@@ -56,3 +57,5 @@
         loadPartials();
     });
 })();
+
+
