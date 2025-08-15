@@ -83,11 +83,25 @@ function getContrast(hex) {
 function escapeHtml(s = "") {
   return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+// 0 = GEEN, 1 = HOOG, 2 = GEMIDDELD, 3 = LAAG
 function prioColor(p = 0) {
-  // 0=grijs, 1=groen, 2=amber, 3=rood
-  const map = { 0: "#9ca3af", 1: "#22c55e", 2: "#f59e0b", 3: "#ef4444" };
-  return map[p] || map[0];
+  const map = {
+    0: "#ffffff", // geen prio (wit)
+    1: "#ef4444", // hoog (rood)
+    2: "#f59e0b", // gemiddeld (oranje)
+    3: "#22c55e"  // laag (groen)
+  };
+  return map[p] ?? map[0];
 }
+
+// Klein getal = hogere prio → geef HOOG de hoogste 'rank' om aflopend te sorteren
+function prioRank(p) {
+  // HOOG (1) → 3, GEM (2) → 2, LAAG (3) → 1, GEEN (0/overig) → 0
+  const map = { 1: 3, 2: 2, 3: 1, 0: 0 };
+  return map[p] ?? 0;
+}
+
+
 
 /* ────────────────────────────────────────────────────────────────────────────
    Data (runtime state)
@@ -422,8 +436,8 @@ function renderAllTasksTable() {
 
     const items = groups.get(g)
       .slice()
-      .sort((a, b) => (b.priority || 0) - (a.priority || 0) || dateVal(a.endDate) - dateVal(b.endDate));
-
+  // eerst HOOG(1) → GEM(2) → LAAG(3) → GEEN(0), daarna op vroegste deadline
+  .sort((a, b) => prioRank(b.priority) - prioRank(a.priority) || dateVal(a.endDate) - dateVal(b.endDate));
     for (const t of items) {
       const tr = document.createElement("tr");
       tr.className = "task-tr";
@@ -598,3 +612,22 @@ function wireTaskModal() {
 }
 document.addEventListener("DOMContentLoaded", wireTaskModal);
 document.addEventListener("partials:loaded", wireTaskModal);
+
+
+// RUN-ONCE: zet oude prioriteiten om naar nieuwe betekenis.
+// Roep window.remapOldPriorities() één keer aan vanuit de DevTools console.
+window.remapOldPriorities = async function() {
+  if (!currentUser) { console.warn("Nog niet ingelogd."); return; }
+  const map = { 0: 0, 1: 3, 2: 2, 3: 1 };
+  const q = query(collection(db, "todos"), where("uid", "==", currentUser.uid));
+  const snap = await getDocs(q);
+  let count = 0;
+  for (const d of snap.docs) {
+    const p = d.data().priority;
+    if (p in map) {
+      await updateDoc(doc(db, "todos", d.id), { priority: map[p] });
+      count++;
+    }
+  }
+  console.log("Remapped priorities:", count);
+};
