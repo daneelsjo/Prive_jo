@@ -7,19 +7,44 @@
         <h3 id="modal-note-title">Notitie bewerken</h3>
         <button class="modal-close" data-modal-close="modal-note" aria-label="Sluiten">✕</button>
     </div>
+
     <div class="modal-body">
-        <label for="note-title">Titel</label>
-        <input id="note-title" type="text" placeholder="Titel">
-        <label for="note-when">Tijdstip</label>
-        <input id="note-when" type="datetime-local">
-        <label for="note-body">Notitie</label>
-        <textarea id="note-body" rows="8" placeholder="Schrijf hier je notitie..."></textarea>
+        <div class="form-grid">
+            <label class="fld fld-title">Titel
+                <input id="note-title" type="text" placeholder="Titel">
+            </label>
+
+            <label class="fld fld-type">Modus
+                <select id="note-type">
+                    <option value="werk">Werk</option>
+                    <option value="prive">Privé</option>
+                </select>
+            </label>
+
+            <label class="fld fld-when">Tijdstip
+                <input id="note-when" type="datetime-local">
+            </label>
+
+            <label class="fld fld-body">Notitie
+                <textarea id="note-body" rows="8" placeholder="Schrijf hier je notitie..."></textarea>
+            </label>
+
+            <label class="fld fld-link">Link
+                <div class="input-with-action">
+                    <input id="note-link" type="text" placeholder="https://…">
+                    <button type="button" id="note-link-open" class="btn tiny" title="Open link">Open</button>
+                </div>
+            </label>
+        </div>
     </div>
+
     <div class="modal-footer">
         <button id="note-save" class="primary">💾 Opslaan</button>
-        <button id="note-delete" class="danger" style="margin-left:.5rem;">🗑️ Verwijderen</button>
+        <button id="note-delete" class="danger" style="display:none;">🗑️ Verwijderen</button>
+        <button id="note-cancel" class="ghost" data-modal-close="modal-note">Annuleren</button>
     </div>
 </div>
+
 
 <!-- 2) Categorie niet aangemaakt (melding) -->
 <div id="modal-alert" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-alert-title" hidden>

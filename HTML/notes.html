@@ -5,18 +5,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Notities</title>
+
+    <!-- Zet het thema zo vroeg mogelijk om flash te voorkomen -->
     <script>
-        // Zet het thema zo vroeg mogelijk (voordat CSS laadt)
         (function () {
             try {
-                var pref = localStorage.getItem('theme_pref') || 'system';
+                var pref = localStorage.getItem('app.theme') || 'system';
                 var final = pref === 'system'
                     ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
                     : pref;
                 document.documentElement.setAttribute('data-theme', final);
-            } catch (e) { /* no-op */ }
+            } catch (e) { }
         })();
     </script>
+
     <link rel="stylesheet" href="../CSS/main.css">
     <link rel="stylesheet" href="../CSS/components-menu.css">
     <link rel="stylesheet" href="../CSS/components-sidemenu.css">
@@ -25,25 +27,35 @@
 
 <body class="notes-page">
     <!-- AUTH -->
-    <div id="auth">
-        <button id="login-btn">🔐 Inloggen met Google</button>
-    </div>
+    <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
 
     <!-- gedeelde header -->
-    <div data-include="partials/header.html"></div>
+    <div data-include="../partials/header.html"></div>
 
     <!-- APP -->
     <div id="app" style="display:none;">
         <div class="page">
             <main class="content">
-                <div class="card" style="display:flex; align-items:center; justify-content:space-between;">
-                    <h2 style="margin:0;">Notities</h2>
+                <!-- Werk/Privé toggle (zelfde markup als index) -->
+                <div class="mode-toggle">
+                    <input type="checkbox" id="modeSwitch" aria-label="Schakel tussen werk en privé" />
+                    <label for="modeSwitch" class="switch icon-only">
+                        <span class="knob"></span>
+                        <span class="icon icon-work" title="Werk">🧰</span>
+                        <span class="icon icon-prive" title="Privé">🏠</span>
+                    </label>
+                </div>
+
+                <!-- Kop + Nieuw -->
+                <div class="card headbar">
+                    <h2>Notities</h2>
                     <button id="newNoteBtn" class="primary">＋ NIEUW</button>
                 </div>
 
+                <!-- Tabel -->
                 <div class="card">
                     <div class="table-wrap">
-                        <table class="notes-table">
+                        <table class="notes-table" id="notesTable">
                             <thead>
                                 <tr>
                                     <th style="width: 220px;">Tijdstip</th>
@@ -56,19 +68,19 @@
                 </div>
             </main>
 
-            <aside class="rightcol"><!-- leeg --></aside>
+            <aside class="rightcol"><!-- optioneel --></aside>
         </div>
     </div>
-    <!-- Modals en header partials -->
-    <div data-include="partials/modals.html"></div>
+
+    <!-- Modals (gedeeld) -->
+    <div data-include="../partials/modals.html"></div>
     <script type="module" src="../Script/Javascript/modal.js"></script>
 
     <!-- Eerst includes, dan menu, dan page-script -->
     <script src="../Script/Javascript/include-partials.js"></script>
     <script src="../Script/Javascript/menu.js"></script>
 
-
-    <!-- op HTML/notes.html: -->
+    <!-- Page script -->
     <script type="module" src="../Script/Javascript/notes.js"></script>
 </body>
 
