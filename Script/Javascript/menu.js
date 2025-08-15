@@ -10,8 +10,10 @@
         if (p.endsWith("/index.html") || /\/$/.test(p)) return "index";
         if (p.endsWith("/settings.html")) return "settings";
         if (p.endsWith("/notes.html") || p.endsWith("/notities.html")) return "notes";
+        if (p.endsWith("/tijd.html")) return "tijd";
         return "index";
     }
+
 
     function setHeaderQuickLinks() {
         const el = document.getElementById("quickLinks");

@@ -218,3 +218,137 @@
 :root[data-theme="dark"] .time-page .seg-row .badge {
     background: rgba(255, 255, 255, .12);
 }
+
+/* ==== Layout: breder en centreren ==== */
+.time-page .content {
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.time-page .table-wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.time-page .time-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+/* Weektotaal centreren */
+.time-page .week-total td {
+    text-align: center;
+    font-weight: 800;
+    padding-top: .8rem;
+}
+
+/* Datumkop met acties (+ en toggle) */
+.time-page .date-header td {
+    padding: .6rem .7rem;
+    background: transparent;
+}
+
+.time-page .datebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+}
+
+.time-page .datebar .left {
+    font-weight: 800;
+}
+
+.time-page .datebar .right {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+
+.time-page .icon-xs {
+    font-size: .9rem;
+    padding: .25rem .55rem;
+    border-radius: 8px;
+    border: 1px solid var(--border, #e5e7eb);
+    background: var(--card);
+    color: var(--fg);
+}
+
+.time-page .badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: .75rem;
+    background: rgba(0, 0, 0, .08);
+}
+
+:root[data-theme="dark"] .time-page .badge {
+    background: rgba(255, 255, 255, .12);
+}
+
+/* ==== Kleuren per type met thema-ondersteuning ==== */
+:root {
+    --type-feestdag-bg: #f3f4f6;
+    /* licht grijs */
+    --type-sport-bg: #fef9c3;
+    /* geel */
+    --type-recup-bg: #ffedd5;
+    /* oranje licht */
+    --type-verlof-bg: #fee2e2;
+    /* licht rood */
+    --type-oefening-bg: #dcfce7;
+    /* licht groen */
+    --type-andere-bg: #dbeafe;
+    /* licht blauw */
+}
+
+:root[data-theme="dark"] {
+    --type-feestdag-bg: rgba(255, 255, 255, .06);
+    --type-sport-bg: rgba(250, 204, 21, .18);
+    --type-recup-bg: rgba(251, 146, 60, .18);
+    --type-verlof-bg: rgba(239, 68, 68, .18);
+    --type-oefening-bg: rgba(34, 197, 94, .18);
+    --type-andere-bg: rgba(59, 130, 246, .18);
+}
+
+.time-page tr.type-feestdag {
+    background: var(--type-feestdag-bg);
+    color: var(--fg);
+}
+
+.time-page tr.type-sport {
+    background: var(--type-sport-bg);
+    color: var(--fg);
+}
+
+.time-page tr.type-recup {
+    background: var(--type-recup-bg);
+    color: var(--fg);
+}
+
+.time-page tr.type-verlof {
+    background: var(--type-verlof-bg);
+    color: var(--fg);
+}
+
+.time-page tr.type-oefening {
+    background: var(--type-oefening-bg);
+    color: var(--fg);
+}
+
+.time-page tr.type-andere {
+    background: var(--type-andere-bg);
+    color: var(--fg);
+}
+
+/* Optioneel: hover subtiel in beide thema's */
+.time-page .time-table tr:hover {
+    background: rgba(2, 132, 199, .08);
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .time-page .time-table tr:hover {
+    background: rgba(255, 255, 255, .06);
+}
+
+/* Modal: pauzevelden kunnen we wegklappen via inline style, geen extra CSS nodig */
