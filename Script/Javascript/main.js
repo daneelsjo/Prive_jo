@@ -235,9 +235,11 @@ if (toggleAllTasks) {
     const open = allTasksPanel.style.display !== "block";
     allTasksPanel.style.display = open ? "block" : "none";
     allTasksSearch.style.display = open ? "inline-block" : "none";
-    if (open) renderAllTasksTable();
+    document.body.classList.toggle("alltasks-open", open);   // << nieuw
+    renderAllTasksTable();
   };
 }
+
 if (allTasksSearch) {
   allTasksSearch.oninput = () => renderAllTasksTable();
 }
