@@ -358,39 +358,53 @@ function renderAllTasksTable() {
   const table = document.getElementById("allTasksTable");
   if (!table) return;
 
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th class="prio-cell">Prio</th>
-        <th>Taak</th>
-        <th>Start</th>
-        <th>Deadline</th>
-        <th>Voltooid</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  `;
-  const tbody = table.querySelector("tbody");
-  const q = (document.getElementById("allTasksSearch")?.value || "").toLowerCase();
+  // ✅ maak schoon en zet altijd een echte thead + tbody
+  while (table.firstChild) table.removeChild(table.firstChild);
 
+  const thead = document.createElement("thead");
+  const trh = document.createElement("tr");
+  ["Prio", "Taak", "Start", "Deadline", "Voltooid"].forEach(txt => {
+    const th = document.createElement("th");
+    if (txt === "Prio") th.className = "prio-cell";
+    th.textContent = txt;
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  // ✅ zorg dat er altijd een tbody is (ook als het element geen <table> zou zijn)
+  let tbody = table.tBodies?.[0] || table.querySelector("tbody");
+  if (!tbody) {
+    tbody = document.createElement("tbody");
+    table.appendChild(tbody);
+  }
+
+  const q = (document.getElementById("allTasksSearch")?.value || "").toLowerCase();
   const catById = Object.fromEntries(categories.map(c => [c.id, c]));
+
+  // filter op zoekterm
   const filtered = todos.filter(t => {
     const hay = ((t.title || "") + " " + (t.description || "")).toLowerCase();
     return q ? hay.includes(q) : true;
   });
 
+  // groepeer per categorie-naam
   const groups = new Map();
   for (const t of filtered) {
-    const catName = catById[t.categoryId]?.name || "— Geen categorie —";
-    if (!groups.has(catName)) groups.set(catName, []);
-    groups.get(catName).push(t);
+    const name = catById[t.categoryId]?.name || "— Geen categorie —";
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(t);
   }
 
+  // vul tabel
   const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
   for (const g of groupNames) {
     const trGroup = document.createElement("tr");
     trGroup.className = "group-row";
-    trGroup.innerHTML = `<td colspan="5">${g}</td>`;
+    const td = document.createElement("td");
+    td.colSpan = 5;
+    td.textContent = g;
+    trGroup.appendChild(td);
     tbody.appendChild(trGroup);
 
     const items = groups.get(g)
@@ -402,15 +416,25 @@ function renderAllTasksTable() {
       tr.className = "task-tr";
       tr.dataset.id = t.id;
 
-      const completedAt = t.completedAt ? formatDate(t.completedAt) : (t.done ? "✓" : "");
+      const tdPrio = document.createElement("td");
+      tdPrio.className = "prio-cell";
+      tdPrio.innerHTML = `<span class="prio-dot" style="--dot:${prioColor(t.priority)}"></span>`;
 
-      tr.innerHTML = `
-        <td class="prio-cell"><span class="prio-dot" style="--dot:${prioColor(t.priority)}"></span></td>
-        <td>${escapeHtml(t.title || "(zonder titel)")}</td>
-        <td>${t.startDate ? formatDate(t.startDate) : ""}</td>
-        <td>${t.endDate ? formatDate(t.endDate) : ""}</td>
-        <td>${t.done ? completedAt : ""}</td>
-      `;
+      const tdTitle = document.createElement("td");
+      tdTitle.textContent = t.title || "(zonder titel)";
+
+      const tdStart = document.createElement("td");
+      tdStart.textContent = t.startDate ? formatDate(t.startDate) : "";
+
+      const tdEnd = document.createElement("td");
+      tdEnd.textContent = t.endDate ? formatDate(t.endDate) : "";
+
+      const tdDone = document.createElement("td");
+      tdDone.textContent = t.done
+        ? (t.completedAt ? formatDate(t.completedAt) : "✓")
+        : "";
+
+      tr.append(tdPrio, tdTitle, tdStart, tdEnd, tdDone);
       tr.addEventListener("click", () => {
         const todo = todos.find(x => x.id === t.id);
         if (todo) openTaskModal("edit", todo);
@@ -419,6 +443,7 @@ function renderAllTasksTable() {
     }
   }
 }
+
 
 /* ────────────────────────────────────────────────────────────────────────────
    Window helpers
