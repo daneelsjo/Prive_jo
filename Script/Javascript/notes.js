@@ -39,78 +39,97 @@ onAuthStateChanged(auth, async (user) => {
     subscribeNotes();
 });
 
-function subscribeNotes() {
-    const q = query(collection(db, "notes"), orderBy("when", "desc"));
-    onSnapshot(q, (snap) => {
-        notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderNotes();
-    });
+function resolveTheme(mode) {
+    if (!mode || mode === "system") {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    return mode;
 }
+function applyTheme(mode) {
+    const final = resolveTheme(mode);
+    document.documentElement.setAttribute("data-theme", final);
+}
+onAuthStateChanged(auth, (user) => {
+    if (!user) return;
+    onSnapshot(doc(db, "settings", user.uid), (snap) => {
+        const s = snap.exists() ? (snap.data() || {}) : {};
+        const themePref = s.theme || "system";
+        applyTheme(themePref);
+        try { localStorage.setItem("theme_pref", themePref); } catch { }
+    });
 
-function renderNotes() {
-    if (!notesBody) return;
-    notesBody.innerHTML = notes.map(n => {
-        const when = n.when ? formatLocalDatetime(n.when) : "";
-        return `
+    function subscribeNotes() {
+        const q = query(collection(db, "notes"), orderBy("when", "desc"));
+        onSnapshot(q, (snap) => {
+            notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderNotes();
+        });
+    }
+
+    function renderNotes() {
+        if (!notesBody) return;
+        notesBody.innerHTML = notes.map(n => {
+            const when = n.when ? formatLocalDatetime(n.when) : "";
+            return `
       <tr data-id="${n.id}">
         <td>${escapeHtml(when)}</td>
         <td>${escapeHtml(n.title || "(zonder titel)")}</td>
       </tr>`;
-    }).join("");
+        }).join("");
 
-    // rij-klik = bewerken
-    notesBody.querySelectorAll("tr").forEach(tr => {
-        tr.onclick = () => {
-            const id = tr.getAttribute("data-id");
-            const note = notes.find(x => x.id === id);
-            if (note) openNoteModal(note);
-        };
-    });
-}
-
-newNoteBtn && (newNoteBtn.onclick = () => openNoteModal(null));
-
-// MODAL
-window.openNoteModal = function (note = null) {
-    const titleEl = document.getElementById('modal-note-title');
-    const t = document.getElementById('note-title');
-    const w = document.getElementById('note-when');
-    const b = document.getElementById('note-body');
-    const save = document.getElementById('note-save');
-    const del = document.getElementById('note-delete');
-
-    if (note) {
-        titleEl.textContent = "Notitie bewerken";
-        t.value = note.title || "";
-        b.value = note.body || "";
-        if (note.when) {
-            const d = new Date(note.when.seconds ? note.when.seconds * 1000 : note.when);
-            w.value = toInputLocal(d);
-        } else { w.value = ""; }
-        del.style.display = "";
-    } else {
-        titleEl.textContent = "Nieuwe notitie";
-        t.value = ""; b.value = ""; w.value = "";
-        del.style.display = "none";
+        // rij-klik = bewerken
+        notesBody.querySelectorAll("tr").forEach(tr => {
+            tr.onclick = () => {
+                const id = tr.getAttribute("data-id");
+                const note = notes.find(x => x.id === id);
+                if (note) openNoteModal(note);
+            };
+        });
     }
 
-    save.onclick = async () => {
-        const payload = {
-            title: (t.value || "").trim(),
-            body: (b.value || "").trim(),
-            when: w.value ? new Date(w.value) : null
+    newNoteBtn && (newNoteBtn.onclick = () => openNoteModal(null));
+
+    // MODAL
+    window.openNoteModal = function (note = null) {
+        const titleEl = document.getElementById('modal-note-title');
+        const t = document.getElementById('note-title');
+        const w = document.getElementById('note-when');
+        const b = document.getElementById('note-body');
+        const save = document.getElementById('note-save');
+        const del = document.getElementById('note-delete');
+
+        if (note) {
+            titleEl.textContent = "Notitie bewerken";
+            t.value = note.title || "";
+            b.value = note.body || "";
+            if (note.when) {
+                const d = new Date(note.when.seconds ? note.when.seconds * 1000 : note.when);
+                w.value = toInputLocal(d);
+            } else { w.value = ""; }
+            del.style.display = "";
+        } else {
+            titleEl.textContent = "Nieuwe notitie";
+            t.value = ""; b.value = ""; w.value = "";
+            del.style.display = "none";
+        }
+
+        save.onclick = async () => {
+            const payload = {
+                title: (t.value || "").trim(),
+                body: (b.value || "").trim(),
+                when: w.value ? new Date(w.value) : null
+            };
+            if (!payload.title) { Modal.alert({ title: "Titel vereist", html: "Vul een titel in." }); return; }
+            if (note) await updateDoc(doc(db, "notes", note.id), { ...payload, updatedAt: new Date() });
+            else await addDoc(collection(db, "notes"), { ...payload, uid: currentUser?.uid || null, createdAt: new Date() });
+            Modal.close();
         };
-        if (!payload.title) { Modal.alert({ title: "Titel vereist", html: "Vul een titel in." }); return; }
-        if (note) await updateDoc(doc(db, "notes", note.id), { ...payload, updatedAt: new Date() });
-        else await addDoc(collection(db, "notes"), { ...payload, uid: currentUser?.uid || null, createdAt: new Date() });
-        Modal.close();
+        del.onclick = async () => { if (note) { await deleteDoc(doc(db, "notes", note.id)); Modal.close(); } };
+
+        Modal.open('modal-note');
     };
-    del.onclick = async () => { if (note) { await deleteDoc(doc(db, "notes", note.id)); Modal.close(); } };
 
-    Modal.open('modal-note');
-};
-
-// UTIL
-function toInputLocal(d) { const off = d.getTimezoneOffset(); const local = new Date(d.getTime() - off * 60000); return local.toISOString().slice(0, 16); }
-function formatLocalDatetime(ts) { const d = new Date(ts.seconds ? ts.seconds * 1000 : ts); return d.toLocaleString(); }
-function escapeHtml(s = "") { return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+    // UTIL
+    function toInputLocal(d) { const off = d.getTimezoneOffset(); const local = new Date(d.getTime() - off * 60000); return local.toISOString().slice(0, 16); }
+    function formatLocalDatetime(ts) { const d = new Date(ts.seconds ? ts.seconds * 1000 : ts); return d.toLocaleString(); }
+    function escapeHtml(s = "") { return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
