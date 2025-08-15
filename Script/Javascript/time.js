@@ -18,6 +18,8 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+const SEG_COL = "timelogSegments";
+
 /* ──────────────────────────────────────────────────────────────
    DOM refs (pagina) + header knop
    ────────────────────────────────────────────────────────────── */
@@ -37,14 +39,28 @@ let currentUser = null;
 let monthLogs = []; // [{id,date,type,start,beginbreak,endbreak,end,minutes,remark,uid}]
 let todayLog = null;
 let monthSegments = []; // i.p.v. monthLogs
+let unsubSeg = null;
+
+function startSegmentsStream() {
+    if (!currentUser) return;
+    if (unsubSeg) { unsubSeg(); unsubSeg = null; }
+    const qSeg = query(collection(db, SEG_COL), where("uid", "==", currentUser.uid));
+    unsubSeg = onSnapshot(qSeg, (snap) => {
+        monthSegments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setWorkButtonLabelFromSegments();
+        if (root) renderTable();
+    });
+}
+
+
 
 // stream alle segmenten van deze user
-const qSeg = query(collection(db, SEG_COL), where("uid", "==", currentUser.uid));
-onSnapshot(qSeg, (snap) => {
-    monthSegments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    setWorkButtonLabelFromSegments();
-    if (root) renderTable(); // tijdspagina
-});
+//const qSeg = query(collection(db, SEG_COL), where("uid", "==", currentUser.uid));
+//onSnapshot(qSeg, (snap) => {
+//    monthSegments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+//   setWorkButtonLabelFromSegments();
+//    if (root) renderTable(); // tijdspagina
+//});
 
 
 /* ──────────────────────────────────────────────────────────────
@@ -130,7 +146,7 @@ function setWorkButtonLabel(entry) {
     btn.textContent = "Start werktijd";
 }
 
-const SEG_COL = "timelogSegments";
+
 
 async function getOpenSegmentToday() {
     // simpele client-filter op de snapshotlijst (we nemen 'laatste' open)
@@ -192,30 +208,28 @@ loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
 
 onAuthStateChanged(auth, (user) => {
     if (!user) {
+        // logout
+        if (unsubSeg) { unsubSeg(); unsubSeg = null; }
         currentUser = null;
+        monthSegments = [];
         authDiv && (authDiv.style.display = "block");
         appDiv && (appDiv.style.display = "none");
-        setWorkButtonLabel(null);
+        setWorkButtonLabelFromSegments(); // zet label terug op "Start werktijd"
         return;
     }
+
+    // login
     currentUser = user;
     authDiv && (authDiv.style.display = "none");
     appDiv && (appDiv.style.display = "block");
 
-    // Topbar-knop volgen (alleen "vandaag")
-    const todayISO = fmtDateISO(new Date());
-    const todayRefId = `${currentUser.uid}_${todayISO}`;
-    onSnapshot(doc(db, "timelogs", todayRefId), (snap) => {
-        todayLog = snap.exists() ? (snap.data() || {}) : null;
-        if (todayLog) todayLog.__stillToday = true;
-        setWorkButtonLabel(todayLog);
-    });
+    // start stream nu pas
+    startSegmentsStream();
 
-    // Indien op tijdspagina: data stream voor zichtbare maand
-    if (root) {
-        initTimePage();
-    }
+    // tijdspagina init (monthPicker etc.)
+    if (root) initTimePage();
 });
+
 
 /* ──────────────────────────────────────────────────────────────
    Tijdspagina
