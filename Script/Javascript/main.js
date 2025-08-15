@@ -301,9 +301,8 @@ function parseCategory(txt) {
 
 function renderAll() {
   renderPostits();
-  if (allTasksPanel && allTasksPanel.style.display === "block") {
-    buildAllTasksTable(allTasksSearch.value);
-  }
+  renderAllTasksTable();
+}
 }
 
 function renderPostits() {
@@ -376,39 +375,79 @@ function buildTaskRow(todo) {
 }
 
 
-function buildAllTasksTable(filterText = "") {
-  if (!allTasksTable) return;
-  const ft = (filterText || "").toLowerCase();
+function renderAllTasksTable() {
+  const table = document.getElementById("allTasksTable");
+  if (!table) return;
 
-  const rows = todos
-    .filter(t => {
-      const blob = [
-        t.title, t.description, t.link, t.priority, t.startDate, t.endDate
-      ].map(x => String(x || "")).join(" ").toLowerCase();
-      return !ft || blob.includes(ft);
-    })
-    .map(t => {
-      const cat = categories.find(c => c.id === t.categoryId);
-      return `
-        <tr>
-          <td>${escapeHtml(t.title || "")}</td>
-          <td>${cat ? escapeHtml(cat.name) : "-"}</td>
-          <td>${t.priority ?? "-"}</td>
-          <td>${t.startDate ? formatDate(t.startDate) : "-"}</td>
-          <td>${t.endDate ? formatDate(t.endDate) : "-"}</td>
-          <td>${t.done ? "✔️" : ""}</td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  allTasksTable.innerHTML = `
-    <table class="alltasks-table unified">
-      <thead><tr><th>Taak</th><th>Categorie</th><th>Prio</th><th>Start</th><th>Eind</th><th>Klaar</th></tr></thead>
-      <tbody>${rows || "<tr><td colspan='6'><em>Geen taken</em></td></tr>"}</tbody>
-    </table>
+  // Header met prio eerst en 'Voltooid'
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="prio-cell">Prio</th>
+        <th>Taak</th>
+        <th>Start</th>
+        <th>Deadline</th>
+        <th>Voltooid</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
   `;
+  const tbody = table.querySelector("tbody");
+
+  const q = (document.getElementById("allTasksSearch")?.value || "").toLowerCase();
+
+  // categorie lookup
+  const catById = Object.fromEntries(categories.map(c => [c.id, c]));
+
+  // filter op zoekterm (titel of omschrijving)
+  const filtered = todos.filter(t => {
+    const hay = ((t.title || "") + " " + (t.description || "")).toLowerCase();
+    return q ? hay.includes(q) : true;
+  });
+
+  // groepeer per categorienaam (fallback)
+  const groups = new Map();
+  for (const t of filtered) {
+    const catName = catById[t.categoryId]?.name || "— Geen categorie —";
+    if (!groups.has(catName)) groups.set(catName, []);
+    groups.get(catName).push(t);
+  }
+
+  // sorteer groepen alfabetisch; in groep: prio aflopend, daarna deadline oplopend
+  const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
+  for (const g of groupNames) {
+    const trGroup = document.createElement("tr");
+    trGroup.className = "group-row";
+    trGroup.innerHTML = `<td colspan="5">${g}</td>`;
+    tbody.appendChild(trGroup);
+
+    const items = groups.get(g)
+      .slice()
+      .sort((a, b) => (b.priority || 0) - (a.priority || 0) || dateVal(a.endDate) - dateVal(b.endDate));
+
+    for (const t of items) {
+      const tr = document.createElement("tr");
+      tr.className = "task-tr";
+      tr.dataset.id = t.id;
+
+      const completedAt = t.completedAt ? formatDate(t.completedAt) : (t.done ? "✓" : "");
+
+      tr.innerHTML = `
+        <td class="prio-cell"><span class="prio-dot" style="--dot:${prioColor(t.priority)}"></span></td>
+        <td>${escapeHtml(t.title || "(zonder titel)")}</td>
+        <td>${t.startDate ? formatDate(t.startDate) : ""}</td>
+        <td>${t.endDate ? formatDate(t.endDate) : ""}</td>
+        <td>${t.done ? completedAt : ""}</td>
+      `;
+      tr.addEventListener("click", () => {
+        const todo = todos.find(x => x.id === t.id);
+        openTaskModal("edit", todo);
+      });
+      tbody.appendChild(tr);
+    }
+  }
 }
+
 
 window.showPostit = function (category, items) {
   document.getElementById("modal-postit-title").textContent = category.name || "Post-it";
@@ -557,23 +596,37 @@ function bindTaskToggleDone() {
     // lees huidige taak uit lokale lijst
     const t = todos.find(x => x.id === editingTaskId);
     const newVal = !(t?.done);
-    await updateDoc(doc(db, "todos", editingTaskId), { done: newVal, updatedAt: new Date() });
+    await updateDoc(doc(db, "todos", editingTaskId), {
+      done: newVal,
+      completedAt: newVal ? new Date() : null,
+      updatedAt: new Date()
     // tekst wisselen
     btn.textContent = newVal ? "Heropenen" : "Voltooien";
-    Modal.close('modal-task'); // sluit; de post-its verversen via onSnapshot
-    editingTaskId = null;
-  });
-}
+      Modal.close('modal-task'); // sluit; de post-its verversen via onSnapshot
+      editingTaskId = null;
+    });
+  }
 
 // Koppel alles zowel bij DOM ready als zodra partials geladen zijn
 function wireTaskModal() {
-  if (typeof fillBothCategoryLists === "function") fillBothCategoryLists();
-  bindNewTaskButton();
-  bindTaskDocOpen();
-  bindTaskSave();
-  bindTaskDelete();
-  bindTaskToggleDone();
-}
+      if (typeof fillBothCategoryLists === "function") fillBothCategoryLists();
+      bindNewTaskButton();
+      bindTaskDocOpen();
+      bindTaskSave();
+      bindTaskDelete();
+      bindTaskToggleDone();
+    }
 document.addEventListener("DOMContentLoaded", wireTaskModal);
-document.addEventListener("partials:loaded", wireTaskModal);
+  document.addEventListener("partials:loaded", wireTaskModal);
+
+  function tsToDate(x) {
+    if (!x) return null;
+    if (x instanceof Date) return x;
+    if (typeof x === "string") return new Date(x);
+    if (typeof x === "number") return new Date(x);
+    if (x.seconds) return new Date(x.seconds * 1000); // Firestore Timestamp
+    return null;
+  }
+  function dateVal(x) { const d = tsToDate(x); return d ? d.getTime() : Number.POSITIVE_INFINITY; }
+
 

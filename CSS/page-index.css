@@ -111,85 +111,64 @@
   border-color: rgba(255, 255, 255, .35);
 }
 
-/* “Alle taken” tabel */
-.alltasks-group {
-  margin: .6rem 0;
-}
-
-.alltasks-group h4 {
-  margin: .6rem 0 .4rem;
-  font-size: 1rem;
-  opacity: .85;
-}
-
-.alltasks-table {
+/* ===== Alle taken — tabelstijl, prio-bolletje & groepskop ===== */
+#allTasksTable {
   width: 100%;
   border-collapse: collapse;
 }
 
-.alltasks-table th,
-.alltasks-table td {
-  text-align: left;
-  padding: .45rem .5rem;
-  border-bottom: 1px solid var(--border);
-  font-size: .95rem;
+#allTasksTable th,
+#allTasksTable td {
+  padding: .55rem .6rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
 }
 
-.alltasks-table tbody tr:hover {
-  background: rgba(0, 0, 0, .05);
+:root[data-theme="dark"] #allTasksTable th,
+:root[data-theme="dark"] #allTasksTable td {
+  border-bottom-color: rgba(255, 255, 255, .14);
+}
+
+#allTasksTable th {
+  text-align: left;
+  font-weight: 700;
+}
+
+#allTasksTable .group-row td {
+  padding: .9rem .6rem .4rem;
+  font-weight: 800;
+  border-bottom-color: transparent;
+  background: transparent;
+}
+
+#allTasksTable .task-tr {
   cursor: pointer;
 }
 
-:root[data-theme="dark"] .alltasks-table tbody tr:hover {
+#allTasksTable .task-tr:hover {
+  background: rgba(2, 132, 199, .08);
+}
+
+:root[data-theme="dark"] #allTasksTable .task-tr:hover {
   background: rgba(255, 255, 255, .06);
 }
 
-/* unified table met vaste kolombreedtes */
-.alltasks-table.unified {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
+#allTasksTable .prio-cell {
+  width: 36px;
 }
 
-.alltasks-table.unified thead th {
-  text-align: left;
-  padding: .5rem .6rem;
-  border-bottom: 1px solid var(--border);
+#allTasksTable .prio-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--dot, #9ca3af);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .12);
 }
 
-.alltasks-table.unified tbody td {
-  padding: .45rem .6rem;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
+:root[data-theme="dark"] #allTasksTable .prio-dot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .20);
 }
 
-.alltasks-table .col-prio {
-  width: 64px;
-}
-
-.alltasks-table .col-date {
-  width: 140px;
-}
-
-.alltasks-table .col-done {
-  width: 180px;
-}
-
-.alltasks-table .col-task {
-  width: auto;
-}
-
-/* categorie scheidingsrij */
-.alltasks-table .group-row td {
-  padding: .55rem .6rem;
-  font-weight: 700;
-  background: rgba(0, 0, 0, .05);
-  border-bottom: 1px solid var(--border);
-}
-
-:root[data-theme="dark"] .alltasks-table .group-row td {
-  background: rgba(255, 255, 255, .06);
-}
 
 /* “ghost” knop */
 button.ghost {
