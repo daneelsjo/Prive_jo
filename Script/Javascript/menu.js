@@ -37,9 +37,9 @@
                 { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }
             ],
             tijd: [
-                { emoji: "📌", title: "Post-its", path: "../index.html" },
-                { emoji: "📝", title: "Notities", path: "notes.html" },
-                { emoji: "⚙️", title: "Instellingen", path: "settings.html" }
+                { emoji: "📌", title: "Post-its", path: "index.html" },
+                { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
+                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }
             ]
         })[page] || [];
 
