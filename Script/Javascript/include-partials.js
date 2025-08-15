@@ -5,24 +5,7 @@
  * - Zet favicon centraal (werkt zowel op root als in /HTML/)
  */
 (() => {
-    const FAVICON_PATH = "IMG/JD_Web_Solutions.ico";
 
-    // Voeg favicon zo vroeg mogelijk toe (voorkomt extra 404's)
-    (function ensureEarlyFavicon() {
-        try {
-            const href = new URL(FAVICON_PATH, document.baseURI).href;
-            const head = document.head || document.getElementsByTagName("head")[0];
-            // verwijder bestaande
-            head.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(el => el.remove());
-            const link = document.createElement("link");
-            link.rel = "icon";
-            link.type = "image/x-icon";
-            link.href = href;
-            head.appendChild(link);
-        } catch (e) {
-            console.warn("[partials] favicon niet kunnen instellen:", e);
-        }
-    })();
 
     async function loadPartials() {
         const hosts = Array.from(document.querySelectorAll("[data-include]"));
