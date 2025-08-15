@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Import tijdsregistraties</title>
+    <title>Import tijdsregistraties (segmenten)</title>
     <link rel="stylesheet" href="../CSS/main.css" />
     <link rel="stylesheet" href="../CSS/components-menu.css" />
     <link rel="stylesheet" href="../CSS/components-sidemenu.css" />
@@ -24,14 +24,19 @@
 
 <body class="import-page">
     <div data-include="../partials/header.html"></div>
+
     <main class="page">
         <section class="card">
             <h2>Importeer tijdsregistraties (CSV of plakken)</h2>
             <p class="muted">
-                Ondersteunde kolommen (hoofdletterongevoelig): <b>datum</b>, <b>type</b>, <b>start</b>, <b>start
-                    pauze</b>, <b>einde pauze</b>, <b>einde</b>, <b>opmerking</b>.
-                Datums: <code>yyyy-mm-dd</code> of <code>dd/mm/yyyy</code>. Tijden: <code>HH:mm</code> of
-                <code>HHuMM</code> (bv. 15u36).
+                Elke rij = <b>1 segment</b> in Firestore (<code>timelogSegments</code>). Zo kan je meerdere blokken per
+                dag importeren.<br />
+                Kolommen (hoofdletterongevoelig): <b>datum</b>, <b>type</b>, <b>start</b>, <b>start pauze</b>, <b>einde
+                    pauze</b>, <b>einde</b>, <b>opmerking</b>.<br />
+                Datum: <code>yyyy-mm-dd</code> of <code>dd/mm/yyyy</code>. Tijd: <code>HH:mm</code>, <code>HHuMM</code>
+                (bv. 15u36) of <code>HH</code> (dan :00).<br />
+                Types: <code>standaard/standard</code>, <code>sport</code>, <code>feestdag</code>, <code>recup</code>,
+                <code>verlof</code>, <code>oefening</code>, <code>andere</code>.
             </p>
 
             <div class="import-grid">
@@ -40,9 +45,13 @@
                         <input type="file" id="csvFile" accept=".csv,text/csv" />
                         CSV-bestand kiezen
                     </label>
+
                     <label>Of plak CSV/Excel (gescheiden door ; of ,):</label>
-                    <textarea id="csvText"
-                        placeholder="datum;type;start;start pauze;einde pauze;einde;opmerking&#10;2025-08-01;standaard;07:00;12:00;12:30;15:36;..."></textarea>
+                    <textarea id="csvText" placeholder="datum;type;start;start pauze;einde pauze;einde;opmerking
+2025-08-01;standaard;07:00;12:00;12:30;15:36;
+2025-08-01;sport;;;;;Sport 15:00 – 17:00
+2025-08-01;recup;14:30;;;15:30;Recup weekend
+"></textarea>
 
                     <div class="row">
                         <label><input type="checkbox" id="hasHeader" checked /> Eerste rij is header</label>
@@ -56,6 +65,7 @@
                         <span>Geldig: <b id="statOk">0</b></span>
                         <span>Fouten: <b id="statErr">0</b></span>
                     </div>
+
                     <div class="table-wrap">
                         <table class="preview">
                             <thead>
@@ -74,8 +84,10 @@
                             <tbody id="previewBody"></tbody>
                         </table>
                     </div>
+
                     <div class="row">
-                        <button id="btnImport" class="success" disabled>Importeer geldige rijen</button>
+                        <button id="btnImport" class="success" disabled>Importeer geldige rijen →
+                            timelogSegments</button>
                         <div class="muted" id="importProgress"></div>
                     </div>
                 </div>

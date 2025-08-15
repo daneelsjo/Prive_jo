@@ -1,12 +1,14 @@
 import {
     getFirebaseApp,
     getAuth, onAuthStateChanged,
-    getFirestore, doc, setDoc
+    getFirestore, collection, addDoc
 } from "./firebase-config.js";
 
 const app = getFirebaseApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+const SEG_COL = "timelogSegments";
 
 let currentUser = null;
 
@@ -29,10 +31,8 @@ const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDat
 function parseDate(s) {
     if (!s) return null;
     s = s.trim();
-    // yyyy-mm-dd
     const m1 = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
     if (m1) return new Date(Number(m1[1]), Number(m1[2]) - 1, Number(m1[3]));
-    // dd/mm/yyyy of dd-mm-yyyy
     const m2 = /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/.exec(s);
     if (m2) return new Date(Number(m2[3]), Number(m2[2]) - 1, Number(m2[1]));
     return null;
@@ -42,7 +42,6 @@ function normTimeString(s) {
     if (!s) return null;
     s = String(s).trim();
     if (!s) return null;
-    // "15u36" or "15u" -> "15:36" / "15:00"
     if (/^\d{1,2}u\d{0,2}$/i.test(s)) {
         const [h, mm] = s.toLowerCase().split("u");
         return `${pad2(Number(h))}:${pad2(mm ? Number(mm) : 0)}`;
@@ -54,10 +53,11 @@ function normTimeString(s) {
 
 function hmToMin(hm) { if (!hm) return null; const [h, m] = hm.split(":").map(Number); return h * 60 + m; }
 
+// Let op: minutes wordt gewoon berekend; of het meetelt in totalen beslist de UI.
+// Sport is vaak 0 min in opslag (optioneel), maar dit maakt niet uit: de UI rekent live.
 function computeMinutes({ type, start, beginbreak, endbreak, end }) {
-    // sport telt niet mee; rest wel (feestdag krijgt default tijden elders)
-    if (String(type).toLowerCase() === "sport") return 0;
-    const s = hmToMin(start), e = hmToMin(end);
+    let s = hmToMin(start), e = hmToMin(end);
+    if (String(type).toLowerCase() === "feestdag" && (!s || !e)) { s = hmToMin("07:00"); e = hmToMin("15:36"); }
     if (s == null || e == null) return 0;
     let total = e - s;
     const bs = hmToMin(beginbreak), be = hmToMin(endbreak);
@@ -68,18 +68,18 @@ function computeMinutes({ type, start, beginbreak, endbreak, end }) {
 function normalizeType(t) {
     t = (t || "standaard").toString().trim().toLowerCase();
     const map = {
-        standaard: "standard", standaardt: "standard", standard: "standard",
+        standaard: "standard", standard: "standard",
         sport: "sport", feestdag: "feestdag", recup: "recup",
-        verlof: "verlof", oefening: "oefening", andere: "andere"
+        verlof: "verlof", oefening: "oefening", andere: "andere",
+        // vaak gebruikt in excel:
+        overuren: "andere"  // importeer als 'andere' (eventueel opmerking aanvullen)
     };
     return map[t] || "standard";
 }
 
 function splitCSV(raw) {
-    // detecteer delimiter ; of ,
     const firstLine = raw.split(/\r?\n/).find(l => l.trim().length);
     const delim = (firstLine && firstLine.includes(";")) ? ";" : ",";
-    // eenvoudige split (geen quotes met delimiters binnenin) — voor gewone CSV/Excel export prima
     return raw
         .split(/\r?\n/)
         .map(line => line.split(delim).map(c => c.trim()))
@@ -93,8 +93,8 @@ function headerIndexMap(headerRow) {
         if (["datum", "date"].includes(k)) map.date = i;
         if (["type", "soort"].includes(k)) map.type = i;
         if (["start", "begin"].includes(k)) map.start = i;
-        if (["startpauze", "startpauze", "pauzestart", "startbreak"].includes(k)) map.beginbreak = i;
-        if (["eindepauze", "einde pauze", "pauzeeinde", "endbreak", "eindepauze"].includes(k)) map.endbreak = i;
+        if (["startpauze", "pauzestart", "startbreak", "startpause"].includes(k)) map.beginbreak = i;
+        if (["eindepauze", "pauzeeinde", "endbreak", "endpause"].includes(k)) map.endbreak = i;
         if (["einde", "stop"].includes(k)) map.end = i;
         if (["opmerking", "notes", "remark"].includes(k)) map.remark = i;
     });
@@ -102,7 +102,7 @@ function headerIndexMap(headerRow) {
 }
 
 // ─── Parsing + validatie ────────────────────────────────────────────────────
-let parsedRows = []; // {raw, doc, error}
+let parsedRows = []; // {idx, raw, doc, error}
 
 function parseAndValidate(raw) {
     parsedRows = [];
@@ -118,13 +118,14 @@ function parseAndValidate(raw) {
         map = headerIndexMap(rows[0]);
         startIdx = 1;
     } else {
-        // vaste posities: 0:datum 1:type 2:start 3:start pauze 4:einde pauze 5:einde 6:opmerking
         map = { date: 0, type: 1, start: 2, beginbreak: 3, endbreak: 4, end: 5, remark: 6 };
     }
 
     let ok = 0, err = 0;
     for (let i = startIdx; i < rows.length; i++) {
         const r = rows[i];
+        if (!r || !r.length) continue;
+
         const get = k => (map[k] != null ? r[map[k]] : "");
         let error = "";
 
@@ -136,11 +137,14 @@ function parseAndValidate(raw) {
         let beginbreak = normTimeString(get("beginbreak"));
         let endbreak = normTimeString(get("endbreak"));
         let end = normTimeString(get("end"));
-        const remark = (get("remark") || "");
+        let remark = (get("remark") || "");
 
-        // Defaults/regels
+        // regels per type
         if (type === "feestdag" && !start && !end) { start = "07:00"; end = "15:36"; }
-        if (type !== "sport") {
+        if (type === "sport") {
+            if (!remark.trim()) error = error || "Opmerking verplicht bij Sport";
+            if (start && end && hmToMin(end) <= hmToMin(start)) error = error || "Einde vóór/== Start";
+        } else {
             if (!start || !end) error = error || "Start/Einde verplicht";
             if (start && end && hmToMin(end) <= hmToMin(start)) error = error || "Einde vóór/== Start";
             const onePause = (!!beginbreak) ^ (!!endbreak);
@@ -149,23 +153,27 @@ function parseAndValidate(raw) {
                 const s = hmToMin(start), bs = hmToMin(beginbreak), be = hmToMin(endbreak), e = hmToMin(end);
                 if (!(s <= bs && bs < be && be <= e)) error = error || "Pauze buiten werktijd";
             }
-        } else {
-            if (!remark.trim()) error = error || "Opmerking verplicht bij Sport";
-            if (start && end && hmToMin(end) <= hmToMin(start)) error = error || "Einde vóór/== Start";
         }
 
         const dateISO = d ? toISO(d) : null;
-        const minutes = (!error) ? computeMinutes({ type, start, beginbreak, end }) : 0;
+        const minutes = (!error) ? computeMinutes({ type, start, beginbreak, endbreak, end }) : 0;
+
+        // kleine hulp: als bron "overuren" was, zet dat in remark indien nog leeg
+        if ((get("type") || "").toString().trim().toLowerCase() === "overuren" && !remark) {
+            remark = "Overuren";
+        }
 
         const docObj = {
-            date: dateISO, type, start: start || null,
+            date: dateISO, type,
+            start: start || null,
             beginbreak: beginbreak || null, endbreak: endbreak || null,
             end: end || null, remark: remark || null,
             minutes
         };
 
         parsedRows.push({ idx: i + 1, raw: r, doc: docObj, error });
-        // render preview row
+
+        // preview row
         const tr = document.createElement("tr");
         tr.className = error ? "error" : "ok";
         tr.innerHTML = `
@@ -204,25 +212,31 @@ btnParse?.addEventListener("click", () => {
 
 btnImport?.addEventListener("click", async () => {
     if (!currentUser) { importProgress.textContent = "Login vereist."; return; }
-    const total = parsedRows.filter(r => !r.error).length;
+    const validRows = parsedRows.filter(r => !r.error);
+    const total = validRows.length;
     if (!total) return;
 
     btnImport.disabled = true;
-    importProgress.textContent = `Start import van ${total} rijen…`;
+    importProgress.textContent = `Start import van ${total} segmenten…`;
 
     let done = 0, failed = 0;
-    // Sequential to stay simple & safe
-    for (const row of parsedRows) {
-        if (row.error) continue;
+
+    for (const row of validRows) {
         try {
-            const id = `${currentUser.uid}_${row.doc.date}`;
-            await setDoc(doc(db, "timelogs", id), { uid: currentUser.uid, ...row.doc }, { merge: true });
+            // elk record = 1 segmentdocument (auto-ID)
+            await addDoc(collection(db, SEG_COL), {
+                uid: currentUser.uid,
+                ...row.doc,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            });
             done++;
         } catch (e) {
             failed++;
         }
         importProgress.textContent = `Geïmporteerd: ${done}/${total}${failed ? `, fouten: ${failed}` : ""}`;
     }
+
     importProgress.textContent = `Klaar. Geïmporteerd: ${done}/${total}${failed ? `, fouten: ${failed}` : ""}`;
     btnImport.disabled = false;
 });
@@ -230,6 +244,5 @@ btnImport?.addEventListener("click", async () => {
 // ─── Auth ──────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, (user) => {
     currentUser = user || null;
-    // als je niet ingelogd bent, kan je wel valideren maar niet importeren
     if (!user) importProgress.textContent = "Niet ingelogd: importeren is uitgeschakeld.";
 });
