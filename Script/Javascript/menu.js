@@ -17,7 +17,8 @@
         const el = document.getElementById("quickLinks");
         if (!el) return;
         const page = currentPage();
-        const linksByPage = {
+
+        const links = ({
             index: [
                 { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
                 { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
@@ -38,18 +39,20 @@
                 { emoji: "📝", title: "Notities", path: "notes.html" },
                 { emoji: "⚙️", title: "Instellingen", path: "settings.html" }
             ]
-        };
-        [page] || [];
+        })[page] || [];
+
         el.innerHTML = "";
-        linksByPage.forEach(l => {
+        links.forEach(l => {
             const a = document.createElement("a");
             a.href = prefixPath(l.path);
             a.className = "icon-btn header-link";
-            a.title = l.title; a.setAttribute("aria-label", l.title);
+            a.title = l.title;
+            a.setAttribute("aria-label", l.title);
             a.textContent = l.emoji;
             el.appendChild(a);
         });
     }
+
 
     // ── Drawer control ───────────────────────────────────────────────────────────
     function ensureDrawerBase(drawer, bd) {

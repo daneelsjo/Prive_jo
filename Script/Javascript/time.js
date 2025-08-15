@@ -101,7 +101,7 @@ function ensureHeaderButton() {
     btn.title = "Tijdsregistratie";
 
     btn.addEventListener("click", onWorkButtonClick);
-    host.appendChild(btn);
+    host.prepend(btn);
 }
 
 function setWorkButtonLabel(entry) {
