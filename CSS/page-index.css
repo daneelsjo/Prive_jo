@@ -17,13 +17,7 @@
 }
 
 /* Als de tabel open staat: maak de layout één kolom en verberg rightcol */
-.page-index.alltasks-open .page {
-  grid-template-columns: 1fr;
-}
 
-.page-index.alltasks-open .rightcol {
-  display: none;
-}
 
 @media (max-width:1200px) {
   .page-index .page {
@@ -160,7 +154,7 @@
 }
 
 .page-index #allTasksTable .prio-cell {
-  width: 46px;
+  width: 64px;
 }
 
 .page-index #allTasksTable .group-row td {
@@ -168,6 +162,7 @@
   font-weight: 800;
   background: transparent;
   border-bottom-color: transparent;
+  text-align: center;
 }
 
 .page-index #allTasksTable .task-tr {

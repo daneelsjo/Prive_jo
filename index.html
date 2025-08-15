@@ -20,60 +20,57 @@
 
   <!-- APP -->
   <div id="app" style="display:none;">
-    <div class="page">
-      <main class="content">
-        <!-- Werk/Privé icon-toggle -->
-        <div class="mode-toggle">
-          <input type="checkbox" id="modeSwitch" aria-label="Schakel tussen werk en privé" />
-          <label for="modeSwitch" class="switch icon-only">
-            <span class="knob"></span>
-            <span class="icon icon-work" title="Werk">🧰</span>
-            <span class="icon icon-prive" title="Privé">🏠</span>
-          </label>
-        </div>
-
-        <div class="workspace">
-          <div id="postits" class="postits-row"></div>
-        </div>
-
-        <!-- ALLE TAKEN -->
-        <div class="alltasks-container card">
-          <div class="alltasks-header">
-            <button id="toggleAllTasks" class="primary">📁 ALLE TAKEN</button>
-            <input id="allTasksSearch" class="alltasks-search" type="search"
-              placeholder="Zoek op naam, datum, prio, tekst…" style="display:none;" />
+    <<!-- PAGE -->
+      <div class="page">
+        <main class="content">
+          <!-- Werk/Privé toggle -->
+          <div class="mode-toggle">
+            <input type="checkbox" id="modeSwitch" aria-label="Schakel tussen werk en privé" />
+            <label for="modeSwitch" class="switch icon-only">
+              <span class="knob"></span>
+              <span class="icon icon-work" title="Werk">🧰</span>
+              <span class="icon icon-prive" title="Privé">🏠</span>
+            </label>
           </div>
 
-        </div>
-        <!-- DIRECT kind van .page, als sibling van .content en .rightcol -->
+          <div class="workspace">
+            <div id="postits" class="postits-row"></div>
+          </div>
+        </main>
+
+        <aside class="rightcol">
+          <div class="alltasks-container card">
+            <div class="alltasks-header">
+              <button id="toggleAllTasks" class="primary">📁 ALLE TAKEN</button>
+              <input id="allTasksSearch" class="alltasks-search" type="search"
+                placeholder="Zoek op naam, datum, prio, tekst…" style="display:none;">
+            </div>
+          </div>
+
+          <button id="newTaskBtn" class="primary">＋ NIEUW</button>
+
+          <!-- Overige taken -->
+          <div id="uncategorized" class="card">
+            <h3>📌 Overige taken</h3>
+            <div id="uncategorized-list"></div>
+          </div>
+        </aside>
+
+        <!-- Brede tabel: DIRECT kind van .page (sibling van main & aside) -->
         <section id="allTasksPanel" class="card" hidden>
           <table id="allTasksTable"></table>
         </section>
-
-    </div>
-    </main>
-
-    <aside class="rightcol">
-      <button id="newTaskBtn" class="primary">＋ NIEUW</button>
-
-
-      <!-- Overige taken -->
-      <div id="uncategorized" class="card">
-        <h3>📌 Overige taken</h3>
-        <div id="uncategorized-list"></div>
       </div>
-    </aside>
-  </div>
-  </div>
 
-  <!-- Modals -->
-  <div data-include="partials/modals.html"></div>
-  <script type="module" src="Script/Javascript/modal.js"></script>
 
-  <!-- Scripts -->
-  <script src="Script/Javascript/include-partials.js"></script>
-  <script src="Script/Javascript/menu.js"></script>
-  <script type="module" src="Script/Javascript/main.js"></script>
+      <!-- Modals -->
+      <div data-include="partials/modals.html"></div>
+      <script type="module" src="Script/Javascript/modal.js"></script>
+
+      <!-- Scripts -->
+      <script src="Script/Javascript/include-partials.js"></script>
+      <script src="Script/Javascript/menu.js"></script>
+      <script type="module" src="Script/Javascript/main.js"></script>
 </body>
 
 </html>
