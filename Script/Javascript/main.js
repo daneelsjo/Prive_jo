@@ -8,17 +8,17 @@ import {
   query, where
 } from "./firebase-config.js";
 
-// ───────────────────────────────────────────────────────────────────────────────
-// Firebase init
-// ───────────────────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────────────────────
+   Firebase init
+   ──────────────────────────────────────────────────────────────────────────── */
 const app = getFirebaseApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// ───────────────────────────────────────────────────────────────────────────────
-// DOM refs
-// ───────────────────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────────────────────
+   DOM refs
+   ──────────────────────────────────────────────────────────────────────────── */
 const loginBtn = document.getElementById("login-btn");
 const authDiv = document.getElementById("auth");
 const appDiv = document.getElementById("app");
@@ -34,15 +34,12 @@ const allTasksPanel = document.getElementById("allTasksPanel");
 const allTasksSearch = document.getElementById("allTasksSearch");
 const allTasksTable = document.getElementById("allTasksTable");
 
-const datalist = document.getElementById("categoryList");
 const categoryInput = document.getElementById("category");
 let editingTaskId = null; // huidige bewerk-id (null = nieuwe taak)
 
-
-// ───────────────────────────────────────────────────────────────────────────────
-// thema modus
-// ───────────────────────────────────────────────────────────────────────────────
-
+/* ────────────────────────────────────────────────────────────────────────────
+   Thema modus
+   ──────────────────────────────────────────────────────────────────────────── */
 function applyTheme(mode) {
   let final = mode;
   if (!final || final === "system") {
@@ -50,11 +47,11 @@ function applyTheme(mode) {
   }
   document.documentElement.setAttribute("data-theme", final);
 }
-// zet alvast iets vóór login
 applyTheme("system");
 
-
-
+/* ────────────────────────────────────────────────────────────────────────────
+   Helpers
+   ──────────────────────────────────────────────────────────────────────────── */
 function bindOnce(el, ev, fn) {
   if (!el) return;
   const key = `__bound_${ev}`;
@@ -63,37 +60,56 @@ function bindOnce(el, ev, fn) {
   el[key] = true;
 }
 
-// Open de taakmodal en reset velden
-function openTaskModal(mode = "create", task = null) {
-  const isEdit = mode === "edit" && task;
+function tsToDate(x) {
+  if (!x) return null;
+  if (x instanceof Date) return x;
+  if (typeof x === "string") return new Date(x);
+  if (typeof x === "number") return new Date(x);
+  if (x.seconds) return new Date(x.seconds * 1000); // Firestore Timestamp
+  return null;
+}
+function dateVal(x) { const d = tsToDate(x); return d ? d.getTime() : Number.POSITIVE_INFINITY; }
+function formatDate(v) { const d = tsToDate(v); return d ? d.toLocaleDateString("nl-BE") : ""; }
 
-  // velden vullen
-  document.getElementById("task-title").value = isEdit ? (task.title || "") : "";
-  document.getElementById("task-start").value = isEdit && task.startDate ? new Date(task.startDate.seconds ? task.startDate.seconds * 1000 : task.startDate).toISOString().slice(0, 10) : "";
-  document.getElementById("task-end").value = isEdit && task.endDate ? new Date(task.endDate.seconds ? task.endDate.seconds * 1000 : task.endDate).toISOString().slice(0, 10) : "";
-  document.getElementById("task-priority").value = isEdit ? String(task.priority ?? 0) : "0";
-  document.getElementById("task-category-input").value = isEdit && task.categoryId
-    ? (() => { const c = categories.find(x => x.id === task.categoryId); return c ? `${c.name} (${c.type})` : ""; })()
-    : "";
-  document.getElementById("task-desc").value = isEdit ? (task.description || "") : "";
-  document.getElementById("task-link").value = isEdit ? (task.link || "") : "";
-
-  // knoppen tonen/verbergen
-  const delBtn = document.getElementById("task-delete");
-  const doneBtn = document.getElementById("task-toggle-done");
-  delBtn.style.display = isEdit ? "inline-flex" : "none";
-  doneBtn.style.display = isEdit ? "inline-flex" : "none";
-  if (isEdit) {
-    doneBtn.textContent = task.done ? "Heropenen" : "Voltooien";
-  }
-
-  editingTaskId = isEdit ? task.id : null;
-
-  Modal.open("modal-task");
+function getContrast(hex) {
+  const r = parseInt(hex.substr(1, 2), 16);
+  const g = parseInt(hex.substr(3, 2), 16);
+  const b = parseInt(hex.substr(5, 2), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#000" : "#fff";
+}
+function escapeHtml(s = "") {
+  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function prioColor(p = 0) {
+  // 0=grijs, 1=groen, 2=amber, 3=rood
+  const map = { 0: "#9ca3af", 1: "#22c55e", 2: "#f59e0b", 3: "#ef4444" };
+  return map[p] || map[0];
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Data (runtime state)
+   ──────────────────────────────────────────────────────────────────────────── */
+let currentUser = null;
 
+let settings = {
+  modeSlots: { werk: Array(6).fill({}), prive: Array(6).fill({}) },
+  preferredMode: "werk",
+};
+let currentMode = "werk";
 
+let categories = []; // {id,name,type,color,active}
+let todos = []; // {id,title,done,categoryId,uid,createdAt,...}
+
+const fixedColors = [
+  "#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63",
+  "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688",
+  "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"
+];
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Modal helpers
+   ──────────────────────────────────────────────────────────────────────────── */
 function fillBothCategoryLists() {
   const fill = (el) => {
     if (!el) return;
@@ -108,36 +124,59 @@ function fillBothCategoryLists() {
   fill(document.getElementById("task-category-list"));  // modal datalist
 }
 
+function parseCategory(txt) {
+  // verwacht "Naam (werk)" of "Naam (prive)"
+  const m = txt.match(/^\s*(.+?)\s*\((werk|prive)\)\s*$/i);
+  if (!m) return null;
+  return { name: m[1].toLowerCase(), type: m[2].toLowerCase() };
+}
 
-// ───────────────────────────────────────────────────────────────────────────────
-// Data
-// ───────────────────────────────────────────────────────────────────────────────
-let currentUser = null;
+// Open de taakmodal (create of edit)
+function openTaskModal(mode = "create", task = null) {
+  const isEdit = mode === "edit" && task;
 
-let settings = {
-  modeSlots: { werk: Array(6).fill({}), prive: Array(6).fill({}) },
-  preferredMode: "werk",
-};
-let currentMode = "werk";
+  // velden vullen
+  document.getElementById("task-title").value = isEdit ? (task.title || "") : "";
+  document.getElementById("task-start").value = isEdit && task.startDate ? formatDateForInput(task.startDate) : "";
+  document.getElementById("task-end").value = isEdit && task.endDate ? formatDateForInput(task.endDate) : "";
+  document.getElementById("task-priority").value = isEdit ? String(task.priority ?? 0) : "0";
+  document.getElementById("task-category-input").value = isEdit && task.categoryId
+    ? (() => { const c = categories.find(x => x.id === task.categoryId); return c ? `${c.name} (${c.type})` : ""; })()
+    : "";
+  document.getElementById("task-desc").value = isEdit ? (task.description || "") : "";
+  document.getElementById("task-link").value = isEdit ? (task.link || "") : "";
 
-let categories = []; // {id,name,type,color,active}
-let todos = [];      // {id,title,done,categoryId,uid,createdAt,...}
+  // knoppen tonen/verbergen
+  const delBtn = document.getElementById("task-delete");
+  const doneBtn = document.getElementById("task-toggle-done");
+  if (delBtn) delBtn.style.display = isEdit ? "inline-flex" : "none";
+  if (doneBtn) {
+    doneBtn.style.display = isEdit ? "inline-flex" : "none";
+    if (isEdit) doneBtn.textContent = task.done ? "Heropenen" : "Voltooien";
+  }
 
-const fixedColors = [
-  "#FFEB3B", "#F44336", "#4CAF50", "#2196F3", "#E91E63",
-  "#9C27B0", "#673AB7", "#3F51B5", "#00BCD4", "#009688",
-  "#8BC34A", "#CDDC39", "#FFC107", "#FF9800", "#795548"
-];
+  editingTaskId = isEdit ? task.id : null;
+  Modal.open("modal-task");
+}
+function formatDateForInput(v) {
+  const d = tsToDate(v);
+  return d ? new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10) : "";
+}
 
-// ───────────────────────────────────────────────────────────────────────────────
-// Auth
-// ───────────────────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────────────────────
+   Auth
+   ──────────────────────────────────────────────────────────────────────────── */
 if (loginBtn) {
   loginBtn.onclick = () => signInWithPopup(auth, provider);
 }
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) return;
+  if (!user) {
+    currentUser = null;
+    if (appDiv) appDiv.style.display = "none";
+    if (authDiv) authDiv.style.display = "block";
+    return;
+  }
 
   currentUser = user;
   if (authDiv) authDiv.style.display = "none";
@@ -160,30 +199,26 @@ onAuthStateChanged(auth, async (user) => {
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(c => c.active !== false);
     fillBothCategoryLists();
-
     renderAll();
   });
 
-  // todos (alleen eigen items lezen)
-  const qTodos = query(
-    collection(db, "todos"),
-    where("uid", "==", currentUser.uid)
-  );
+  // todos (alleen eigen items)
+  const qTodos = query(collection(db, "todos"), where("uid", "==", currentUser.uid));
   onSnapshot(qTodos, (snap) => {
     todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    // client-side sort op createdAt
+    // sorteer op createdAt
     todos.sort((a, b) => {
-      const ta = a.createdAt ? (a.createdAt.seconds ? a.createdAt.seconds * 1000 : +new Date(a.createdAt)) : 0;
-      const tb = b.createdAt ? (b.createdAt.seconds ? b.createdAt.seconds * 1000 : +new Date(b.createdAt)) : 0;
+      const ta = a.createdAt ? dateVal(a.createdAt) : 0;
+      const tb = b.createdAt ? dateVal(b.createdAt) : 0;
       return ta - tb;
     });
     renderAll();
   });
 });
 
-// ───────────────────────────────────────────────────────────────────────────────
-// UI handlers
-// ───────────────────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────────────────────
+   UI handlers
+   ──────────────────────────────────────────────────────────────────────────── */
 if (modeSwitch) {
   modeSwitch.onchange = async () => {
     currentMode = modeSwitch.checked ? "prive" : "werk";
@@ -194,59 +229,20 @@ if (modeSwitch) {
   };
 }
 
-
-
-// NIEUW knop → open modal
-newTaskBtn && (newTaskBtn.onclick = () => openTaskModal());
-
-// Opslaan in modal
-const taskSaveBtn = document.getElementById("task-save");
-taskSaveBtn && (taskSaveBtn.onclick = async () => {
-  const title = (document.getElementById("task-title").value || "").trim();
-  const start = document.getElementById("task-start").value;
-  const end = document.getElementById("task-end").value;
-  const prio = parseInt(document.getElementById("task-priority").value || "0", 10);
-  const catTxt = (document.getElementById("task-category-input").value || "").trim();
-  const desc = (document.getElementById("task-desc").value || "").trim();
-  const link = (document.getElementById("task-link").value || "").trim();
-
-  if (!title) { Modal.alert({ title: "Taak", html: "Geef een taaknaam op." }); return; }
-
-  const catMatch = parseCategory(catTxt);
-  const catDoc = catMatch
-    ? categories.find(c => c.name.toLowerCase() === catMatch.name && c.type === catMatch.type)
-    : null;
-
-  await addDoc(collection(db, "todos"), {
-    title,
-    description: desc,
-    link,
-    startDate: start ? new Date(start) : null,
-    endDate: end ? new Date(end) : null,
-    priority: prio,
-    categoryId: catDoc?.id || null,
-    uid: currentUser?.uid || null,          // belangrijk voor security rules
-    createdAt: new Date(),
-    done: false
-  });
-
-  Modal.close('modal-task'); // klaar
-});
-
-
+// rechterpaneel togglen
 if (toggleAllTasks) {
   toggleAllTasks.onclick = () => {
     const open = allTasksPanel.style.display !== "block";
     allTasksPanel.style.display = open ? "block" : "none";
     allTasksSearch.style.display = open ? "inline-block" : "none";
-    if (open) buildAllTasksTable();
+    if (open) renderAllTasksTable();
   };
 }
-
 if (allTasksSearch) {
-  allTasksSearch.oninput = () => buildAllTasksTable(allTasksSearch.value);
+  allTasksSearch.oninput = () => renderAllTasksTable();
 }
 
+/* Oud formulier (optioneel) intact laten */
 if (addTodoBtn) {
   addTodoBtn.onclick = async () => {
     const title = (document.getElementById("name").value || "").trim();
@@ -265,19 +261,17 @@ if (addTodoBtn) {
       : null;
 
     await addDoc(collection(db, "todos"), {
-      title,
-      description: desc,
-      link,
+      title, description: desc, link,
       startDate: start ? new Date(start) : null,
       endDate: end ? new Date(end) : null,
       priority: prio,
       categoryId: catDoc?.id || null,
-      uid: currentUser?.uid || null, // ← belangrijk voor security rules
+      uid: currentUser?.uid || null,
       createdAt: new Date(),
       done: false
     });
 
-    // reset form
+    // reset
     document.getElementById("name").value = "";
     document.getElementById("start").value = "";
     document.getElementById("end").value = "";
@@ -289,20 +283,12 @@ if (addTodoBtn) {
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────────────
-// Rendering
-// ───────────────────────────────────────────────────────────────────────────────
-function parseCategory(txt) {
-  // verwacht "Naam (werk)" of "Naam (prive)"
-  const m = txt.match(/^\s*(.+?)\s*\((werk|prive)\)\s*$/i);
-  if (!m) return null;
-  return { name: m[1].toLowerCase(), type: m[2].toLowerCase() };
-}
-
+/* ────────────────────────────────────────────────────────────────────────────
+   Rendering
+   ──────────────────────────────────────────────────────────────────────────── */
 function renderAll() {
   renderPostits();
   renderAllTasksTable();
-}
 }
 
 function renderPostits() {
@@ -311,13 +297,13 @@ function renderPostits() {
 
   const slots = (settings.modeSlots?.[currentMode] || Array(6).fill({})).slice(0, 6);
 
-  // groepeer todos per categorie
+  // groepeer todos per categorie, voltooid overslaan
   const byCat = {};
   todos.forEach(t => {
-    if (t.done) return; // ✅ voltooid niet tonen
+    if (t.done) return;
     const cid = t.categoryId || "_none";
     (byCat[cid] ||= []).push(t);
-  });;
+  });
 
   for (let i = 0; i < 6; i++) {
     const slot = slots[i] || {};
@@ -351,12 +337,6 @@ function renderPostits() {
   }
 }
 
-function prioColor(p = 0) {
-  // 0=grijs, 1=groen, 2=amber, 3=rood
-  const map = { 0: "#9ca3af", 1: "#22c55e", 2: "#f59e0b", 3: "#ef4444" };
-  return map[p] || map[0];
-}
-
 function buildTaskRow(todo) {
   const row = document.createElement("div");
   row.className = "task-row";
@@ -374,12 +354,10 @@ function buildTaskRow(todo) {
   return row;
 }
 
-
 function renderAllTasksTable() {
   const table = document.getElementById("allTasksTable");
   if (!table) return;
 
-  // Header met prio eerst en 'Voltooid'
   table.innerHTML = `
     <thead>
       <tr>
@@ -393,19 +371,14 @@ function renderAllTasksTable() {
     <tbody></tbody>
   `;
   const tbody = table.querySelector("tbody");
-
   const q = (document.getElementById("allTasksSearch")?.value || "").toLowerCase();
 
-  // categorie lookup
   const catById = Object.fromEntries(categories.map(c => [c.id, c]));
-
-  // filter op zoekterm (titel of omschrijving)
   const filtered = todos.filter(t => {
     const hay = ((t.title || "") + " " + (t.description || "")).toLowerCase();
     return q ? hay.includes(q) : true;
   });
 
-  // groepeer per categorienaam (fallback)
   const groups = new Map();
   for (const t of filtered) {
     const catName = catById[t.categoryId]?.name || "— Geen categorie —";
@@ -413,7 +386,6 @@ function renderAllTasksTable() {
     groups.get(catName).push(t);
   }
 
-  // sorteer groepen alfabetisch; in groep: prio aflopend, daarna deadline oplopend
   const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
   for (const g of groupNames) {
     const trGroup = document.createElement("tr");
@@ -441,14 +413,16 @@ function renderAllTasksTable() {
       `;
       tr.addEventListener("click", () => {
         const todo = todos.find(x => x.id === t.id);
-        openTaskModal("edit", todo);
+        if (todo) openTaskModal("edit", todo);
       });
       tbody.appendChild(tr);
     }
   }
 }
 
-
+/* ────────────────────────────────────────────────────────────────────────────
+   Window helpers
+   ──────────────────────────────────────────────────────────────────────────── */
 window.showPostit = function (category, items) {
   document.getElementById("modal-postit-title").textContent = category.name || "Post-it";
   const body = document.getElementById("modal-postit-body");
@@ -467,33 +441,14 @@ window.showPostit = function (category, items) {
   Modal.open("modal-postit");
 };
 
-// ───────────────────────────────────────────────────────────────────────────────
-// Utils
-// ───────────────────────────────────────────────────────────────────────────────
-function getContrast(hex) {
-  const r = parseInt(hex.substr(1, 2), 16);
-  const g = parseInt(hex.substr(3, 2), 16);
-  const b = parseInt(hex.substr(5, 2), 16);
-  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 128 ? "#000" : "#fff";
-}
-function escapeHtml(s = "") {
-  return s.replace(/[&<>"']/g, c => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  }[c]));
-}
-function formatDate(v) {
-  const d = new Date(v.seconds ? v.seconds * 1000 : v);
-  return d.toLocaleDateString();
-}
-
-// Nieuw-knop → modal
+/* ────────────────────────────────────────────────────────────────────────────
+   Modal binds (nieuw, opslaan, verwijderen, voltooien)
+   ──────────────────────────────────────────────────────────────────────────── */
 function bindNewTaskButton() {
   const btn = document.getElementById("newTaskBtn");
   bindOnce(btn, "click", (e) => {
     e.preventDefault();
-    if (!document.getElementById('modal-task')) {
-      // modal nog niet in DOM? éénmalig wachten op partials
+    if (!document.getElementById("modal-task")) {
       document.addEventListener("partials:loaded", () => openTaskModal(), { once: true });
       return;
     }
@@ -501,24 +456,18 @@ function bindNewTaskButton() {
   });
 }
 
-// koppel zowel op DOMContentLoaded als wanneer partials klaar zijn
-document.addEventListener("DOMContentLoaded", bindNewTaskButton);
-document.addEventListener("partials:loaded", bindNewTaskButton);
-
-// “Open” naast Document-veld
 function bindTaskDocOpen() {
-  const btn = document.getElementById('task-link-open');
+  const btn = document.getElementById("task-link-open");
   bindOnce(btn, "click", () => {
-    const raw = (document.getElementById('task-link').value || '').trim();
+    const raw = (document.getElementById("task-link").value || "").trim();
     if (!raw) return;
     const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-    window.open(url, '_blank', 'noopener');
+    window.open(url, "_blank", "noopener");
   });
 }
 
-// Opslaan in Firestore
 function bindTaskSave() {
-  const save = document.getElementById('task-save');
+  const save = document.getElementById("task-save");
   bindOnce(save, "click", async () => {
     const title = (document.getElementById("task-title").value || "").trim();
     const start = document.getElementById("task-start").value;
@@ -540,11 +489,8 @@ function bindTaskSave() {
       save.disabled = true;
 
       if (editingTaskId) {
-        // UPDATE
         await updateDoc(doc(db, "todos", editingTaskId), {
-          title,
-          description: desc,
-          link,
+          title, description: desc, link,
           startDate: start ? new Date(start) : null,
           endDate: end ? new Date(end) : null,
           priority: prio,
@@ -552,11 +498,8 @@ function bindTaskSave() {
           updatedAt: new Date(),
         });
       } else {
-        // CREATE
         await addDoc(collection(db, "todos"), {
-          title,
-          description: desc,
-          link,
+          title, description: desc, link,
           startDate: start ? new Date(start) : null,
           endDate: end ? new Date(end) : null,
           priority: prio,
@@ -567,7 +510,7 @@ function bindTaskSave() {
         });
       }
 
-      Modal.close('modal-task');
+      Modal.close("modal-task");
       editingTaskId = null;
     } catch (err) {
       console.error(err);
@@ -579,54 +522,40 @@ function bindTaskSave() {
 }
 
 function bindTaskDelete() {
-  const del = document.getElementById('task-delete');
+  const del = document.getElementById("task-delete");
   bindOnce(del, "click", async () => {
     if (!editingTaskId) return;
     if (!confirm("Taak verwijderen?")) return;
     await deleteDoc(doc(db, "todos", editingTaskId));
-    Modal.close('modal-task');
+    Modal.close("modal-task");
     editingTaskId = null;
   });
 }
 
 function bindTaskToggleDone() {
-  const btn = document.getElementById('task-toggle-done');
+  const btn = document.getElementById("task-toggle-done");
   bindOnce(btn, "click", async () => {
     if (!editingTaskId) return;
-    // lees huidige taak uit lokale lijst
     const t = todos.find(x => x.id === editingTaskId);
     const newVal = !(t?.done);
     await updateDoc(doc(db, "todos", editingTaskId), {
       done: newVal,
       completedAt: newVal ? new Date() : null,
       updatedAt: new Date()
-    // tekst wisselen
-    btn.textContent = newVal ? "Heropenen" : "Voltooien";
-      Modal.close('modal-task'); // sluit; de post-its verversen via onSnapshot
-      editingTaskId = null;
     });
-  }
+    btn.textContent = newVal ? "Heropenen" : "Voltooien";
+    Modal.close("modal-task");
+    editingTaskId = null;
+  });
+}
 
-// Koppel alles zowel bij DOM ready als zodra partials geladen zijn
 function wireTaskModal() {
-      if (typeof fillBothCategoryLists === "function") fillBothCategoryLists();
-      bindNewTaskButton();
-      bindTaskDocOpen();
-      bindTaskSave();
-      bindTaskDelete();
-      bindTaskToggleDone();
-    }
+  if (typeof fillBothCategoryLists === "function") fillBothCategoryLists();
+  bindNewTaskButton();
+  bindTaskDocOpen();
+  bindTaskSave();
+  bindTaskDelete();
+  bindTaskToggleDone();
+}
 document.addEventListener("DOMContentLoaded", wireTaskModal);
-  document.addEventListener("partials:loaded", wireTaskModal);
-
-  function tsToDate(x) {
-    if (!x) return null;
-    if (x instanceof Date) return x;
-    if (typeof x === "string") return new Date(x);
-    if (typeof x === "number") return new Date(x);
-    if (x.seconds) return new Date(x.seconds * 1000); // Firestore Timestamp
-    return null;
-  }
-  function dateVal(x) { const d = tsToDate(x); return d ? d.getTime() : Number.POSITIVE_INFINITY; }
-
-
+document.addEventListener("partials:loaded", wireTaskModal);
