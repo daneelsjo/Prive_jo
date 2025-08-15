@@ -719,3 +719,112 @@ button.ghost:hover {
 :root[data-theme="dark"] .postit .postit-head {
   border-bottom-color: rgba(255, 255, 255, .25);
 }
+
+/* ── Prachtige knoppen voor modals ────────────────────────────────────────── */
+:root {
+  --btn-radius: 12px;
+  --btn-pad-y: .58rem;
+  --btn-pad-x: 1.05rem;
+  --btn-font: 600;
+  --btn-shadow: 0 6px 14px rgba(0, 0, 0, .12);
+}
+
+.modal-footer button {
+  border: none;
+  border-radius: var(--btn-radius);
+  padding: var(--btn-pad-y) var(--btn-pad-x);
+  font-weight: var(--btn-font);
+  letter-spacing: .2px;
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .12s ease, background-color .12s ease, color .12s ease, border-color .12s ease;
+  box-shadow: var(--btn-shadow);
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.modal-footer button:hover {
+  transform: translateY(-1px);
+}
+
+.modal-footer button:active {
+  transform: translateY(0);
+}
+
+/* Primary (Opslaan) */
+.modal-footer .primary {
+  background: #2563eb;
+  color: #fff;
+}
+
+.modal-footer .primary:hover {
+  background: #1e52c9;
+}
+
+:root[data-theme="dark"] .modal-footer .primary {
+  background: #3b82f6;
+}
+
+:root[data-theme="dark"] .modal-footer .primary:hover {
+  background: #2767f2;
+}
+
+/* Accent (Voltooien / Heropenen) */
+.modal-footer .accent {
+  background: #16a34a;
+  color: #fff;
+}
+
+.modal-footer .accent:hover {
+  background: #12873e;
+}
+
+:root[data-theme="dark"] .modal-footer .accent {
+  background: #22c55e;
+}
+
+:root[data-theme="dark"] .modal-footer .accent:hover {
+  background: #1da153;
+}
+
+/* Danger (Verwijderen) */
+.modal-footer .danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.modal-footer .danger:hover {
+  background: #dc2626;
+}
+
+/* Ghost (Annuleren) */
+.modal-footer .ghost {
+  background: transparent;
+  border: 1px solid var(--border, #e5e7eb);
+  color: var(--fg, #111);
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .modal-footer .ghost {
+  border-color: rgba(255, 255, 255, .22);
+  color: #e5e7eb;
+}
+
+.modal-footer .ghost:hover {
+  background: rgba(2, 132, 199, .10);
+}
+
+/* Focus ring voor alle varianten */
+.modal-footer button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, .24),
+    var(--btn-shadow);
+}
+
+/* Beetje extra marge onder/zij (zoals je vroeg) en centreren */
+.modal-footer {
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 10px 12px;
+}
