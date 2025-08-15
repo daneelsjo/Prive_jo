@@ -75,16 +75,18 @@ function computeMinutes(entry) {
 }
 
 function rowClassByType(t) {
-    return {
+    const v = (t || "").toString().toLowerCase();
+    const map = {
         feestdag: "type-feestdag",
         sport: "type-sport",
         recup: "type-recup",
         verlof: "type-verlof",
         oefening: "type-oefening",
-        andere: "type-andere",
-        standard: ""
-    }[t || "standard"] || "";
+        andere: "type-andere"
+    };
+    return map[v] || "";
 }
+
 
 /* ──────────────────────────────────────────────────────────────
    Header-knop injecteren (globaal op elke pagina)
@@ -241,7 +243,9 @@ function renderTable() {
         if (entry) weekSum += minutes;
 
         const tr = document.createElement("tr");
-        if (entry?.type) tr.classList.add(rowClassByType(entry.type));
+        const cls = rowClassByType(entry?.type);
+        if (cls) tr.classList.add(cls);
+
         tr.dataset.date = dateISO;
 
         tr.innerHTML = `

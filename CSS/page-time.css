@@ -154,8 +154,9 @@
     grid-template-areas:
         "date  type"
         "start end"
-        "bstart bend"
-        "note  note";
+        "beginbreak endbreak"
+        "remark remark";
+    ;
 }
 
 #modal-time .fld-date {
@@ -174,18 +175,21 @@
     grid-area: end;
 }
 
-#modal-time .fld-bstart {
-    grid-area: bstart;
+#modal-time .fld-beginbreak {
+    grid-area: beginbreak;
 }
 
 #modal-time .fld-bend {
-    grid-area: bend;
+    grid-area: endbreak;
 }
 
+/* als je 'fld-bend' gebruikt */
+#modal-time .fld-remark,
 #modal-time .fld-note {
-    grid-area: note;
+    grid-area: remark;
 }
 
+/* <- beide varianten */
 #modal-time label {
     display: grid;
     gap: 6px;
