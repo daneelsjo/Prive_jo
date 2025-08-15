@@ -2,6 +2,7 @@
 .settings-page .page {
     grid-template-columns: 1fr;
     padding: 1rem;
+    align-items: center;
 }
 
 .settings-page .card {
