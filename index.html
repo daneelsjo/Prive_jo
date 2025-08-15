@@ -31,9 +31,7 @@
             <span class="icon icon-prive" title="Privé">🏠</span>
           </label>
         </div>
-        <!-- dit mag mogleijks weg
-        <button id="jumpAllTasks" class="ghost">⬇️ Alle taken</button>
--->
+
         <div class="workspace">
           <div id="postits" class="postits-row"></div>
         </div>
@@ -45,43 +43,27 @@
             <input id="allTasksSearch" class="alltasks-search" type="search"
               placeholder="Zoek op naam, datum, prio, tekst…" style="display:none;" />
           </div>
-          <div id="allTasksPanel" style="display:none;">
-            <div id="allTasksTable"></div>
-          </div>
-        </div>
-      </main>
 
-      <aside class="rightcol">
-        <button id="newTaskBtn" class="primary">＋ NIEUW</button>
+        </div>
+        <!-- DIRECT kind van .page, als sibling van .content en .rightcol -->
+        <section id="allTasksPanel" class="card" hidden>
+          <table id="allTasksTable"></table>
+        </section>
 
-        <!-- Nieuw taak formulier -->
-        <!-- Deze mag mogelijks weg
-        <div id="formContainer" class="card" style="display:none;">
-          <label>Taak:</label><input id="name" placeholder="Taaknaam" />
-          <label>Start datum:</label><input id="start" type="date" />
-          <label>Eind datum:</label><input id="end" type="date" />
-          <label>Prio:</label>
-          <select id="priority">
-            <option value="0">0 - Laag</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3 - Hoog</option>
-          </select>
-          <label>Categorie:</label>
-          <input id="category" list="categoryList" placeholder="bv. Algemeen (werk)" />
-          <datalist id="categoryList"></datalist>
-          <label>Omschrijving:</label><textarea id="description" placeholder="Omschrijving (optioneel)"></textarea>
-          <label>Document:</label><input id="link" placeholder="Link naar bestand (optioneel)" />
-          <button id="addTodo" class="primary">✔️ Toevoegen</button>
-        </div>
--->
-        <!-- Overige taken -->
-        <div id="uncategorized" class="card">
-          <h3>📌 Overige taken</h3>
-          <div id="uncategorized-list"></div>
-        </div>
-      </aside>
     </div>
+    </main>
+
+    <aside class="rightcol">
+      <button id="newTaskBtn" class="primary">＋ NIEUW</button>
+
+
+      <!-- Overige taken -->
+      <div id="uncategorized" class="card">
+        <h3>📌 Overige taken</h3>
+        <div id="uncategorized-list"></div>
+      </div>
+    </aside>
+  </div>
   </div>
 
   <!-- Modals -->

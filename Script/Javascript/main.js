@@ -232,11 +232,10 @@ if (modeSwitch) {
 // rechterpaneel togglen
 if (toggleAllTasks) {
   toggleAllTasks.onclick = () => {
-    const open = allTasksPanel.style.display !== "block";
-    allTasksPanel.style.display = open ? "block" : "none";
+    const open = allTasksPanel.hidden;          // was verborgen? dan openen
+    allTasksPanel.hidden = !open;
     allTasksSearch.style.display = open ? "inline-block" : "none";
-    document.body.classList.toggle("alltasks-open", open);   // << nieuw
-    renderAllTasksTable();
+    if (open) renderAllTasksTable();            // veilig, bouwt thead/tbody zelf
   };
 }
 
