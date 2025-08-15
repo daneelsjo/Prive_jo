@@ -40,14 +40,16 @@ let editingTaskId = null; // huidige bewerk-id (null = nieuwe taak)
 /* ────────────────────────────────────────────────────────────────────────────
    Thema modus
    ──────────────────────────────────────────────────────────────────────────── */
-function applyTheme(mode) {
-  let final = mode;
-  if (!final || final === "system") {
-    final = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+function resolveTheme(mode) {
+  if (!mode || mode === "system") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   }
+  return mode;
+}
+function applyTheme(mode) {
+  const final = resolveTheme(mode);
   document.documentElement.setAttribute("data-theme", final);
 }
-applyTheme("system");
 
 /* ────────────────────────────────────────────────────────────────────────────
    Helpers
@@ -185,6 +187,12 @@ onAuthStateChanged(auth, async (user) => {
   // settings
   onSnapshot(doc(db, "settings", currentUser.uid), (snap) => {
     settings = snap.exists() ? (snap.data() || {}) : {};
+
+    // thema toepassen + cachen
+    const themePref = settings.theme || "system";
+    applyTheme(themePref);
+    try { localStorage.setItem("theme_pref", themePref); } catch { }
+
     if (!settings.modeSlots) {
       settings.modeSlots = { werk: Array(6).fill({}), prive: Array(6).fill({}) };
     }
@@ -192,6 +200,7 @@ onAuthStateChanged(auth, async (user) => {
     if (modeSwitch) modeSwitch.checked = (currentMode === "prive");
     renderAll();
   });
+
 
   // categories
   onSnapshot(collection(db, "categories"), (snap) => {
