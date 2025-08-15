@@ -42,8 +42,7 @@
           <div class="alltasks-container card">
             <div class="alltasks-header">
               <button id="toggleAllTasks" class="primary">📁 ALLE TAKEN</button>
-              <input id="allTasksSearch" class="alltasks-search" type="search"
-                placeholder="Zoek op naam, datum, prio, tekst…" style="display:none;">
+
             </div>
           </div>
 
@@ -57,6 +56,8 @@
         </aside>
 
         <!-- Brede tabel: DIRECT kind van .page (sibling van main & aside) -->
+        <input id="allTasksSearch" class="alltasks-search" type="search" placeholder="Zoek op naam, datum, prio, tekst…"
+          style="display:none;">
         <section id="allTasksPanel" class="card" hidden>
           <table id="allTasksTable"></table>
         </section>
