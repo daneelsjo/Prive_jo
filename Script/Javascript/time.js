@@ -41,6 +41,8 @@ function minToDecimalComma(min, digits = 1) {
     const val = Math.abs(min) / 60;
     return val.toFixed(digits).replace(".", ",");
 }
+const WIN_START = 7 * 60;   // 07:00
+const WIN_END = 18 * 60;  // 18:00
 
 /* ──────────────────────────────────────────────────────────────
    Helpers
@@ -59,11 +61,41 @@ function isoWeek(d) {
     return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
 }
 function escapeHtml(s = "") { return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+function splitWorkIntervals(entry) {
+    // maakt 1 of 2 werkintervallen: [start, breakStart] en/of [breakEnd, end]
+    const s = hmToMin(entry?.start);
+    const e = hmToMin(entry?.end);
+    if (s == null || e == null || e <= s) return [];
+    const bs = hmToMin(entry?.beginbreak);
+    const be = hmToMin(entry?.endbreak);
+    if (bs != null && be != null && s <= bs && bs < be && be <= e) {
+        return [[s, bs], [be, e]];
+    }
+    return [[s, e]];
+}
+
+function overlapMinutes([a, b], wStart, wEnd) {
+    const lo = Math.max(a, wStart);
+    const hi = Math.min(b, wEnd);
+    return Math.max(0, hi - lo);
+}
+
+function computeInterventionSplit(entry) {
+    // netto minuten uitsplitsen: binnen 07:00–18:00 vs opt-out erbuiten
+    const intervals = splitWorkIntervals(entry);
+    if (!intervals.length) return { inside: 0, optout: 0 };
+    const total = intervals.reduce((sum, iv) => sum + (iv[1] - iv[0]), 0);
+    const inside = intervals.reduce((sum, iv) => sum + overlapMinutes(iv, WIN_START, WIN_END), 0);
+    const optout = Math.max(0, total - inside);
+    return { inside, optout };
+}
+
 function rowClassByType(t) {
     const v = (t || "").toLowerCase();
     const map = {
         feestdag: "type-feestdag", sport: "type-sport", recup: "type-recup",
-        verlof: "type-verlof", oefening: "type-oefening", andere: "type-andere"
+        verlof: "type-verlof", oefening: "type-oefening", andere: "type-andere", interventie: "type-interventie"
     };
     return map[v] || "";
 }
@@ -102,13 +134,15 @@ function ensureMonthMetaUI() {
     ensureChip("ovChip");    // Overuren & Andere (& Oefening)
     ensureChip("vlChip");    // Verlof
     ensureChip("rcChip");    // Recup
+    ensureChip("optoutChip"); // Opt-out
 }
 
-function updateMonthMeta(diffMin, overOtherMin, verlofMin, recupMin) {
+function updateMonthMeta(diffMin, overOtherMin, verlofMin, recupMin, optOutExcessMin) {
     const chip = document.getElementById("glideChip");
     const ov = document.getElementById("ovChip");
     const vl = document.getElementById("vlChip");
     const rc = document.getElementById("rcChip");
+    const oo = document.getElementById("optoutChip");
 
     // Glijtijd
     if (chip) {
@@ -122,7 +156,7 @@ function updateMonthMeta(diffMin, overOtherMin, verlofMin, recupMin) {
             : `te weinig aan glijtijd: ${absHM} (${absDec})`;
     }
 
-    // Overuren & Andere & Oefening
+    // Overuren & Andere & Oefening (alleen tonen als >0)
     if (ov) {
         if (overOtherMin > 0) {
             ov.style.display = "";
@@ -139,9 +173,7 @@ function updateMonthMeta(diffMin, overOtherMin, verlofMin, recupMin) {
             vl.style.display = "";
             vl.className = "pill verlof";
             vl.textContent = `Verlof: ${minToHM(verlofMin)} (${minToDecimalComma(verlofMin, 1)})`;
-        } else {
-            vl.style.display = "none";
-        }
+        } else vl.style.display = "none";
     }
 
     // Recup
@@ -150,8 +182,17 @@ function updateMonthMeta(diffMin, overOtherMin, verlofMin, recupMin) {
             rc.style.display = "";
             rc.className = "pill recup";
             rc.textContent = `Recup: ${minToHM(recupMin)} (${minToDecimalComma(recupMin, 1)})`;
+        } else rc.style.display = "none";
+    }
+
+    // Te veel aan Opt-out (som van excess per week)
+    if (oo) {
+        if (optOutExcessMin > 0) {
+            oo.style.display = "";
+            oo.className = "pill warn";
+            oo.textContent = `te veel aan opt-out: ${minToHM(optOutExcessMin)} (${minToDecimalComma(optOutExcessMin, 1)})`;
         } else {
-            rc.style.display = "none";
+            oo.style.display = "none";
         }
     }
 }
@@ -283,7 +324,7 @@ function renderTable() {
     timeTable.innerHTML = "";
     const last = new Date(Y, M, 0);
 
-    // groepeer per datum in deze maand
+    // groepeer per datum binnen de maand
     const byDate = new Map();
     monthSegments.forEach(s => {
         if (!s.date) return;
@@ -296,10 +337,13 @@ function renderTable() {
     let runningWeek = null, weekSum = 0, weekWorkdays = 0;
     let monthDiffTotal = 0;
 
-    // TOTAAL: Overuren & Andere & Oefening + Verlof + Recup in de maand
-    let overOtherTotal = 0;
+    // totals voor chips
+    let overOtherTotal = 0; // overuren + andere + oefening
     let verlofTotal = 0;
     let recupTotal = 0;
+    let weekOptOut = 0;    // opt-out per week
+    let optOutExcessTotal = 0; // som van max(0, weekOptOut - 10:00)
+
     monthSegments.forEach(s => {
         const dt = s.date ? new Date(s.date) : null;
         if (!dt || dt.getFullYear() !== Y || (dt.getMonth() + 1) !== M) return;
@@ -307,7 +351,7 @@ function renderTable() {
         const mins = computeMinutes(s);
         if (t === "verlof") verlofTotal += mins;
         if (t === "recup") recupTotal += mins;
-        if (t === "overuren" || t === "andere" || t === "oefening") overOtherTotal += mins; // 👈 oefening erbij
+        if (t === "overuren" || t === "andere" || t === "oefening") overOtherTotal += mins;
     });
 
     for (let day = 1; day <= last.getDate(); day++) {
@@ -316,29 +360,40 @@ function renderTable() {
         const segs = (byDate.get(dateISO) || [])
             .sort((a, b) => (hmToMin(a.start || "00:00") || 0) - (hmToMin(b.start || "00:00") || 0));
 
-        const dow = d.getDay(); // 0=zo .. 6=za
+        const dow = d.getDay(); // 0=zo..6=za
         const isWorkday = dow >= 1 && dow <= 5;
 
         const w = isoWeek(d);
         if (runningWeek !== null && w !== runningWeek) {
+            // sluit vorige week af
             const expected = weekWorkdays * DAILY_EXPECTED_MIN;
             const diff = weekSum - expected;
-            addWeekRow(runningWeek, weekSum, expected, diff);
+            addWeekRow(runningWeek, weekSum, expected, diff, weekOptOut);
             monthDiffTotal += diff;
-            weekSum = 0; weekWorkdays = 0;
+            optOutExcessTotal += Math.max(0, weekOptOut - (10 * 60)); // 10u per week toegestaan
+            // reset
+            weekSum = 0; weekWorkdays = 0; weekOptOut = 0;
         }
         runningWeek = w;
 
-        // dagtotaal (exclude sport, oefening, andere)
-        const dayMinutes = segs.reduce((sum, s) => {
-            const m = computeMinutes(s);
+        // dagtotaal: tel alles EXCL sport/oefening/andere,
+        // en voor interventie: alleen de binnen-venster minuten meerekenen
+        let dayMinutes = 0;
+        segs.forEach(s => {
             const t = (s.type || "").toLowerCase();
-            return sum + (t === "sport" || t === "oefening" || t === "andere" ? 0 : m);
-        }, 0);
+            if (t === "sport" || t === "oefening" || t === "andere") return;
+            if (t === "interventie") {
+                const { inside, optout } = computeInterventionSplit(s);
+                dayMinutes += inside;
+                weekOptOut += optout;
+            } else {
+                dayMinutes += computeMinutes(s);
+            }
+        });
         weekSum += dayMinutes;
         if (isWorkday) weekWorkdays++;
 
-        // header + toggle + plus
+        // datum header (altijd dicht) + knoppen
         const hdr = document.createElement("tr");
         hdr.className = "date-header";
         hdr.innerHTML = `
@@ -347,7 +402,7 @@ function renderTable() {
           <div class="left">${weekdayShort(d)} ${day}</div>
           <div class="right">
             <span class="muted">${dayMinutes ? minToHM(dayMinutes) : ""}</span>
-            <button class="icon-xs toggle" data-date="${dateISO}" aria-expanded="true" title="In-/uitklappen">▼</button>
+            <button class="icon-xs toggle" data-date="${dateISO}" aria-expanded="false" title="In-/uitklappen">▶</button>
             <button class="icon-xs add" data-date="${dateISO}" title="Nieuw segment">+</button>
           </div>
         </div>
@@ -356,9 +411,11 @@ function renderTable() {
 
         const toggleBtn = hdr.querySelector(".toggle");
         const addBtn = hdr.querySelector(".add");
-
-        // 👇 ALTIJD standaard dicht
-        let collapsed = true;
+        let collapsed = true; // standaard dicht
+        const setToggleUI = (btn, col) => {
+            btn.textContent = col ? "▶" : "▼";
+            btn.setAttribute("aria-expanded", String(!col));
+        };
         setToggleUI(toggleBtn, collapsed);
 
         toggleBtn.addEventListener("click", (e) => {
@@ -369,11 +426,7 @@ function renderTable() {
                 tr.style.display = collapsed ? "none" : "";
             });
         });
-
-        addBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            openTimeModal({ date: dateISO });
-        });
+        addBtn.addEventListener("click", (e) => { e.stopPropagation(); openTimeModal({ date: dateISO }); });
 
         // segment-rijen
         segs.forEach(seg => {
@@ -382,7 +435,7 @@ function renderTable() {
             tr.classList.add("seg-row");
             const cls = rowClassByType(seg.type);
             if (cls) tr.classList.add(cls);
-            tr.style.display = collapsed ? "none" : "";
+            tr.style.display = "none"; // start dicht
 
             tr.innerHTML = `
         <td></td>
@@ -398,22 +451,19 @@ function renderTable() {
         });
     }
 
+    // laatste week afsluiten
     if (runningWeek !== null) {
         const expected = weekWorkdays * DAILY_EXPECTED_MIN;
         const diff = weekSum - expected;
-        addWeekRow(runningWeek, weekSum, expected, diff);
+        addWeekRow(runningWeek, weekSum, expected, diff, weekOptOut);
         monthDiffTotal += diff;
+        optOutExcessTotal += Math.max(0, weekOptOut - (10 * 60));
     }
 
-    // update chips bovenaan (incl. kommagetal)
-    updateMonthMeta(monthDiffTotal, overOtherTotal, verlofTotal, recupTotal);
+    // update alle chips (incl. te veel aan opt-out)
+    updateMonthMeta(monthDiffTotal, overOtherTotal, verlofTotal, recupTotal, optOutExcessTotal);
 
-    function setToggleUI(btn, collapsed) {
-        btn.textContent = collapsed ? "▶" : "▼";
-        btn.setAttribute("aria-expanded", String(!collapsed));
-    }
-
-    function addWeekRow(weekNo, workedMin, expectedMin, diffMin) {
+    function addWeekRow(weekNo, workedMin, expectedMin, diffMin, optOutMin) {
         const tr = document.createElement("tr");
         tr.className = "week-total";
         const diffClass = diffMin >= 0 ? "diff pos" : "diff neg";
@@ -422,10 +472,12 @@ function renderTable() {
       <td colspan="7">
         Week ${weekNo} totaal: ${minToHM(workedMin)} / ${minToHM(expectedMin)}
         <span class="${diffClass}">(${diffMin >= 0 ? "+" : "-"}${diffText})</span>
+        | opt-out: ${minToHM(optOutMin)} (${minToDecimalComma(optOutMin, 1)})
       </td>`;
         timeTable.appendChild(tr);
     }
 }
+
 
 
 
