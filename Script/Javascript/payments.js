@@ -4,9 +4,8 @@ import {
   // Auth
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
   // Firestore
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc, serverTimestamp, query, where, orderBy
+  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, getDocs, updateDoc, serverTimestamp, query, where, orderBy
 } from "./firebase-config.js";
-import { getDocs } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 
 const app = getFirebaseApp();
 const db = getFirestore(app);
@@ -82,18 +81,18 @@ onAuthStateChanged(auth, async (user) => {
   appDiv && (appDiv.style.display = "block");
 
   // Streams
-  onSnapshot(query(collection(db, "bills"), where("uid", "==", user.uid), orderBy("createdAt", "desc")), snap => {
+  onSnapshot(query(collection(db, "bills"), orderBy("createdAt", "desc")), snap => {
     bills = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderBills();
   });
 
-  onSnapshot(query(collection(db, "incomes"), where("uid", "==", user.uid)), snap => {
+  onSnapshot(query(collection(db, "incomes")), snap => {
     const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     incomes = all.filter(x => x.month === selectedMonth);
     renderSidebar();
   });
 
-  onSnapshot(query(collection(db, "fixedCosts"), where("uid", "==", user.uid)), snap => {
+  onSnapshot(query(collection(db, "fixedCosts")), snap => {
     fixedCosts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderSidebar();
   });
@@ -492,7 +491,7 @@ const historyBtn = document.getElementById("historyBtn");
 historyBtn && (historyBtn.onclick = async () => {
   const body = document.getElementById("historyBody");
   body.innerHTML = "";
-  const snap = await getDocs(query(collection(db, "transactions"), where("uid", "==", currentUser?.uid || ""), orderBy("at", "desc")));
+  const snap = await getDocs(query(collection(db, "transactions"), orderBy("at", "desc")));
   const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   for (const tx of txs.slice(0, 200)) {
     // look up bill + instalment index (optional)
