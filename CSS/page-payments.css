@@ -314,3 +314,7 @@ tr.expander-row td {
 .toolbar .title-stack .open-sum strong {
   font-size: 1.1rem;
 }
+
+.bills-table td button.ghost {
+  padding: .2rem .45rem;
+}

@@ -157,11 +157,21 @@ function renderBills() {
     }
 
     const tdAct = document.createElement("td");
-    const btn = document.createElement("button");
-    btn.className = "primary";
-    btn.textContent = "Reeds betaald";
-    btn.onclick = (e) => { e.stopPropagation(); settleAsFull(b.id); };
-    tdAct.appendChild(btn);
+
+    const btnPaid = document.createElement("button");
+    btnPaid.className = "ghost";
+    btnPaid.title = "Markeer volledig als betaald";
+    btnPaid.textContent = "V";
+    btnPaid.onclick = (e) => { e.stopPropagation(); settleAsFull(b.id); };
+
+    const btnEdit = document.createElement("button");
+    btnEdit.className = "ghost";
+    btnEdit.title = "Wijzig rekening";
+    btnEdit.textContent = "✎";
+    btnEdit.style.marginLeft = ".35rem";
+    btnEdit.onclick = (e) => { e.stopPropagation(); openBillModal(b.id); };
+
+    tdAct.append(btnPaid, btnEdit);
 
     const tdSel = document.createElement("td");
     tdSel.style.textAlign = "center";
@@ -362,7 +372,7 @@ newBillBtn && (newBillBtn.onclick = () => {
   openBillModal();
 });
 
-function openBillModal() {
+function openBillModal(billId = null) {
   // reset inputs
   const iban = document.getElementById("bill-iban");
   const ben = document.getElementById("bill-beneficiary");
@@ -385,6 +395,23 @@ function openBillModal() {
   perPart.textContent = euro(0);
   lastHint.textContent = "";
 
+  // Edit-mode: velden vooraf vullen
+  let editId = billId;
+  if (editId) {
+    const b = bills.find(x => x.id === editId);
+    if (b) {
+      iban.value = b.iban || "";
+      ben.value = b.beneficiary || "";
+      comm.value = b.communication || "";
+      desc.value = b.description || "";
+      amount.value = Number(b.amountTotal || 0);
+      due.value = b.dueDate || "";
+      inparts.checked = !!b.inParts;
+      parts.value = Math.max(2, parseInt(b.partsCount || 2, 10));
+      partsWrap.hidden = !inparts.checked;
+    }
+  }
+
   function recalc() {
     const tot = clamp2(amount.value);
     if (!inparts.checked || !tot || !Number(parts.value)) { info.style.display = "none"; return; }
@@ -395,7 +422,6 @@ function openBillModal() {
     lastHint.textContent = last !== raw ? ` (laatste betaling: ${euro(last)})` : "";
     info.style.display = "block";
   }
-
   inparts.onchange = () => { partsWrap.hidden = !inparts.checked; recalc(); };
   amount.oninput = recalc;
   parts.oninput = recalc;
@@ -411,15 +437,13 @@ function openBillModal() {
       dueDate: (due.value || null),
       inParts: !!inparts.checked,
       partsCount: inparts.checked ? Math.max(2, parseInt(parts.value, 10) || 2) : 1,
-      createdAt: serverTimestamp(),
-      paidAmount: 0
+      createdAt: serverTimestamp(), // alleen voor nieuw; edit overschrijft niet
+      paidAmount: bills.find(x => x.id === editId)?.paidAmount || 0
     };
     if (!payload.beneficiary || !payload.amountTotal) {
       Modal.alert({ title: "Ontbrekende velden", html: "Vul minstens begunstigde en bedrag in." });
       return;
     }
-
-    // compute part amounts for preview + persistence
     if (payload.inParts) {
       const per = clamp2(payload.amountTotal / payload.partsCount);
       const last = clamp2(payload.amountTotal - per * (payload.partsCount - 1));
@@ -428,17 +452,39 @@ function openBillModal() {
     }
 
     try {
-      const ref = await addDoc(collection(db, "bills"), payload);
-      // create instalments
-      const count = payload.partsCount || 1;
-      const per = payload.inParts ? (payload.partAmount || 0) : payload.amountTotal;
-      for (let i = 1; i <= count; i++) {
-        const amt = payload.inParts ? (i === count ? payload.lastPartAmount : per) : per;
-        await addDoc(collection(db, `bills/${ref.id}/instalments`), {
-          index: i, amount: amt, status: "open", paidAt: null, createdAt: serverTimestamp()
-        });
+      if (editId) {
+        // UPDATE rekening
+        await updateDoc(doc(db, "bills", editId), payload);
+
+        // Open delen herverdelen (betaalde delen blijven onaangeroerd)
+        const psnap = await getDocs(collection(db, `bills/${editId}/instalments`));
+        const all = psnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const paid = all.filter(x => x.status === "paid");
+        const open = all.filter(x => x.status !== "paid").sort((a, b) => (a.index || 0) - (b.index || 0));
+
+        const remainingTotal = clamp2(Number(payload.amountTotal || 0) - paid.reduce((s, x) => s + Number(x.amount || 0), 0));
+        if (open.length) {
+          const even = clamp2(remainingTotal / open.length);
+          for (let i = 0; i < open.length; i++) {
+            const amt = (i === open.length - 1) ? clamp2(remainingTotal - even * (open.length - 1)) : even;
+            await updateDoc(doc(db, `bills/${editId}/instalments/${open[i].id}`), { amount: amt });
+          }
+        }
+
+        Modal.close("modal-bill");
+      } else {
+        // NIEUWE rekening
+        const ref = await addDoc(collection(db, "bills"), payload);
+        const count = payload.partsCount || 1;
+        const per = payload.inParts ? (payload.partAmount || 0) : payload.amountTotal;
+        for (let i = 1; i <= count; i++) {
+          const amt = payload.inParts ? (i === count ? payload.lastPartAmount : per) : per;
+          await addDoc(collection(db, `bills/${ref.id}/instalments`), {
+            index: i, amount: amt, status: "open", paidAt: null, createdAt: serverTimestamp()
+          });
+        }
+        Modal.close("modal-bill");
       }
-      Modal.close("modal-bill");
     } catch (e) {
       console.error(e);
       Modal.alert({ title: "Opslaan mislukt", html: "Kon de rekening niet opslaan." });
@@ -447,6 +493,7 @@ function openBillModal() {
 
   Modal.open("modal-bill");
 }
+
 
 /* ──────────────────────────────────────────────────────────────
    Modals: Inkomsten
@@ -787,32 +834,59 @@ async function fetchOpenInstalments(billId) {
 
 async function toggleExpander(billId, forceOpen) {
   const label = `[payments] toggleExpander ${billId}`;
-  console.debug(label, "called with forceOpen:", forceOpen);
   const exp = document.getElementById(`exp-${billId}`);
   if (!exp) { console.warn(label, "expander element not found"); return; }
-  const open = exp.classList.contains("open");
-  if (forceOpen === true && open) { /*no-op*/ }
-  else if (forceOpen === false && !open) { /*no-op*/ }
+
+  const isOpen = exp.classList.contains("open");
+  if (forceOpen === true && isOpen) { /*no-op*/ }
+  else if (forceOpen === false && !isOpen) { /*no-op*/ }
   else { exp.classList.toggle("open"); }
-  if (!exp.classList.contains("open")) { console.debug(label, "closing expander"); return; }
+  if (!exp.classList.contains("open")) return;
 
   exp.innerHTML = `<div class="muted">Laden…</div>`;
 
   try {
     const items = await fetchOpenInstalments(billId);
-    if (!items.length) {
-      exp.innerHTML = `<div class="muted">Geen openstaande delen gevonden voor deze rekening.<br><small>Tip: controleer subcollectie <code>instalments</code> en veld <code>status: "open"</code>.</small></div>`;
-      console.debug(label, "no open parts");
-      return;
-    }
+    if (!items.length) { exp.innerHTML = `<div class="muted">Geen openstaande delen.</div>`; return; }
 
     const list = document.createElement("div");
     list.className = "list";
+
     items.forEach(it => {
       const key = `${billId}::${it.id}`;
-      const row = document.createElement("label");
+      const row = document.createElement("div");
       row.className = "row";
-      row.innerHTML = `<div><input type="checkbox" value="${it.id}" ${selected.has(key) ? 'checked' : ''} style="margin-right:.5rem;">Deel ${it.index}</div><strong>${euro(it.amount)}</strong>`;
+
+      const left = document.createElement("div");
+      left.innerHTML = `<label style="display:inline-flex;align-items:center;gap:.5rem;"><input type="checkbox" value="${it.id}" ${selected.has(key) ? 'checked' : ''}> Deel ${it.index}</label>`;
+
+      const right = document.createElement("div");
+      right.style.display = "flex";
+      right.style.gap = ".4rem";
+      right.style.alignItems = "center";
+
+      const amt = document.createElement("strong");
+      amt.textContent = euro(it.amount);
+
+      const edit = document.createElement("button");
+      edit.className = "ghost";
+      edit.title = "Bedrag van dit deel aanpassen";
+      edit.textContent = "✎";
+      edit.onclick = async () => {
+        const val = prompt(`Nieuw bedrag voor deel ${it.index} (huidig ${euro(it.amount)})`, String(it.amount));
+        if (val === null || val === "") return;
+        const newAmt = clamp2(val);
+        try {
+          await rebalanceAfterPartEdit(billId, it.id, newAmt);
+          amt.textContent = euro(newAmt);
+        } catch (e) {
+          console.error("Rebalance failed:", e);
+          Modal.alert && Modal.alert({ title: "Oeps", html: "Kon de bedragen niet herrekenen. Zie console." });
+        }
+      };
+
+      right.append(amt, edit);
+      row.append(left, right);
       list.appendChild(row);
     });
 
@@ -844,9 +918,48 @@ async function toggleExpander(billId, forceOpen) {
     exp.innerHTML = "";
     exp.appendChild(list);
     exp.appendChild(actions);
-    console.debug(label, "rendered", items.length, "parts");
   } catch (e) {
     console.error(label, "failed to load parts:", e);
     exp.innerHTML = `<div class="muted">Kon delen niet laden. Zie console voor details.</div>`;
   }
+}
+
+/**
+ * Na aanpassen van één deel (open) wordt het bedrag van dat deel gezet
+ * en de overige OPEN delen evenredig herverdeeld zodat het totaal weer klopt.
+ * Betaalde delen blijven onaangeroerd. paidAmount blijft ongewijzigd.
+ */
+async function rebalanceAfterPartEdit(billId, editedPartId, newAmt) {
+  const label = `[payments] rebalance ${billId} -> ${editedPartId} = ${newAmt}`;
+  console.debug(label);
+  if (Number.isNaN(Number(newAmt)) || Number(newAmt) < 0) throw new Error("Invalid amount");
+
+  const bSnap = await getDoc(doc(db, "bills", billId));
+  if (!bSnap.exists()) throw new Error("Bill not found");
+  const bill = { id: billId, ...bSnap.data() };
+
+  const snap = await getDocs(collection(db, `bills/${billId}/instalments`));
+  const parts = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.index || 0) - (b.index || 0));
+  const paid = parts.filter(p => p.status === "paid");
+  const open = parts.filter(p => p.status !== "paid");
+
+  const edited = open.find(p => p.id === editedPartId);
+  if (!edited) throw new Error("Edited part not open/not found");
+
+  const paidSum = paid.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const remainingBudget = clamp2(Number(bill.amountTotal || 0) - paidSum - Number(newAmt || 0));
+  const others = open.filter(p => p.id !== editedPartId);
+  if (remainingBudget < 0) throw new Error("New amount exceeds remaining total");
+
+  // gelijk verdelen, laatste vangt afronding op
+  const n = others.length;
+  const even = n ? clamp2(remainingBudget / n) : 0;
+
+  await updateDoc(doc(db, `bills/${billId}/instalments/${editedPartId}`), { amount: clamp2(newAmt) });
+  for (let i = 0; i < n; i++) {
+    const p = others[i];
+    const amt = (i === n - 1) ? clamp2(remainingBudget - even * (n - 1)) : even;
+    await updateDoc(doc(db, `bills/${billId}/instalments/${p.id}`), { amount: amt });
+  }
+  console.debug(label, "done");
 }
