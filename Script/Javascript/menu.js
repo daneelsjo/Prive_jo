@@ -11,6 +11,7 @@
         if (p.endsWith("/settings.html")) return "settings";
         if (p.endsWith("/notes.html") || p.endsWith("/notities.html")) return "notes";
         if (p.endsWith("/tijd.html")) return "tijd";
+        if (p.endsWith("/payments.html")) return "Betalingen";
         return "index";
     }
 
@@ -24,19 +25,28 @@
             index: [
                 { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
                 { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
-                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }
+                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" },
+                { emoji: "💸", title: "Betalingen", path: "HTML/payments.html" }
             ],
             settings: [
                 { emoji: "📌", title: "Post-its", path: "index.html" },
                 { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
-                { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" }
+                { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
+                { emoji: "💸", title: "Betalingen", path: "HTML/payments.html" }
             ],
             notes: [
                 { emoji: "📌", title: "Post-its", path: "index.html" },
                 { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
-                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }
+                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" },
+                { emoji: "💸", title: "Betalingen", path: "HTML/payments.html" }
             ],
             tijd: [
+                { emoji: "📌", title: "Post-its", path: "index.html" },
+                { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
+                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" },
+                { emoji: "💸", title: "Betalingen", path: "HTML/payments.html" }
+            ],
+            Betalingen: [
                 { emoji: "📌", title: "Post-its", path: "index.html" },
                 { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
                 { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }
