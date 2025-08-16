@@ -283,6 +283,128 @@ function parseEuro(s) {
   return Number(n || 0);
 }
 
+
+/* ──────────────────────────────────────────────────────────────
+   Multi-select helpers
+   ────────────────────────────────────────────────────────────── */
+function totalSelected() {
+  let s = 0;
+  for (const it of selected.values()) s += Number(it.amount || 0);
+  return clamp2(s);
+}
+
+function renderSelectedList() {
+  if (!selectedList) return;
+  if (selected.size === 0) {
+    selectedList.innerHTML = `<div class="selectedList-empty">Nog geen geselecteerde betalingen. Vink één of meer items aan in de tabel.</div>`;
+  } else {
+    selectedList.innerHTML = "";
+    for (const it of selected.values()) {
+      const row = document.createElement("div");
+      row.className = "row";
+      const left = document.createElement("div");
+      left.textContent = it.label;
+      const right = document.createElement("div");
+      right.style.display = "flex";
+      right.style.alignItems = "center";
+      right.style.gap = ".4rem";
+      const amt = document.createElement("strong");
+      amt.textContent = euro(it.amount);
+      const x = document.createElement("button");
+      x.className = "ghost";
+      x.textContent = "✕";
+      x.title = "Verwijder uit selectie";
+      x.onclick = () => {
+        selected.delete(it.billId);
+        const cb = billsBody.querySelector(`tr[data-id="${it.billId}"] input[type="checkbox"]`);
+        if (cb) cb.checked = false;
+        renderSelectedList();
+        sumToPay.textContent = euro(totalSelected());
+        recalcDiff();
+      };
+      right.append(amt, x);
+      row.append(left, right);
+      selectedList.appendChild(row);
+    }
+  }
+  selTotal && (selTotal.textContent = euro(totalSelected()));
+}
+
+async function toggleExpander(billId, forceOpen) {
+  const exp = document.getElementById(`exp-${billId}`);
+  if (!exp) return;
+  const open = exp.classList.contains("open");
+  if (forceOpen === true && open) {
+    // already open
+  } else if (forceOpen === false && !open) {
+    // already closed
+  } else {
+    exp.classList.toggle("open");
+  }
+  if (!exp.classList.contains("open")) return;
+
+  const items = await fetchOpenInstalments(billId);
+  if (!items.length) {
+    exp.innerHTML = `<div class="muted">Geen openstaande delen.</div>`;
+    return;
+  }
+  const chosen = partChoice.get(billId)?.id || items[0].id;
+  const list = document.createElement("div");
+  list.className = "list";
+  items.forEach(it => {
+    const lab = document.createElement("label");
+    lab.className = "row";
+    lab.innerHTML = `<div><input type="radio" name="part-${billId}" value="${it.id}" ${it.id === chosen ? 'checked' : ''} style="margin-right:.5rem;">Deel ${it.index}</div><strong>${euro(it.amount)}</strong>`;
+    list.appendChild(lab);
+  });
+  list.addEventListener("change", (e) => {
+    const r = exp.querySelector('input[type="radio"]:checked');
+    if (!r) return;
+    const it = items.find(x => x.id === r.value);
+    if (it) {
+      partChoice.set(billId, it);
+      if (selected.has(billId)) {
+        const b = bills.find(x => x.id === billId);
+        selected.set(billId, { billId, instalmentId: it.id, amount: clamp2(it.amount), label: `${b?.beneficiary || ""} – deel ${it.index}` });
+        renderSelectedList();
+        sumToPay.textContent = euro(totalSelected());
+        recalcDiff();
+      }
+    }
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const addBtn = document.createElement("button");
+  addBtn.className = "primary";
+  addBtn.textContent = selected.has(billId) ? "Bijgewerkt" : "Voeg toe aan selectie";
+  addBtn.onclick = () => {
+    const r = exp.querySelector('input[type="radio"]:checked');
+    const it = r ? items.find(x => x.id === r.value) : items[0];
+    const b = bills.find(x => x.id === billId);
+    if (it && b) {
+      partChoice.set(billId, it);
+      selected.set(billId, { billId, instalmentId: it.id, amount: clamp2(it.amount), label: `${b.beneficiary || ""} – deel ${it.index}` });
+      const cb = billsBody.querySelector(`tr[data-id="${billId}"] input[type="checkbox"]`);
+      if (cb) cb.checked = true;
+      renderSelectedList();
+      sumToPay.textContent = euro(totalSelected());
+      recalcDiff();
+      addBtn.textContent = "Bijgewerkt";
+    }
+  };
+  actions.appendChild(addBtn);
+
+  exp.innerHTML = "";
+  exp.appendChild(list);
+  exp.appendChild(actions);
+}
+
+async function fetchOpenInstalments(billId) {
+  const snap = await getDocs(query(collection(db, `bills/${billId}/instalments`), where("status", "==", "open"), orderBy("index", "asc")));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
 /* ──────────────────────────────────────────────────────────────
    Month picker
    ────────────────────────────────────────────────────────────── */
