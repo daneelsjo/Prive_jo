@@ -481,23 +481,15 @@ function renderTable() {
 }
 
 async function exportMonthPdf() {
-    // jsPDF aanwezig?
-    const JSPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-    if (!JSPDF) {
-        alert("jsPDF niet geladen. Controleer de <script> tags.");
-        return;
-    }
-    const doc = new JSPDF({ unit: "pt", format: "a4", compress: true });
+    const JSPDF = window.jspdf?.jsPDF || window.jsPDF;
+    if (!JSPDF) { alert("jsPDF niet geladen. Controleer de <script> tags."); return; }
 
-    // AutoTable aanwezig?
-    if (typeof doc.autoTable !== "function") {
-        alert("AutoTable plugin niet geladen. Controleer het script 'jspdf.plugin.autotable.min.js'.");
-        return;
-    }
-    if (!window.jspdf || !window.jspdf.jsPDF || !window.jspdf.jsPDF.prototype.autoTable) {
-        alert("PDF bibliotheken niet geladen. Controleer jsPDF & AutoTable scripts.");
-        return;
-    }
+    // Plugin aanwezig? (op prototype)
+    const hasAutoTable = typeof window.jspdf?.jsPDF?.API?.autoTable === "function";
+    if (!hasAutoTable) { alert("AutoTable plugin niet geladen. Controleer het plugin script."); return; }
+
+
+    const doc = new JSPDF({ unit: "pt", format: "a4", compress: true });
 
     // Huidige selectie
     const [Y, M] = (monthPicker.value || "").split("-").map(Number);
