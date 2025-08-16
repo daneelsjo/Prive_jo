@@ -9,6 +9,7 @@ import {
 
 import { getDocs } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 
+
 const app = getFirebaseApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -70,151 +71,68 @@ function monthKey(d) {
   return dt.toISOString().slice(0, 7);
 }
 
-async function renderAll() {
+function renderAll() {
   renderBills();
   renderSidebar();
+}
 
-  /* ──────────────────────────────────────────────────────────────
-     Auth
-     ────────────────────────────────────────────────────────────── */
-  loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
+/* ──────────────────────────────────────────────────────────────
+   Auth
+   ────────────────────────────────────────────────────────────── */
+loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      currentUser = null;
-      appDiv && (appDiv.style.display = "none");
-      authDiv && (authDiv.style.display = "block");
-      return;
-    }
-    currentUser = user;
-    authDiv && (authDiv.style.display = "none");
-    appDiv && (appDiv.style.display = "block");
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    currentUser = null;
+    appDiv && (appDiv.style.display = "none");
+    authDiv && (authDiv.style.display = "block");
+    return;
+  }
+  currentUser = user;
+  authDiv && (authDiv.style.display = "none");
+  appDiv && (appDiv.style.display = "block");
 
-    // Streams
-    onSnapshot(query(collection(db, "bills"), orderBy("createdAt", "desc")), snap => {
-      bills = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderBills();
-    });
-
-    onSnapshot(query(collection(db, "incomes")), snap => {
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      incomes = all.filter(x => x.month === selectedMonth);
-      renderSidebar();
-    });
-
-    onSnapshot(query(collection(db, "fixedCosts")), snap => {
-      fixedCosts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderSidebar();
-    });
-
-    monthPicker.value = selectedMonth;
+  // Streams
+  onSnapshot(query(collection(db, "bills"), orderBy("createdAt", "desc")), snap => {
+    bills = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderBills();
   });
 
-  /* ──────────────────────────────────────────────────────────────
-     Bills table
-     ────────────────────────────────────────────────────────────── */
+  onSnapshot(query(collection(db, "incomes")), snap => {
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    incomes = all.filter(x => x.month === selectedMonth);
+    renderSidebar();
+  });
+
+  onSnapshot(query(collection(db, "fixedCosts")), snap => {
+    fixedCosts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderSidebar();
+  });
+
+  monthPicker.value = selectedMonth;
+});
+
+/* ──────────────────────────────────────────────────────────────
+   Bills table
+   ────────────────────────────────────────────────────────────── */
 
 
-  async function renderBills() {
-    if (!billsBody) return;
-    billsBody.innerHTML = "";
-    const open = bills.filter(b => (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)) > 0);
+function renderBills() {
+  if (!billsBody) return;
+  billsBody.innerHTML = "";
+  const open = bills.filter(b => (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)) > 0);
 
-    if (!open.length) {
-      const tr = document.createElement("tr");
-      const td = document.createElement("td");
-      td.colSpan = 6;
-      td.textContent = "Geen openstaande betalingen.";
-      tr.appendChild(td);
-      billsBody.appendChild(tr);
-      return;
-    }
-
-    const today = new Date().toISOString().slice(0, 10);
-
-    for (const b of open) {
-      const tr = document.createElement("tr");
-      tr.dataset.id = b.id;
-
-      const tdName = document.createElement("td");
-      tdName.textContent = b.beneficiary || "(zonder naam)";
-
-      const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
-      const tdToPay = document.createElement("td");
-      tdToPay.textContent = euro(remaining);
-
-      const tdPaid = document.createElement("td");
-      tdPaid.textContent = euro(Number(b.paidAmount || 0));
-
-      const tdDue = document.createElement("td");
-      if (b.dueDate) {
-        const overdue = b.dueDate < today && remaining > 0;
-        tdDue.textContent = b.dueDate;
-        if (overdue) tdDue.classList.add("date-overdue");
-      } else {
-        tdDue.textContent = "—";
-      }
-
-      const tdAct = document.createElement("td");
-      const btn = document.createElement("button");
-      btn.className = "primary";
-      btn.textContent = "Reeds betaald";
-      btn.onclick = (e) => { e.stopPropagation(); settleAsFull(b.id); };
-      tdAct.appendChild(btn);
-
-      const tdSel = document.createElement("td");
-      tdSel.style.textAlign = "center";
-      if (b.inParts) {
-        // expander caret
-        const caret = document.createElement("button");
-        caret.className = "caret-btn";
-        caret.title = "Toon delen";
-        caret.textContent = "▸";
-        caret.onclick = (e) => { e.stopPropagation(); toggleExpander(b.id); caret.textContent = (caret.textContent === "▸" ? "▾" : "▸"); };
-        tdSel.appendChild(caret);
-      } else {
-        // single: checkbox to select full remaining
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        const key = `${b.id}::FULL`;
-        cb.checked = selected.has(key);
-        cb.onchange = (e) => {
-          if (cb.checked) {
-            selected.set(key, { type: "full", billId: b.id, instalmentId: null, amount: remaining, label: `${b.beneficiary}`, iban: b.iban || "", note: "" });
-          } else {
-            selected.delete(key);
-          }
-          renderSelectedList();
-          sumToPay.textContent = euro(totalSelected());
-          recalcDiff();
-        };
-        tdSel.appendChild(cb);
-      }
-
-      tr.append(tdName, tdToPay, tdPaid, tdDue, tdAct, tdSel);
-      billsBody.appendChild(tr);
-
-      // Expander row for inParts
-      if (b.inParts) {
-        const expTr = document.createElement("tr");
-        expTr.className = "expander-row";
-        const td = document.createElement("td");
-        td.colSpan = 6;
-        const exp = document.createElement("div");
-        exp.className = "expander";
-        exp.id = `exp-${b.id}`;
-        exp.innerHTML = `<div class="muted">Laden…</div>`;
-        td.appendChild(exp);
-        expTr.appendChild(td);
-        billsBody.appendChild(expTr);
-
-        // Clicking on name toggles expander
-        tdName.style.cursor = "pointer";
-        tdName.onclick = (e) => { e.stopPropagation(); toggleExpander(b.id); };
-      }
-    }
+  if (!open.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 6;
+    td.textContent = "Geen openstaande betalingen.";
+    tr.appendChild(td);
+    billsBody.appendChild(tr);
+    return;
   }
 
+  const today = new Date().toISOString().slice(0, 10);
 
   for (const b of open) {
     const tr = document.createElement("tr");
@@ -230,48 +148,52 @@ async function renderAll() {
     const tdPaid = document.createElement("td");
     tdPaid.textContent = euro(Number(b.paidAmount || 0));
 
+    const tdDue = document.createElement("td");
+    if (b.dueDate) {
+      const overdue = b.dueDate < today && remaining > 0;
+      tdDue.textContent = b.dueDate;
+      if (overdue) tdDue.classList.add("date-overdue");
+    } else {
+      tdDue.textContent = "—";
+    }
+
     const tdAct = document.createElement("td");
     const btn = document.createElement("button");
-    btn.className = "ghost";
-    btn.textContent = "Betalen…";
-    btn.onclick = (e) => { e.stopPropagation(); selectedBillId = b.id; openPayModal(b.id); };
+    btn.className = "primary";
+    btn.textContent = "Reeds betaald";
+    btn.onclick = (e) => { e.stopPropagation(); settleAsFull(b.id); };
     tdAct.appendChild(btn);
 
     const tdSel = document.createElement("td");
     tdSel.style.textAlign = "center";
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = selected.has(b.id);
-    cb.onchange = async (e) => {
-      if (cb.checked) {
-        if (b.inParts) {
-          // Ensure expander is open and a part chosen
-          toggleExpander(b.id, true);
-          // Fetch parts if not chosen yet
-          if (!partChoice.get(b.id)) {
-            const items = await fetchOpenInstalments(b.id);
-            if (items.length) partChoice.set(b.id, items[0]);
-          }
-          const choice = partChoice.get(b.id);
-          if (!choice) { cb.checked = false; return; }
-          selected.set(b.id, { billId: b.id, instalmentId: choice.id, amount: clamp2(choice.amount), label: `${b.beneficiary} – deel ${choice.index}` });
+    if (b.inParts) {
+      // expander caret
+      const caret = document.createElement("button");
+      caret.className = "caret-btn";
+      caret.title = "Toon delen";
+      caret.textContent = "▸";
+      caret.onclick = (e) => { e.stopPropagation(); toggleExpander(b.id); caret.textContent = (caret.textContent === "▸" ? "▾" : "▸"); };
+      tdSel.appendChild(caret);
+    } else {
+      // single: checkbox to select full remaining
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      const key = `${b.id}::FULL`;
+      cb.checked = selected.has(key);
+      cb.onchange = (e) => {
+        if (cb.checked) {
+          selected.set(key, { type: "full", billId: b.id, instalmentId: null, amount: remaining, label: `${b.beneficiary}`, iban: b.iban || "", note: "" });
         } else {
-          selected.set(b.id, { billId: b.id, instalmentId: null, amount: remaining, label: `${b.beneficiary}` });
+          selected.delete(key);
         }
-      } else {
-        selected.delete(b.id);
-      }
-      renderSelectedList();
-      // Update sumToPay (legacy) and diff
-      sumToPay.textContent = euro(totalSelected());
-      recalcDiff();
-    };
-    tdSel.appendChild(cb);
+        renderSelectedList();
+        sumToPay.textContent = euro(totalSelected());
+        recalcDiff();
+      };
+      tdSel.appendChild(cb);
+    }
 
-    tr.append(tdName, tdToPay, tdPaid, tdAct, tdSel);
-    // Keep simple click to set legacy selectedBillId for right quick-pay button text
-    tr.onclick = () => { selectedBillId = b.id; };
-
+    tr.append(tdName, tdToPay, tdPaid, tdDue, tdAct, tdSel);
     billsBody.appendChild(tr);
 
     // Expander row for inParts
@@ -279,7 +201,7 @@ async function renderAll() {
       const expTr = document.createElement("tr");
       expTr.className = "expander-row";
       const td = document.createElement("td");
-      td.colSpan = 5;
+      td.colSpan = 6;
       const exp = document.createElement("div");
       exp.className = "expander";
       exp.id = `exp-${b.id}`;
@@ -288,14 +210,12 @@ async function renderAll() {
       expTr.appendChild(td);
       billsBody.appendChild(expTr);
 
-      // Clicking on row (excluding controls) toggles expander
-      tr.addEventListener("dblclick", () => toggleExpander(b.id));
+      // Clicking on name toggles expander
       tdName.style.cursor = "pointer";
       tdName.onclick = (e) => { e.stopPropagation(); toggleExpander(b.id); };
     }
   }
 }
-
 
 /* ──────────────────────────────────────────────────────────────
    Right side summary
@@ -380,6 +300,7 @@ function totalSelected() {
 
 
 
+
 function renderSelectedList() {
   if (!selectedList) return;
   if (selected.size === 0) {
@@ -430,116 +351,95 @@ async function toggleExpander(billId, forceOpen) {
   else { exp.classList.toggle("open"); }
   if (!exp.classList.contains("open")) return;
 
-  // Only one implementation of toggleExpander should exist and be async.
-  // Remove the duplicate non-async code below and keep this async version.
-
   const items = await fetchOpenInstalments(billId);
-  if (!items.length) {
-    exp.innerHTML = `<div class="muted">Geen openstaande delen.</div>`;
-    return;
-  }
+  if (!items.length) { exp.innerHTML = `<div class="muted">Geen openstaande delen.</div>`; return; }
 
-  // If partChoice is used, show radio buttons, else show checkboxes for multi-select
-  if (partChoice) {
-    const chosen = partChoice.get(billId)?.id || items[0].id;
-    const list = document.createElement("div");
-    list.className = "list";
-    items.forEach(it => {
-      const lab = document.createElement("label");
-      lab.className = "row";
-      lab.innerHTML = `<div><input type="radio" name="part-${billId}" value="${it.id}" ${it.id === chosen ? 'checked' : ''} style="margin-right:.5rem;">Deel ${it.index}</div><strong>${euro(it.amount)}</strong>`;
-      list.appendChild(lab);
-    });
-    list.addEventListener("change", (e) => {
-      const r = exp.querySelector('input[type="radio"]:checked');
-      if (!r) return;
-      const it = items.find(x => x.id === r.value);
-      if (it) {
-        partChoice.set(billId, it);
-        if (selected.has(billId)) {
-          const b = bills.find(x => x.id === billId);
-          selected.set(billId, { billId, instalmentId: it.id, amount: clamp2(it.amount), label: `${b?.beneficiary || ""} – deel ${it.index}` });
-          renderSelectedList();
-          sumToPay.textContent = euro(totalSelected());
-          recalcDiff();
-        }
-      }
-    });
+  const list = document.createElement("div");
+  list.className = "list";
+  items.forEach(it => {
+    const key = `${billId}::${it.id}`;
+    const row = document.createElement("label");
+    row.className = "row";
+    row.innerHTML = `<div><input type="checkbox" value="${it.id}" ${selected.has(key) ? 'checked' : ''} style="margin-right:.5rem;">Deel ${it.index}</div><strong>${euro(it.amount)}</strong>`;
+    list.appendChild(row);
+  });
 
-    const actions = document.createElement("div");
-    actions.className = "actions";
-    const addBtn = document.createElement("button");
-    addBtn.className = "primary";
-    addBtn.textContent = selected.has(billId) ? "Bijgewerkt" : "Voeg toe aan selectie";
-    addBtn.onclick = () => {
-      const r = exp.querySelector('input[type="radio"]:checked');
-      const it = r ? items.find(x => x.id === r.value) : items[0];
-      const b = bills.find(x => x.id === billId);
-      if (it && b) {
-        partChoice.set(billId, it);
-        selected.set(billId, { billId, instalmentId: it.id, amount: clamp2(it.amount), label: `${b.beneficiary || ""} – deel ${it.index}` });
-        const cb = billsBody.querySelector(`tr[data-id="${billId}"] input[type="checkbox"]`);
-        if (cb) cb.checked = true;
-        renderSelectedList();
-        sumToPay.textContent = euro(totalSelected());
-        recalcDiff();
-        addBtn.textContent = "Bijgewerkt";
-      }
-    };
-    actions.appendChild(addBtn);
+  list.addEventListener("change", (e) => {
+    const input = e.target.closest('input[type="checkbox"]');
+    if (!input) return;
+    const partId = input.value;
+    const it = items.find(x => x.id === partId);
+    const b = bills.find(x => x.id === billId);
+    const key = `${billId}::${partId}`;
+    if (input.checked) {
+      selected.set(key, { type: "part", billId, instalmentId: partId, amount: clamp2(it.amount), label: `${b?.beneficiary || ""} – deel ${it.index}`, iban: b?.iban || "", note: "" });
+    } else {
+      selected.delete(key);
+    }
+    renderSelectedList();
+    sumToPay.textContent = euro(totalSelected());
+    recalcDiff();
+  });
 
-    exp.innerHTML = "";
-    exp.appendChild(list);
-    exp.appendChild(actions);
-  } else {
-    const list = document.createElement("div");
-    list.className = "list";
-    items.forEach(it => {
-      const key = `${billId}::${it.id}`;
-      const row = document.createElement("label");
-      row.className = "row";
-      row.innerHTML = `<div><input type="checkbox" value="${it.id}" ${selected.has(key) ? 'checked' : ''} style="margin-right:.5rem;">Deel ${it.index}</div><strong>${euro(it.amount)}</strong>`;
-      list.appendChild(row);
-    });
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const tip = document.createElement("div");
+  tip.className = "muted";
+  tip.textContent = "Vink één of meerdere delen aan om toe te voegen aan de selectie.";
+  actions.appendChild(tip);
 
-    list.addEventListener("change", (e) => {
-      const input = e.target.closest('input[type="checkbox"]');
-      if (!input) return;
-      const partId = input.value;
-      const it = items.find(x => x.id === partId);
-      const b = bills.find(x => x.id === billId);
-      const key = `${billId}::${partId}`;
-      if (input.checked) {
-        selected.set(key, { type: "part", billId, instalmentId: partId, amount: clamp2(it.amount), label: `${b?.beneficiary || ""} – deel ${it.index}`, iban: b?.iban || "", note: "" });
-      } else {
-        selected.delete(key);
-      }
-      renderSelectedList();
-      sumToPay.textContent = euro(totalSelected());
-      recalcDiff();
-    });
-
-    const actions = document.createElement("div");
-    actions.className = "actions";
-    const tip = document.createElement("div");
-    tip.className = "muted";
-    tip.textContent = "Vink één of meerdere delen aan om toe te voegen aan de selectie.";
-    actions.appendChild(tip);
-
-    exp.innerHTML = "";
-    exp.appendChild(list);
-    exp.appendChild(actions);
-  }
+  exp.innerHTML = "";
+  exp.appendChild(list);
+  exp.appendChild(actions);
 }
+
 
 async function fetchOpenInstalments(billId) {
   const snap = await getDocs(query(collection(db, `bills/${billId}/instalments`), where("status", "==", "open"), orderBy("index", "asc")));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+
+if (!exp.classList.contains("open")) return;
+
+const items = await fetchOpenInstalments(billId);
+if (!items.length) {
+  exp.innerHTML = `<div class="muted">Geen openstaande delen.</div>`;
+  return;
+}
+const chosen = partChoice.get(billId)?.id || items[0].id;
+const list = document.createElement("div");
+list.className = "list";
+items.forEach(it => {
+  const lab = document.createElement("label");
+  lab.className = "row";
+  lab.innerHTML = `<div><input type="radio" name="part-${billId}" value="${it.id}" ${it.id === chosen ? 'checked' : ''} style="margin-right:.5rem;">Deel ${it.index}</div><strong>${euro(it.amount)}</strong>`;
+  list.appendChild(lab);
+});
+list.addEventListener("change", (e) => {
+  const r = exp.querySelector('input[type="radio"]:checked');
+  if (!r) return;
+  const it = items.find(x => x.id === r.value);
+  if (it) {
+    partChoice.set(billId, it);
+    if (selected.has(billId)) {
+      const b = bills.find(x => x.id === billId);
+      selected.set(billId, { billId, instalmentId: it.id, amount: clamp2(it.amount), label: `${b?.beneficiary || ""} – deel ${it.index}` });
+      renderSelectedList();
+      sumToPay.textContent = euro(totalSelected());
+      recalcDiff();
+    }
+  }
+});
+
+const actions = document.createElement("div");
+actions.className = "actions";
+const addBtn = document.createElement("button");
+addBtn.className = "primary";
+addBtn.textContent = selected.has(billId) ? "Bijgewerkt" : "Voeg toe aan selectie";
 /* ──────────────────────────────────────────────────────────────
-   Month picker
-   ────────────────────────────────────────────────────────────── */
+ Month picker
+ ────────────────────────────────────────────────────────────── */
 monthPicker && (monthPicker.onchange = () => {
   selectedMonth = monthKey(monthPicker.value);
   // incomes stream already loaded; filter client-side
@@ -849,46 +749,6 @@ clearSelectedBtn && (clearSelectedBtn.onclick = () => {
   sumToPay.textContent = euro(0);
   recalcDiff();
 });
-
-payReviewBtn && (payReviewBtn.onclick = async () => {
-  if (selected.size === 0) { Modal.alert({ title: "Geen selectie", html: "Vink één of meer betalingen aan." }); return; }
-  try {
-    // Process each selection
-    for (const it of selected.values()) {
-      const b = bills.find(x => x.id === it.billId);
-      if (!b) continue;
-      if (it.instalmentId) {
-        // part
-        const partRef = doc(db, `bills/${it.billId}/instalments/${it.instalmentId}`);
-        await updateDoc(partRef, { status: "paid", paidAt: serverTimestamp() });
-        await updateDoc(doc(db, "bills", it.billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + Number(it.amount || 0)) });
-        await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: it.instalmentId, amount: it.amount, at: serverTimestamp() });
-      } else {
-        // full remaining
-        const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
-        if (remaining > 0) {
-          await updateDoc(doc(db, "bills", it.billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + remaining) });
-          const partsSnap = await getDocs(collection(db, `bills/${it.billId}/instalments`));
-          const open = partsSnap.docs.find(d => (d.data().status === "open"));
-          if (open) await updateDoc(doc(db, `bills/${it.billId}/instalments/${open.id}`), { status: "paid", paidAt: serverTimestamp() });
-          await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: open ? open.id : null, amount: remaining, at: serverTimestamp() });
-        }
-      }
-    }
-    // Clear selection after processing
-    selected.clear();
-    renderSelectedList();
-    // Uncheck all
-    billsBody.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-    sumToPay.textContent = euro(0);
-    recalcDiff();
-    Modal.toast && Modal.toast({ html: "Betalingen gemarkeerd als betaald." });
-  } catch (e) {
-    console.error(e);
-    Modal.alert({ title: "Mislukt", html: "Niet alle betalingen konden gemarkeerd worden." });
-  }
-});
-
 
 /* ──────────────────────────────────────────────────────────────
    Betaaloverzicht (review modal)
