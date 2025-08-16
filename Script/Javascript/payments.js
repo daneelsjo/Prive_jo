@@ -108,11 +108,16 @@ function serializeSelection() {
 async function saveSelection() {
   const ref = selectionDocRef(selectedMonth);
   if (!ref) return;
-  await setDoc(ref, {
-    month: selectedMonth,
-    items: serializeSelection(),
-    updatedAt: serverTimestamp()
-  }, { merge: true });
+  try {
+    await setDoc(ref, {
+      month: selectedMonth,
+      items: serializeSelection(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (err) {
+    console.warn('[payments] saveSelection denied (rules?):', err);
+    // App blijft werken, alleen geen persist
+  }
 }
 const saveSelectionDebounced = debounce(saveSelection);
 
@@ -120,10 +125,15 @@ async function loadSelection(month) {
   selected.clear();
   const ref = selectionDocRef(month);
   if (!ref) { renderSelectedList(); sumToPay.textContent = euro(0); recalcDiff(); return; }
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    const items = snap.data().items || [];
-    for (const it of items) selected.set(it.key, it);
+  try {
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const items = snap.data().items || [];
+      for (const it of items) selected.set(it.key, it);
+    }
+  } catch (err) {
+    console.warn('[payments] loadSelection denied (rules?):', err);
+    // Ga door zonder persist
   }
   renderSelectedList();
   sumToPay.textContent = euro(totalSelected());
