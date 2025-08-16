@@ -8,7 +8,6 @@ import {
 } from "./firebase-config.js";
 import { getDocs } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 
-
 const app = getFirebaseApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -673,17 +672,17 @@ payReviewBtn && (payReviewBtn.onclick = () => {
   for (const [key, it] of selected.entries()) {
     const tr = document.createElement("tr");
     const ben = document.createElement("td"); ben.textContent = it.label.split(" – ")[0] || "";
-    const iban = document.createElement("td"); iban.textContent = it.iban || "";
+    const iban = document.createElement("td"); { const b = bills.find(x => x.id === it.billId); iban.textContent = (b && b.iban) ? b.iban : (it.iban || ""); }
     const amt = document.createElement("td"); amt.textContent = euro(it.amount);
-    const note = document.createElement("td");
-    const noteInput = document.createElement("input"); noteInput.type = "text"; noteInput.placeholder = "Opmerking…"; noteInput.value = it.note || "";
-    note.appendChild(noteInput);
+    const commTd = document.createElement("td");
+    const b = bills.find(x => x.id === it.billId);
+    commTd.textContent = (b && (b.communication || b.description || "")) || "";
     const paidTd = document.createElement("td");
     const chk = document.createElement("input"); chk.type = "checkbox"; chk.checked = true;
     paidTd.appendChild(chk);
 
     tr.dataset.key = key;
-    tr.append(ben, iban, amt, note, paidTd);
+    tr.append(ben, iban, amt, commTd, paidTd);
     body.appendChild(tr);
   }
   Modal.open("modal-review");
