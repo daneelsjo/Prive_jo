@@ -91,7 +91,7 @@
             <div id="selectedList" class="list"></div>
             <div class="block-total"><span>Totaal te betalen</span><strong id="selTotal">€ 0,00</strong></div>
             <div style="margin-top:.4rem;display:flex;gap:.5rem;flex-wrap:wrap;">
-              <button id="paySelectedBtn" class="primary">✅ Markeer geselecteerde betaald</button>
+              <button id="payReviewBtn" class="primary">🧾 Betaaloverzicht</button>
               <button id="clearSelectedBtn" class="ghost">Leeg lijst</button>
             </div>
           </div>
@@ -133,6 +133,9 @@
         </label>
         <label>Bedrag (€)
           <input id="bill-amount" type="number" step="0.01" min="0" placeholder="0,00" />
+        </label>
+        <label>Betaaldag
+          <input id="bill-due" type="date" />
         </label>
         <div class="split-row">
           <label class="checkbox">
@@ -277,3 +280,32 @@
 </body>
 
 </html>
+
+<!-- 6) Betaaloverzicht -->
+<div id="modal-review" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-review-title" hidden>
+  <div class="modal-header">
+    <h3 id="modal-review-title">Betaaloverzicht</h3>
+    <button class="modal-close" data-modal-close="modal-review" aria-label="Sluiten">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="table-wrap">
+      <table class="bills-table" id="reviewTable">
+        <thead>
+          <tr>
+            <th>Begunstigde</th>
+            <th>Rekening</th>
+            <th>Bedrag</th>
+            <th>Opmerking</th>
+            <th>Betaald</th>
+          </tr>
+        </thead>
+        <tbody id="reviewBody"></tbody>
+      </table>
+    </div>
+    <p class="muted">Vink aan wat je nu wil markeren als betaald. De rechterlijst blijft staan na het verwerken.</p>
+  </div>
+  <div class="modal-footer">
+    <button id="review-confirm" class="primary">✅ Markeer aangevinkte als betaald</button>
+    <button class="ghost" data-modal-close="modal-review">Sluiten</button>
+  </div>
+</div>

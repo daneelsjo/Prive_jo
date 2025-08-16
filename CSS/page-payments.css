@@ -199,3 +199,28 @@ tr.expander-row td {
 .selectedList-empty {
   color: var(--muted);
 }
+
+
+/* Betaaldag rood bij overschrijding */
+.bills-table .date-overdue {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Review modal inputs */
+#reviewTable td input[type="text"] {
+  width: 100%;
+  padding: .35rem .45rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Expander caret */
+.caret-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}

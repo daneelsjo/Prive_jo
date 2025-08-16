@@ -9,7 +9,6 @@ import {
 
 import { getDocs } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 
-
 const app = getFirebaseApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -51,7 +50,7 @@ const fixedTotal = document.getElementById("fixedTotal");
 const selectedPaymentBox = document.getElementById("selectedPaymentBox"); // legacy
 const selectedList = document.getElementById("selectedList");
 const selTotal = document.getElementById("selTotal");
-const paySelectedBtn = document.getElementById("paySelectedBtn");
+const payReviewBtn = document.getElementById("payReviewBtn");
 const clearSelectedBtn = document.getElementById("clearSelectedBtn");
 
 const sumIncome = document.getElementById("sumIncome");
@@ -71,65 +70,151 @@ function monthKey(d) {
   return dt.toISOString().slice(0, 7);
 }
 
-function renderAll() {
+async function renderAll() {
   renderBills();
   renderSidebar();
-}
 
-/* ──────────────────────────────────────────────────────────────
-   Auth
-   ────────────────────────────────────────────────────────────── */
-loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
+  /* ──────────────────────────────────────────────────────────────
+     Auth
+     ────────────────────────────────────────────────────────────── */
+  loginBtn && (loginBtn.onclick = () => signInWithPopup(auth, provider));
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    currentUser = null;
-    appDiv && (appDiv.style.display = "none");
-    authDiv && (authDiv.style.display = "block");
-    return;
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      currentUser = null;
+      appDiv && (appDiv.style.display = "none");
+      authDiv && (authDiv.style.display = "block");
+      return;
+    }
+    currentUser = user;
+    authDiv && (authDiv.style.display = "none");
+    appDiv && (appDiv.style.display = "block");
+
+    // Streams
+    onSnapshot(query(collection(db, "bills"), orderBy("createdAt", "desc")), snap => {
+      bills = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderBills();
+    });
+
+    onSnapshot(query(collection(db, "incomes")), snap => {
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      incomes = all.filter(x => x.month === selectedMonth);
+      renderSidebar();
+    });
+
+    onSnapshot(query(collection(db, "fixedCosts")), snap => {
+      fixedCosts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderSidebar();
+    });
+
+    monthPicker.value = selectedMonth;
+  });
+
+  /* ──────────────────────────────────────────────────────────────
+     Bills table
+     ────────────────────────────────────────────────────────────── */
+
+
+  async function renderBills() {
+    if (!billsBody) return;
+    billsBody.innerHTML = "";
+    const open = bills.filter(b => (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)) > 0);
+
+    if (!open.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6;
+      td.textContent = "Geen openstaande betalingen.";
+      tr.appendChild(td);
+      billsBody.appendChild(tr);
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    for (const b of open) {
+      const tr = document.createElement("tr");
+      tr.dataset.id = b.id;
+
+      const tdName = document.createElement("td");
+      tdName.textContent = b.beneficiary || "(zonder naam)";
+
+      const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
+      const tdToPay = document.createElement("td");
+      tdToPay.textContent = euro(remaining);
+
+      const tdPaid = document.createElement("td");
+      tdPaid.textContent = euro(Number(b.paidAmount || 0));
+
+      const tdDue = document.createElement("td");
+      if (b.dueDate) {
+        const overdue = b.dueDate < today && remaining > 0;
+        tdDue.textContent = b.dueDate;
+        if (overdue) tdDue.classList.add("date-overdue");
+      } else {
+        tdDue.textContent = "—";
+      }
+
+      const tdAct = document.createElement("td");
+      const btn = document.createElement("button");
+      btn.className = "primary";
+      btn.textContent = "Reeds betaald";
+      btn.onclick = (e) => { e.stopPropagation(); settleAsFull(b.id); };
+      tdAct.appendChild(btn);
+
+      const tdSel = document.createElement("td");
+      tdSel.style.textAlign = "center";
+      if (b.inParts) {
+        // expander caret
+        const caret = document.createElement("button");
+        caret.className = "caret-btn";
+        caret.title = "Toon delen";
+        caret.textContent = "▸";
+        caret.onclick = (e) => { e.stopPropagation(); toggleExpander(b.id); caret.textContent = (caret.textContent === "▸" ? "▾" : "▸"); };
+        tdSel.appendChild(caret);
+      } else {
+        // single: checkbox to select full remaining
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        const key = `${b.id}::FULL`;
+        cb.checked = selected.has(key);
+        cb.onchange = (e) => {
+          if (cb.checked) {
+            selected.set(key, { type: "full", billId: b.id, instalmentId: null, amount: remaining, label: `${b.beneficiary}`, iban: b.iban || "", note: "" });
+          } else {
+            selected.delete(key);
+          }
+          renderSelectedList();
+          sumToPay.textContent = euro(totalSelected());
+          recalcDiff();
+        };
+        tdSel.appendChild(cb);
+      }
+
+      tr.append(tdName, tdToPay, tdPaid, tdDue, tdAct, tdSel);
+      billsBody.appendChild(tr);
+
+      // Expander row for inParts
+      if (b.inParts) {
+        const expTr = document.createElement("tr");
+        expTr.className = "expander-row";
+        const td = document.createElement("td");
+        td.colSpan = 6;
+        const exp = document.createElement("div");
+        exp.className = "expander";
+        exp.id = `exp-${b.id}`;
+        exp.innerHTML = `<div class="muted">Laden…</div>`;
+        td.appendChild(exp);
+        expTr.appendChild(td);
+        billsBody.appendChild(expTr);
+
+        // Clicking on name toggles expander
+        tdName.style.cursor = "pointer";
+        tdName.onclick = (e) => { e.stopPropagation(); toggleExpander(b.id); };
+      }
+    }
   }
-  currentUser = user;
-  authDiv && (authDiv.style.display = "none");
-  appDiv && (appDiv.style.display = "block");
 
-  // Streams
-  onSnapshot(query(collection(db, "bills"), orderBy("createdAt", "desc")), snap => {
-    bills = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderBills();
-  });
-
-  onSnapshot(query(collection(db, "incomes")), snap => {
-    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    incomes = all.filter(x => x.month === selectedMonth);
-    renderSidebar();
-  });
-
-  onSnapshot(query(collection(db, "fixedCosts")), snap => {
-    fixedCosts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderSidebar();
-  });
-
-  monthPicker.value = selectedMonth;
-});
-
-/* ──────────────────────────────────────────────────────────────
-   Bills table
-   ────────────────────────────────────────────────────────────── */
-
-function renderBills() {
-  if (!billsBody) return;
-  billsBody.innerHTML = "";
-  const open = bills.filter(b => (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)) > 0);
-
-  if (!open.length) {
-    const tr = document.createElement("tr");
-    const td = document.createElement("td");
-    td.colSpan = 5;
-    td.textContent = "Geen openstaande betalingen.";
-    tr.appendChild(td);
-    billsBody.appendChild(tr);
-    return;
-  }
 
   for (const b of open) {
     const tr = document.createElement("tr");
@@ -293,13 +378,15 @@ function totalSelected() {
   return clamp2(s);
 }
 
+
+
 function renderSelectedList() {
   if (!selectedList) return;
   if (selected.size === 0) {
-    selectedList.innerHTML = `<div class="selectedList-empty">Nog geen geselecteerde betalingen. Vink één of meer items aan in de tabel.</div>`;
+    selectedList.innerHTML = `<div class="selectedList-empty">Nog geen geselecteerde betalingen. Vink items aan in de tabel of vink delen aan in de expander.</div>`;
   } else {
     selectedList.innerHTML = "";
-    for (const it of selected.values()) {
+    for (const [key, it] of selected.entries()) {
       const row = document.createElement("div");
       row.className = "row";
       const left = document.createElement("div");
@@ -315,9 +402,11 @@ function renderSelectedList() {
       x.textContent = "✕";
       x.title = "Verwijder uit selectie";
       x.onclick = () => {
-        selected.delete(it.billId);
-        const cb = billsBody.querySelector(`tr[data-id="${it.billId}"] input[type="checkbox"]`);
-        if (cb) cb.checked = false;
+        selected.delete(key);
+        if (it.type === "full") {
+          const cb = billsBody.querySelector(`tr[data-id="${it.billId}"] input[type="checkbox"]`);
+          if (cb) cb.checked = false;
+        }
         renderSelectedList();
         sumToPay.textContent = euro(totalSelected());
         recalcDiff();
@@ -330,74 +419,117 @@ function renderSelectedList() {
   selTotal && (selTotal.textContent = euro(totalSelected()));
 }
 
+
+
 async function toggleExpander(billId, forceOpen) {
   const exp = document.getElementById(`exp-${billId}`);
   if (!exp) return;
   const open = exp.classList.contains("open");
-  if (forceOpen === true && open) {
-    // already open
-  } else if (forceOpen === false && !open) {
-    // already closed
-  } else {
-    exp.classList.toggle("open");
-  }
+  if (forceOpen === true && open) { /*no-op*/ }
+  else if (forceOpen === false && !open) { /*no-op*/ }
+  else { exp.classList.toggle("open"); }
   if (!exp.classList.contains("open")) return;
+
+  // Only one implementation of toggleExpander should exist and be async.
+  // Remove the duplicate non-async code below and keep this async version.
 
   const items = await fetchOpenInstalments(billId);
   if (!items.length) {
     exp.innerHTML = `<div class="muted">Geen openstaande delen.</div>`;
     return;
   }
-  const chosen = partChoice.get(billId)?.id || items[0].id;
-  const list = document.createElement("div");
-  list.className = "list";
-  items.forEach(it => {
-    const lab = document.createElement("label");
-    lab.className = "row";
-    lab.innerHTML = `<div><input type="radio" name="part-${billId}" value="${it.id}" ${it.id === chosen ? 'checked' : ''} style="margin-right:.5rem;">Deel ${it.index}</div><strong>${euro(it.amount)}</strong>`;
-    list.appendChild(lab);
-  });
-  list.addEventListener("change", (e) => {
-    const r = exp.querySelector('input[type="radio"]:checked');
-    if (!r) return;
-    const it = items.find(x => x.id === r.value);
-    if (it) {
-      partChoice.set(billId, it);
-      if (selected.has(billId)) {
-        const b = bills.find(x => x.id === billId);
-        selected.set(billId, { billId, instalmentId: it.id, amount: clamp2(it.amount), label: `${b?.beneficiary || ""} – deel ${it.index}` });
+
+  // If partChoice is used, show radio buttons, else show checkboxes for multi-select
+  if (partChoice) {
+    const chosen = partChoice.get(billId)?.id || items[0].id;
+    const list = document.createElement("div");
+    list.className = "list";
+    items.forEach(it => {
+      const lab = document.createElement("label");
+      lab.className = "row";
+      lab.innerHTML = `<div><input type="radio" name="part-${billId}" value="${it.id}" ${it.id === chosen ? 'checked' : ''} style="margin-right:.5rem;">Deel ${it.index}</div><strong>${euro(it.amount)}</strong>`;
+      list.appendChild(lab);
+    });
+    list.addEventListener("change", (e) => {
+      const r = exp.querySelector('input[type="radio"]:checked');
+      if (!r) return;
+      const it = items.find(x => x.id === r.value);
+      if (it) {
+        partChoice.set(billId, it);
+        if (selected.has(billId)) {
+          const b = bills.find(x => x.id === billId);
+          selected.set(billId, { billId, instalmentId: it.id, amount: clamp2(it.amount), label: `${b?.beneficiary || ""} – deel ${it.index}` });
+          renderSelectedList();
+          sumToPay.textContent = euro(totalSelected());
+          recalcDiff();
+        }
+      }
+    });
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const addBtn = document.createElement("button");
+    addBtn.className = "primary";
+    addBtn.textContent = selected.has(billId) ? "Bijgewerkt" : "Voeg toe aan selectie";
+    addBtn.onclick = () => {
+      const r = exp.querySelector('input[type="radio"]:checked');
+      const it = r ? items.find(x => x.id === r.value) : items[0];
+      const b = bills.find(x => x.id === billId);
+      if (it && b) {
+        partChoice.set(billId, it);
+        selected.set(billId, { billId, instalmentId: it.id, amount: clamp2(it.amount), label: `${b.beneficiary || ""} – deel ${it.index}` });
+        const cb = billsBody.querySelector(`tr[data-id="${billId}"] input[type="checkbox"]`);
+        if (cb) cb.checked = true;
         renderSelectedList();
         sumToPay.textContent = euro(totalSelected());
         recalcDiff();
+        addBtn.textContent = "Bijgewerkt";
       }
-    }
-  });
+    };
+    actions.appendChild(addBtn);
 
-  const actions = document.createElement("div");
-  actions.className = "actions";
-  const addBtn = document.createElement("button");
-  addBtn.className = "primary";
-  addBtn.textContent = selected.has(billId) ? "Bijgewerkt" : "Voeg toe aan selectie";
-  addBtn.onclick = () => {
-    const r = exp.querySelector('input[type="radio"]:checked');
-    const it = r ? items.find(x => x.id === r.value) : items[0];
-    const b = bills.find(x => x.id === billId);
-    if (it && b) {
-      partChoice.set(billId, it);
-      selected.set(billId, { billId, instalmentId: it.id, amount: clamp2(it.amount), label: `${b.beneficiary || ""} – deel ${it.index}` });
-      const cb = billsBody.querySelector(`tr[data-id="${billId}"] input[type="checkbox"]`);
-      if (cb) cb.checked = true;
+    exp.innerHTML = "";
+    exp.appendChild(list);
+    exp.appendChild(actions);
+  } else {
+    const list = document.createElement("div");
+    list.className = "list";
+    items.forEach(it => {
+      const key = `${billId}::${it.id}`;
+      const row = document.createElement("label");
+      row.className = "row";
+      row.innerHTML = `<div><input type="checkbox" value="${it.id}" ${selected.has(key) ? 'checked' : ''} style="margin-right:.5rem;">Deel ${it.index}</div><strong>${euro(it.amount)}</strong>`;
+      list.appendChild(row);
+    });
+
+    list.addEventListener("change", (e) => {
+      const input = e.target.closest('input[type="checkbox"]');
+      if (!input) return;
+      const partId = input.value;
+      const it = items.find(x => x.id === partId);
+      const b = bills.find(x => x.id === billId);
+      const key = `${billId}::${partId}`;
+      if (input.checked) {
+        selected.set(key, { type: "part", billId, instalmentId: partId, amount: clamp2(it.amount), label: `${b?.beneficiary || ""} – deel ${it.index}`, iban: b?.iban || "", note: "" });
+      } else {
+        selected.delete(key);
+      }
       renderSelectedList();
       sumToPay.textContent = euro(totalSelected());
       recalcDiff();
-      addBtn.textContent = "Bijgewerkt";
-    }
-  };
-  actions.appendChild(addBtn);
+    });
 
-  exp.innerHTML = "";
-  exp.appendChild(list);
-  exp.appendChild(actions);
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const tip = document.createElement("div");
+    tip.className = "muted";
+    tip.textContent = "Vink één of meerdere delen aan om toe te voegen aan de selectie.";
+    actions.appendChild(tip);
+
+    exp.innerHTML = "";
+    exp.appendChild(list);
+    exp.appendChild(actions);
+  }
 }
 
 async function fetchOpenInstalments(billId) {
@@ -432,6 +564,7 @@ function openBillModal() {
   const comm = document.getElementById("bill-comm");
   const desc = document.getElementById("bill-desc");
   const amount = document.getElementById("bill-amount");
+  const due = document.getElementById("bill-due");
   const inparts = document.getElementById("bill-inparts");
   const parts = document.getElementById("bill-parts");
   const partsWrap = document.getElementById("partsCountWrap");
@@ -439,7 +572,7 @@ function openBillModal() {
   const perPart = document.getElementById("perPart");
   const lastHint = document.getElementById("lastPartHint");
 
-  [iban, ben, comm, desc, amount].forEach(el => el && (el.value = ""));
+  [iban, ben, comm, desc, amount, due].forEach(el => el && (el.value = ""));
   inparts.checked = false;
   parts.value = 2;
   partsWrap.hidden = true;
@@ -470,6 +603,7 @@ function openBillModal() {
       communication: (comm.value || "").trim(),
       description: (desc.value || "").trim(),
       amountTotal: clamp2(amount.value),
+      dueDate: (due.value || null),
       inParts: !!inparts.checked,
       partsCount: inparts.checked ? Math.max(2, parseInt(parts.value, 10) || 2) : 1,
       createdAt: serverTimestamp(),
@@ -716,7 +850,7 @@ clearSelectedBtn && (clearSelectedBtn.onclick = () => {
   recalcDiff();
 });
 
-paySelectedBtn && (paySelectedBtn.onclick = async () => {
+payReviewBtn && (payReviewBtn.onclick = async () => {
   if (selected.size === 0) { Modal.alert({ title: "Geen selectie", html: "Vink één of meer betalingen aan." }); return; }
   try {
     // Process each selection
@@ -754,3 +888,109 @@ paySelectedBtn && (paySelectedBtn.onclick = async () => {
     Modal.alert({ title: "Mislukt", html: "Niet alle betalingen konden gemarkeerd worden." });
   }
 });
+
+
+/* ──────────────────────────────────────────────────────────────
+   Betaaloverzicht (review modal)
+   ────────────────────────────────────────────────────────────── */
+payReviewBtn && (payReviewBtn.onclick = () => {
+  const body = document.getElementById("reviewBody");
+  body.innerHTML = "";
+  for (const [key, it] of selected.entries()) {
+    const tr = document.createElement("tr");
+    const ben = document.createElement("td"); ben.textContent = it.label.split(" – ")[0] || "";
+    const iban = document.createElement("td"); iban.textContent = it.iban || "";
+    const amt = document.createElement("td"); amt.textContent = euro(it.amount);
+    const note = document.createElement("td");
+    const noteInput = document.createElement("input"); noteInput.type = "text"; noteInput.placeholder = "Opmerking…"; noteInput.value = it.note || "";
+    note.appendChild(noteInput);
+    const paidTd = document.createElement("td");
+    const chk = document.createElement("input"); chk.type = "checkbox"; chk.checked = true;
+    paidTd.appendChild(chk);
+
+    tr.dataset.key = key;
+    tr.append(ben, iban, amt, note, paidTd);
+    body.appendChild(tr);
+  }
+  Modal.open("modal-review");
+});
+
+document.getElementById("review-confirm") && (document.getElementById("review-confirm").onclick = async () => {
+  const rows = Array.from(document.querySelectorAll("#reviewBody tr"));
+  if (!rows.length) { Modal.alert({ title: "Geen selectie", html: "Er staan geen items in het overzicht." }); return; }
+
+  try {
+    for (const tr of rows) {
+      const key = tr.dataset.key;
+      const paid = tr.querySelector('input[type="checkbox"]').checked;
+      const note = tr.querySelector('input[type="text"]').value || "";
+      if (!paid) continue;
+
+      const it = selected.get(key);
+      if (!it) continue;
+      const b = bills.find(x => x.id === it.billId);
+      if (!b) continue;
+
+      if (it.type === "part") {
+        const partRef = doc(db, `bills/${it.billId}/instalments/${it.instalmentId}`);
+        await updateDoc(partRef, { status: "paid", paidAt: serverTimestamp() });
+        await updateDoc(doc(db, "bills", it.billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + Number(it.amount || 0)) });
+        await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: it.instalmentId, amount: it.amount, note, at: serverTimestamp() });
+      } else {
+        // full
+        const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
+        if (remaining > 0) {
+          await updateDoc(doc(db, "bills", it.billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + remaining) });
+          // mark all open instalments as paid
+          const partsSnap = await getDocs(collection(db, `bills/${it.billId}/instalments`));
+          for (const d of partsSnap.docs) {
+            if (d.data().status === "open") {
+              await updateDoc(doc(db, `bills/${it.billId}/instalments/${d.id}`), { status: "paid", paidAt: serverTimestamp() });
+            }
+          }
+          await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: null, amount: remaining, note, at: serverTimestamp() });
+        }
+      }
+    }
+    Modal.close("modal-review");
+    // NIET leegmaken: selectie blijft staan zodat balans het effect toont
+    Modal.toast && Modal.toast({ html: "Aangevinkte betalingen zijn gemarkeerd als betaald." });
+  } catch (e) {
+    console.error(e);
+    Modal.alert({ title: "Mislukt", html: "Niet alle betalingen konden gemarkeerd worden." });
+  }
+});
+
+
+async function settleAsFull(billId) {
+  const b = bills.find(x => x.id === billId);
+  if (!b) return;
+  const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
+  if (remaining <= 0) return;
+  // Reuse pay modal to confirm
+  const ctx = document.getElementById("payContext");
+  const wrap = document.getElementById("payPartsWrap");
+  if (ctx && wrap) {
+    ctx.innerHTML = `<div><strong>${escapeHtml(b.beneficiary || "")}</strong></div>
+      <div>Openstaand: ${euro(remaining)}</div>`;
+    wrap.innerHTML = `<div class="muted">Dit markeert het volledige resterende bedrag als betaald.</div>`;
+    document.getElementById("pay-confirm").onclick = async () => {
+      try {
+        await updateDoc(doc(db, "bills", billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + remaining) });
+        // mark all open parts as paid
+        const partsSnap = await getDocs(collection(db, `bills/${billId}/instalments`));
+        for (const d of partsSnap.docs) {
+          if (d.data().status === "open") {
+            await updateDoc(doc(db, `bills/${billId}/instalments/${d.id}`), { status: "paid", paidAt: serverTimestamp() });
+          }
+        }
+        await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId, instalmentId: null, amount: remaining, at: serverTimestamp() });
+        Modal.close("modal-pay");
+      } catch (e) {
+        console.error(e);
+        Modal.alert({ title: "Mislukt", html: "Markeren als betaald is niet gelukt." });
+      }
+    };
+    Modal.open("modal-pay");
+  }
+}
