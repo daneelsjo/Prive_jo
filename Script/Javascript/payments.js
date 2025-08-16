@@ -18,17 +18,19 @@ const provider = new GoogleAuthProvider();
    ────────────────────────────────────────────────────────────── */
 let currentUser = null;
 
-let bills = [];        // {id, beneficiary, amountTotal, paidAmount, inParts, partsCount, partAmount, lastPartAmount, ...}
-let incomes = [];      // (filtered by selected month)
-let fixedCosts = [];   // all fixed costs; filtered client-side by month
+let bills = [];
+let incomes = [];
+let fixedCosts = [];
 
 let selectedBillId = null;
 let selectedPartIndex = null;
 let selectedMonth = (new Date()).toISOString().slice(0, 7); // YYYY-MM
 
-// Multi-select basket
-let selected = new Map(); // key=billId or billId::instalmentId
-let partChoice = new Map(); // billId -> instalment object (id,index,amount)
+// Multi-select basket (Map<key, item>)
+let selected = new Map();
+
+// Firestore listener voor selectie
+let selUnsub = null;
 
 // DOM
 const loginBtn = document.getElementById("login-btn");
@@ -38,7 +40,7 @@ const appDiv = document.getElementById("app");
 const billsBody = document.getElementById("billsBody");
 const newBillBtn = document.getElementById("newBillBtn");
 const addIncomeBtn = document.getElementById("addIncomeBtn");
-const fixedCostsBtn = document.getElementById("fixedCostsBtn"); // behouden (snelle toevoegen)
+const fixedCostsBtn = document.getElementById("fixedCostsBtn");
 
 const monthPicker = document.getElementById("monthPicker");
 const incomeList = document.getElementById("incomeList");
@@ -57,7 +59,7 @@ const sumToPay = document.getElementById("sumToPay");
 const sumDiff = document.getElementById("sumDiff");
 const openTotal = document.getElementById("openTotal");
 
-// nieuwe knoppen onderaan de tabel (moeten in HTML staan)
+// Extra knoppen
 const fixedOverviewBtn = document.getElementById("fixedOverviewBtn");
 const closedHistoryBtn = document.getElementById("closedHistoryBtn");
 
@@ -75,9 +77,7 @@ function monthKey(d) {
 function addMonths(ym, delta) {
   const [y, m] = String(ym).split("-").map(Number);
   const d = new Date(Date.UTC(y, (m || 1) - 1 + delta, 1));
-  const yy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  return `${yy}-${mm}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 function prevMonth(ym) { return addMonths(ym, -1); }
 function fmtDate(ts) {
@@ -85,15 +85,25 @@ function fmtDate(ts) {
   const d = ts.seconds ? new Date(ts.seconds * 1000) : (ts instanceof Date ? ts : new Date(ts));
   return d.toLocaleDateString("nl-BE");
 }
-function toDateFromYMD(ymd) {
-  // 12:00 lokale tijd om TZ-afwijkingen te beperken
-  return new Date(`${ymd}T12:00:00`);
+function toDateFromYMD(ymd) { return new Date(`${ymd}T12:00:00`); }
+
+function debounce(fn, wait = 500) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
 }
 
-function renderAll() {
-  renderBills();
-  renderSidebar();
+function serializeSelected(map) {
+  return Object.fromEntries(map.entries());
 }
+function deserializeSelected(obj) {
+  const m = new Map();
+  if (obj && typeof obj === "object") {
+    for (const [k, v] of Object.entries(obj)) m.set(k, v);
+  }
+  return m;
+}
+
+function renderAll() { renderBills(); renderSidebar(); }
 
 function updateOpenTotal() {
   if (!openTotal) return;
@@ -110,6 +120,43 @@ function clearSelectionUI() {
   renderSelectedList();
   sumToPay && (sumToPay.textContent = euro(0));
   recalcDiff();
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Selectie ↔ Firestore (blijft staan na refresh)
+   ────────────────────────────────────────────────────────────── */
+async function saveSelectionNow() {
+  if (!currentUser) return;
+  const ref = doc(db, `users/${currentUser.uid}/selections/${selectedMonth}`);
+  await setDoc(ref, {
+    month: selectedMonth,
+    items: serializeSelected(selected),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}
+const saveSelectionDebounced = debounce(saveSelectionNow, 600);
+
+function selectChanged() {
+  renderSelectedList();
+  sumToPay.textContent = euro(totalSelected());
+  recalcDiff();
+  saveSelectionDebounced();
+}
+
+async function attachSelectionListener(month) {
+  if (!currentUser) return;
+  if (selUnsub) { try { selUnsub(); } catch { } selUnsub = null; }
+  const ref = doc(db, `users/${currentUser.uid}/selections/${month}`);
+  selUnsub = onSnapshot(ref, (snap) => {
+    // als geen doc: lege selectie
+    const data = snap.exists() ? snap.data() : { items: {} };
+    selected = deserializeSelected(data.items);
+    // UI sync
+    renderSelectedList();
+    sumToPay.textContent = euro(totalSelected());
+    recalcDiff();
+    renderBills(); // vinkjes in tabel laten aansluiten
+  });
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -134,7 +181,7 @@ onAuthStateChanged(auth, async (user) => {
     renderBills();
   });
 
-  // Incomes (filteren op maand + geen soft-deletes)
+  // Incomes (soft delete filter + maand)
   onSnapshot(query(collection(db, "incomes")), snap => {
     const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     incomes = all.filter(x => !x.deleted && x.month === selectedMonth);
@@ -148,6 +195,9 @@ onAuthStateChanged(auth, async (user) => {
   });
 
   monthPicker.value = selectedMonth;
+
+  // Laad selectie voor de huidige maand
+  attachSelectionListener(selectedMonth);
 });
 
 /* ──────────────────────────────────────────────────────────────
@@ -159,7 +209,6 @@ function renderBills() {
 
   const open = bills.filter(b => (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)) > 0);
 
-  // Openstaand totaal onder de titel
   if (openTotal) {
     const tot = open.reduce((s, b) => s + (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)), 0);
     openTotal.textContent = euro(clamp2(tot));
@@ -187,14 +236,13 @@ function renderBills() {
     const initial = Number(b.amountTotal || 0);
     const remaining = clamp2(initial - Number(b.paidAmount || 0));
 
-    // Kolom "Te betalen": ALTIJD initieel bedrag (zoals gevraagd)
+    // Te betalen = initieel bedrag
     const tdToPay = document.createElement("td");
     tdToPay.textContent = euro(initial);
 
     const tdPaid = document.createElement("td");
     tdPaid.textContent = euro(Number(b.paidAmount || 0));
 
-    // Nieuwe kolom "te betalen tegen" met rood indien vervallen
     const tdDue = document.createElement("td");
     if (b.dueDate) {
       const overdue = b.dueDate < today && remaining > 0;
@@ -204,7 +252,6 @@ function renderBills() {
       tdDue.textContent = "—";
     }
 
-    // Acties: V (volledig betaald) + ✎ (bewerken hoofdrek.)
     const tdAct = document.createElement("td");
     const btnPaid = document.createElement("button");
     btnPaid.className = "ghost";
@@ -219,7 +266,6 @@ function renderBills() {
     btnEdit.onclick = (e) => { e.stopPropagation(); openBillModal(b.id); };
     tdAct.append(btnPaid, btnEdit);
 
-    // Selectie / expander
     const tdSel = document.createElement("td");
     tdSel.style.textAlign = "center";
     if (b.inParts) {
@@ -244,9 +290,7 @@ function renderBills() {
         } else {
           selected.delete(key);
         }
-        renderSelectedList();
-        sumToPay.textContent = euro(totalSelected());
-        recalcDiff();
+        selectChanged();
       };
       tdSel.appendChild(cb);
     }
@@ -280,7 +324,7 @@ function renderBills() {
 function renderSidebar() {
   const month = selectedMonth;
 
-  // inkomsten lijst (klikbaar om te bewerken)
+  // inkomsten lijst (klikbaar)
   const inc = incomes.filter(x => x.month === month);
   incomeList.innerHTML = inc.map(x =>
     `<div class="row income-item" data-id="${x.id}">
@@ -289,7 +333,6 @@ function renderSidebar() {
      </div>`
   ).join("") || `<div class="muted">Geen inkomsten voor deze maand.</div>`;
 
-  // click handlers voor inkomsten (edit/delete)
   incomeList.querySelectorAll(".income-item").forEach(el => {
     el.addEventListener("click", () => openIncomeEdit(el.dataset.id));
   });
@@ -327,7 +370,7 @@ function renderSelectedBox() {
   const lastPart = b.inParts ? clamp2(b.lastPartAmount || 0) : null;
   const hint = (b.inParts && lastPart && remaining <= lastPart) ? ` (laatste deel: ${euro(lastPart)})` : "";
 
-  selectedPartIndex = null; // reset
+  selectedPartIndex = null;
   selectedPaymentBox.innerHTML = `
     <div><strong>${escapeHtml(b.beneficiary || "(zonder naam)")}</strong></div>
     <div class="hint">Openstaand: ${euro(remaining)}</div>
@@ -385,13 +428,9 @@ function renderSelectedList() {
       x.title = "Verwijder uit selectie";
       x.onclick = () => {
         selected.delete(key);
-        if (it.type === "full") {
-          const cb = billsBody.querySelector(`tr[data-id="${it.billId}"] input[type="checkbox"]`);
-          if (cb) cb.checked = false;
-        }
-        renderSelectedList();
-        sumToPay.textContent = euro(totalSelected());
-        recalcDiff();
+        const cb = billsBody.querySelector(`tr[data-id="${it.billId}"] input[type="checkbox"]`);
+        if (cb) cb.checked = false;
+        selectChanged();
       };
       right.append(amt, x);
       row.append(left, right);
@@ -450,13 +489,8 @@ async function toggleExpander(billId, forceOpen) {
       const val = prompt(`Nieuw bedrag voor deel ${it.index} (huidig ${euro(it.amount)})`, String(it.amount));
       if (val === null || val === "") return;
       const newAmt = clamp2(val);
-      try {
-        await rebalanceAfterPartEdit(billId, it.id, newAmt);
-        amt.textContent = euro(newAmt);
-      } catch (e) {
-        console.error("Rebalance failed:", e);
-        Modal.alert && Modal.alert({ title: "Oeps", html: "Kon de bedragen niet herrekenen." });
-      }
+      try { await rebalanceAfterPartEdit(billId, it.id, newAmt); amt.textContent = euro(newAmt); }
+      catch { Modal.alert && Modal.alert({ title: "Oeps", html: "Kon de bedragen niet herrekenen." }); }
     };
 
     right.append(amt, edit);
@@ -476,9 +510,7 @@ async function toggleExpander(billId, forceOpen) {
     } else {
       selected.delete(key);
     }
-    renderSelectedList();
-    sumToPay.textContent = euro(totalSelected());
-    recalcDiff();
+    selectChanged();
   });
 
   exp.innerHTML = "";
@@ -519,14 +551,15 @@ async function rebalanceAfterPartEdit(billId, editedPartId, newAmt) {
 /* ──────────────────────────────────────────────────────────────
    Month picker
    ────────────────────────────────────────────────────────────── */
-monthPicker && (monthPicker.onchange = () => {
-  selectedMonth = monthKey(monthPicker.value);
-  clearSelectionUI();
+monthPicker && (monthPicker.onchange = async () => {
+  const newM = monthKey(monthPicker.value);
+  if (newM === selectedMonth) return;
+  await saveSelectionNow();       // bewaar vorige maand
+  selectedMonth = newM;
+  attachSelectionListener(selectedMonth); // laad nieuwe maand
   onMonthChanged();
 });
-function onMonthChanged() {
-  renderSidebar();
-}
+function onMonthChanged() { renderSidebar(); }
 
 /* ──────────────────────────────────────────────────────────────
    Modals: Nieuwe rekening (ook bewerken)
@@ -607,7 +640,7 @@ function openBillModal(billId = null) {
     try {
       if (editId) {
         await updateDoc(doc(db, "bills", editId), payload);
-        // herverdeel OPEN delen evenredig (betaalde laten we ongemoeid)
+        // herverdeel OPEN delen
         const psnap = await getDocs(collection(db, `bills/${editId}/instalments`));
         const all = psnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const paid = all.filter(x => x.status === "paid");
@@ -643,7 +676,7 @@ function openBillModal(billId = null) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Modals: Inkomsten (add + edit + soft delete)
+   Inkomsten (add + edit + soft delete)
    ────────────────────────────────────────────────────────────── */
 addIncomeBtn && (addIncomeBtn.onclick = () => openIncomeEdit(null));
 
@@ -670,7 +703,6 @@ function openIncomeEdit(incomeId = null) {
 
   src.onchange = () => { noteWrap.hidden = (src.value !== "Andere"); };
 
-  // Save (add or update)
   document.getElementById("income-save").onclick = async () => {
     const payload = {
       uid: currentUser?.uid || null,
@@ -692,7 +724,7 @@ function openIncomeEdit(incomeId = null) {
     Modal.close("modal-income");
   };
 
-  // Delete (soft)
+  // Verwijderen
   let del = document.getElementById("income-delete");
   if (!del) {
     del = document.createElement("button");
@@ -713,83 +745,99 @@ function openIncomeEdit(incomeId = null) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Modals: Vaste kosten (overzicht + bewerken/stoppen)
+   Vaste kosten (overzicht + snel toevoegen)
    ────────────────────────────────────────────────────────────── */
-fixedCostsBtn && (fixedCostsBtn.onclick = () => openFixedModal()); // bestaande “toevoegen” snelkoppeling
-fixedOverviewBtn && (fixedOverviewBtn.onclick = () => openFixedModal()); // zelfde modal, maar we tonen lijst met acties
+fixedCostsBtn && (fixedCostsBtn.onclick = () => openFixedModal({ stayOpen: false }));
+fixedOverviewBtn && (fixedOverviewBtn.onclick = () => openFixedModal({ stayOpen: true }));
 
-async function openFixedModal() {
-  // render list met acties
+async function openFixedModal(opts = { stayOpen: false }) {
   const list = document.getElementById("fixedListModal");
-  list.innerHTML = (fixedCosts.length ? "" : `<div class="muted">Nog geen vaste kosten.</div>`);
-  for (const f of fixedCosts.sort((a, b) => (a.name || "").localeCompare(b.name || ""))) {
-    const row = document.createElement("div");
-    row.className = "row";
-    const range = `${f.startMonth || "?"} ${f.endMonth ? "→ " + f.endMonth : "→ …"}`;
-    row.innerHTML =
-      `<span>${escapeHtml(f.name || "")} <span class="muted" style="margin-left:.5rem;">${range}</span></span>
-       <strong>${euro(f.amount)}</strong>`;
-    const actions = document.createElement("div");
-    actions.style.display = "flex"; actions.style.gap = ".35rem"; actions.style.marginLeft = ".5rem";
 
-    const edit = document.createElement("button");
-    edit.className = "ghost"; edit.title = "Wijzig bedrag (vanaf maand)"; edit.textContent = "✎";
-    edit.onclick = async () => {
-      const newAmtStr = prompt(`Nieuw bedrag voor ${f.name}`, String(f.amount));
-      if (newAmtStr == null || newAmtStr === "") return;
-      const eff = prompt("Vanaf welke maand (YYYY-MM)?", selectedMonth);
-      if (!eff) return;
-      const newAmt = clamp2(newAmtStr);
-      // sluit de huidige versie af t.e.m. maand vóór eff
-      await updateDoc(doc(db, "fixedCosts", f.id), { endMonth: prevMonth(monthKey(eff)) });
-      // maak nieuwe versie vanaf eff
-      await addDoc(collection(db, "fixedCosts"), {
-        uid: currentUser?.uid || null, name: f.name, amount: newAmt,
-        startMonth: monthKey(eff), endMonth: null, createdAt: serverTimestamp()
+  function renderList() {
+    list.innerHTML = (fixedCosts.length ? "" : `<div class="muted">Nog geen vaste kosten.</div>`);
+    fixedCosts
+      .slice()
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+      .forEach(f => {
+        const row = document.createElement("div");
+        row.className = "row";
+        const range = `${f.startMonth || "?"} ${f.endMonth ? "→ " + f.endMonth : "→ …"}`;
+        row.innerHTML =
+          `<span>${escapeHtml(f.name || "")} <span class="muted" style="margin-left:.5rem;">${range}</span></span>
+           <strong>${euro(f.amount)}</strong>`;
+        const actions = document.createElement("div");
+        actions.style.display = "flex"; actions.style.gap = ".35rem"; actions.style.marginLeft = ".5rem";
+
+        const edit = document.createElement("button");
+        edit.className = "ghost"; edit.title = "Wijzig bedrag (vanaf maand)"; edit.textContent = "✎";
+        edit.onclick = async () => {
+          const newAmtStr = prompt(`Nieuw bedrag voor ${f.name}`, String(f.amount));
+          if (newAmtStr == null || newAmtStr === "") return;
+          const eff = prompt("Vanaf welke maand (YYYY-MM)?", selectedMonth);
+          if (!eff) return;
+          const newAmt = clamp2(newAmtStr);
+          await updateDoc(doc(db, "fixedCosts", f.id), { endMonth: prevMonth(monthKey(eff)) });
+          await addDoc(collection(db, "fixedCosts"), {
+            uid: currentUser?.uid || null, name: f.name, amount: newAmt,
+            startMonth: monthKey(eff), endMonth: null, createdAt: serverTimestamp()
+          });
+        };
+
+        const stop = document.createElement("button");
+        stop.className = "ghost"; stop.title = "Stoppen vanaf maand"; stop.textContent = "⛔";
+        stop.onclick = async () => {
+          const eff = prompt("Stoppen vanaf maand (YYYY-MM)?", selectedMonth);
+          if (!eff) return;
+          await updateDoc(doc(db, "fixedCosts", f.id), { endMonth: prevMonth(monthKey(eff)) });
+        };
+
+        actions.append(edit, stop);
+        row.appendChild(actions);
+        list.appendChild(row);
       });
-      Modal.toast && Modal.toast({ html: "Vaste kost bijgewerkt vanaf " + monthKey(eff) });
-    };
-
-    const stop = document.createElement("button");
-    stop.className = "ghost"; stop.title = "Stoppen vanaf maand"; stop.textContent = "⛔";
-    stop.onclick = async () => {
-      const eff = prompt("Stoppen vanaf maand (YYYY-MM)?", selectedMonth);
-      if (!eff) return;
-      await updateDoc(doc(db, "fixedCosts", f.id), { endMonth: prevMonth(monthKey(eff)) });
-      Modal.toast && Modal.toast({ html: "Vaste kost stopt vanaf " + monthKey(eff) });
-    };
-
-    actions.append(edit, stop);
-    row.appendChild(actions);
-    list.appendChild(row);
   }
 
-  // leeg het formulier + defaults
+  renderList();
+
+  // leeg formulier
   document.getElementById("fixed-name").value = "";
   document.getElementById("fixed-amount").value = "";
   document.getElementById("fixed-start").value = selectedMonth;
   document.getElementById("fixed-end").value = "";
 
-  document.getElementById("fixed-save").onclick = async () => {
+  const saveBtn = document.getElementById("fixed-save");
+  saveBtn.textContent = opts.stayOpen ? "Toevoegen" : "Opslaan";
+
+  saveBtn.onclick = async () => {
     const name = (document.getElementById("fixed-name").value || "").trim();
     const amount = clamp2(document.getElementById("fixed-amount").value);
     const start = monthKey(document.getElementById("fixed-start").value);
     const endRaw = document.getElementById("fixed-end").value;
     const end = endRaw ? monthKey(endRaw) : null;
     if (!name || !amount || !start) {
-      Modal.alert({ title: "Ontbrekende velden", html: "Vul naam, bedrag en startmaand in." }); return;
+      Modal.alert({ title: "Ontbrekende velden", html: "Vul naam, bedrag en startmaand in." });
+      return;
     }
-    await addDoc(collection(db, "fixedCosts"), {
-      uid: currentUser?.uid || null, name, amount, startMonth: start, endMonth: end, createdAt: serverTimestamp()
-    });
-    Modal.close("modal-fixed");
+    await addDoc(collection(db, "fixedCosts"), { uid: currentUser?.uid || null, name, amount, startMonth: start, endMonth: end, createdAt: serverTimestamp() });
+
+    if (opts.stayOpen) {
+      // velden resetten en lijst verversen, modal open laten
+      document.getElementById("fixed-name").value = "";
+      document.getElementById("fixed-amount").value = "";
+      document.getElementById("fixed-start").value = selectedMonth;
+      document.getElementById("fixed-end").value = "";
+      // kleine delay zodat onSnapshot fixedCosts kan updaten
+      setTimeout(() => renderList(), 250);
+    } else {
+      Modal.close("modal-fixed");
+    }
   };
 
   Modal.open("modal-fixed");
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Betalen (single / part)
+   Betalen
    ────────────────────────────────────────────────────────────── */
 async function openPayModal(billId) {
   const b = bills.find(x => x.id === billId);
@@ -842,8 +890,6 @@ async function openPayModal(billId) {
         const newPaid = clamp2(Number(b.paidAmount || 0) + Number(part.amount || 0));
         await updateDoc(doc(db, "bills", billId), { paidAmount: newPaid });
         await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId, instalmentId: selectedPartIndex, amount: part.amount, at: serverTimestamp() });
-
-        // indien nu volledig afbetaald -> closedAt
         const remaining = clamp2(Number(b.amountTotal || 0) - newPaid);
         if (remaining <= 0) await updateDoc(doc(db, "bills", billId), { closedAt: serverTimestamp() });
       } else {
@@ -855,8 +901,6 @@ async function openPayModal(billId) {
         const open = partsSnap.docs.find(d => (d.data().status === "open"));
         if (open) await updateDoc(doc(db, `bills/${billId}/instalments/${open.id}`), { status: "paid", paidAt: serverTimestamp() });
         await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId, instalmentId: open ? open.id : null, amount: remaining, at: serverTimestamp() });
-
-        // volledig afbetaald
         await updateDoc(billRef, { closedAt: serverTimestamp() });
       }
       Modal.close("modal-pay");
@@ -870,7 +914,7 @@ async function openPayModal(billId) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Historiek (transacties, al aanwezig) – extra: afgesloten betalingen
+   Historiek (transactions) – bestaande
    ────────────────────────────────────────────────────────────── */
 const historyBtn = document.getElementById("historyBtn");
 historyBtn && (historyBtn.onclick = async () => {
@@ -897,255 +941,8 @@ historyBtn && (historyBtn.onclick = async () => {
   Modal.open("modal-history");
 });
 
-// Nieuwe: historiek van afgesloten betalingen (per rekening)
-closedHistoryBtn && (closedHistoryBtn.onclick = () => openClosedHistory());
-
-async function openClosedHistory() {
-  // hergebruik modal-history, maar zet kolommen opnieuw op
-  const head = document.getElementById("historyHead");
-  const body = document.getElementById("historyBody");
-  if (head) head.innerHTML = `<tr><th>Begunstigde</th><th>Te betalen</th><th>Betaal datum</th><th></th></tr>`;
-  body.innerHTML = "";
-
-  // Bills die volledig afbetaald zijn
-  const closed = bills.filter(b => clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0)) <= 0);
-
-  for (const b of closed) {
-    // haal betaalde delen op om laatste datum te bepalen
-    const psnap = await getDocs(collection(db, `bills/${b.id}/instalments`));
-    const parts = psnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const paidParts = parts.filter(p => p.status === "paid");
-    let last = null;
-    paidParts.forEach(p => {
-      if (p.paidAt) {
-        const t = p.paidAt.seconds ? new Date(p.paidAt.seconds * 1000) : (p.paidAt instanceof Date ? p.paidAt : null);
-        if (t && (!last || t > last)) last = t;
-      }
-    });
-
-    const tr = document.createElement("tr");
-    const expand = (b.inParts && paidParts.length > 0);
-    tr.innerHTML =
-      `<td>${escapeHtml(b.beneficiary || "")}</td>
-       <td>${euro(b.amountTotal || 0)}</td>
-       <td>${last ? last.toLocaleDateString("nl-BE") : "—"}</td>
-       <td style="text-align:right;">
-         ${expand ? `<button class="ghost" data-ex="${b.id}">▸</button>` : ""}
-         ${!b.inParts ? `<button class="ghost" data-edit="${b.id}">Wijzig datum</button>
-                          <button class="ghost" data-reopen="${b.id}">Maak open</button>` : ""}
-       </td>`;
-    body.appendChild(tr);
-
-    // expander rij
-    if (expand) {
-      const tr2 = document.createElement("tr");
-      const td = document.createElement("td");
-      td.colSpan = 4;
-      td.innerHTML = `<div id="closed-exp-${b.id}" class="expander">${renderPaidPartsTable(b.id, paidParts)}</div>`;
-      tr2.appendChild(td);
-      body.appendChild(tr2);
-    }
-
-    // handlers
-    const ex = tr.querySelector(`[data-ex="${b.id}"]`);
-    ex && ex.addEventListener("click", () => {
-      const box = document.getElementById(`closed-exp-${b.id}`);
-      if (!box) return;
-      box.classList.toggle("open");
-      // niets asynchroon nodig: we hebben paidParts al
-    });
-
-    // enkelvoudige rekening: datum wijzigen of terug open zetten
-    const editBtn = tr.querySelector(`[data-edit="${b.id}"]`);
-    editBtn && editBtn.addEventListener("click", async () => {
-      const onlyPaid = paidParts[0]; // bij enkelvoud zou 1 deel bestaan
-      if (!onlyPaid) return;
-      const def = (onlyPaid.paidAt ? fmtDate(onlyPaid.paidAt) : (new Date()).toISOString().slice(0, 10));
-      const d = prompt("Nieuwe betaaldatum (YYYY-MM-DD)", def);
-      if (!d) return;
-      await updateDoc(doc(db, `bills/${b.id}/instalments/${onlyPaid.id}`), { paidAt: toDateFromYMD(d) });
-      // bijbehorende transactie markeren naar nieuwe datum
-      const txSnap = await getDocs(query(collection(db, "transactions"),
-        where("billId", "==", b.id), where("instalmentId", "==", onlyPaid.id)));
-      for (const t of txSnap.docs) {
-        await updateDoc(doc(db, "transactions", t.id), { at: toDateFromYMD(d) });
-      }
-      Modal.toast && Modal.toast({ html: "Betaaldatum aangepast." });
-    });
-
-    const reopenBtn = tr.querySelector(`[data-reopen="${b.id}"]`);
-    reopenBtn && reopenBtn.addEventListener("click", async () => {
-      const onlyPaid = paidParts[0];
-      if (!onlyPaid) return;
-      if (!confirm("Dit deel terug open zetten?")) return;
-      await updateDoc(doc(db, `bills/${b.id}`), { paidAmount: clamp2(Number(b.paidAmount || 0) - Number(onlyPaid.amount || 0)), closedAt: null });
-      await updateDoc(doc(db, `bills/${b.id}/instalments/${onlyPaid.id}`), { status: "open", paidAt: null });
-      const txSnap = await getDocs(query(collection(db, "transactions"),
-        where("billId", "==", b.id), where("instalmentId", "==", onlyPaid.id)));
-      for (const t of txSnap.docs) {
-        await updateDoc(doc(db, "transactions", t.id), { voided: true, voidedAt: serverTimestamp() });
-      }
-      Modal.toast && Modal.toast({ html: "Deel terug open gezet." });
-    });
-  }
-
-  Modal.open("modal-history");
-}
-
-function renderPaidPartsTable(billId, paidParts) {
-  // tabel met per deel: index, bedrag, datum, acties
-  const rows = paidParts.sort((a, b) => (a.index || 0) - (b.index || 0)).map(p => {
-    const dateStr = fmtDate(p.paidAt);
-    return `<div class="row" data-b="${billId}" data-p="${p.id}">
-      <div>Deel ${p.index}</div>
-      <strong>${euro(p.amount)}</strong>
-      <div class="muted">${dateStr}</div>
-      <div style="display:flex;gap:.35rem;">
-        <button class="ghost" data-editp="${p.id}">Wijzig datum</button>
-        <button class="ghost" data-reopenp="${p.id}">Maak open</button>
-      </div>
-    </div>`;
-  }).join("");
-
-  // na renderen, koppel events asynchroon
-  setTimeout(() => {
-    const host = document.getElementById(`closed-exp-${billId}`);
-    if (!host) return;
-    host.querySelectorAll(`[data-editp]`).forEach(btn => {
-      btn.addEventListener("click", async (e) => {
-        const row = e.target.closest(".row");
-        const b = row.dataset.b, p = row.dataset.p;
-        const def = (paidParts.find(x => x.id === p)?.paidAt ? fmtDate(paidParts.find(x => x.id === p)?.paidAt) : (new Date()).toISOString().slice(0, 10));
-        const d = prompt("Nieuwe betaaldatum (YYYY-MM-DD)", def);
-        if (!d) return;
-        await updateDoc(doc(db, `bills/${b}/instalments/${p}`), { paidAt: toDateFromYMD(d) });
-        const txSnap = await getDocs(query(collection(db, "transactions"),
-          where("billId", "==", b), where("instalmentId", "==", p)));
-        for (const t of txSnap.docs) {
-          await updateDoc(doc(db, "transactions", t.id), { at: toDateFromYMD(d) });
-        }
-        Modal.toast && Modal.toast({ html: "Betaaldatum aangepast." });
-      });
-    });
-    host.querySelectorAll(`[data-reopenp]`).forEach(btn => {
-      btn.addEventListener("click", async (e) => {
-        const row = e.target.closest(".row");
-        const b = row.dataset.b, p = row.dataset.p;
-        if (!confirm("Dit deel terug open zetten?")) return;
-        // haal bill op voor paidAmount correctie
-        const bsnap = await getDoc(doc(db, "bills", b));
-        const bd = bsnap.data() || {};
-        const psnap = await getDoc(doc(db, `bills/${b}/instalments/${p}`));
-        const pd = psnap.data() || {};
-        await updateDoc(doc(db, "bills", b), { paidAmount: clamp2(Number(bd.paidAmount || 0) - Number(pd.amount || 0)), closedAt: null });
-        await updateDoc(doc(db, `bills/${b}/instalments/${p}`), { status: "open", paidAt: null });
-        const txSnap = await getDocs(query(collection(db, "transactions"),
-          where("billId", "==", b), where("instalmentId", "==", p)));
-        for (const t of txSnap.docs) {
-          await updateDoc(doc(db, "transactions", t.id), { voided: true, voidedAt: serverTimestamp() });
-        }
-        Modal.toast && Modal.toast({ html: "Deel terug open gezet." });
-      });
-    });
-  }, 0);
-
-  return `<div class="list">${rows || `<div class="muted">Geen betaalde delen.</div>`}</div>`;
-}
-
 /* ──────────────────────────────────────────────────────────────
-   Betaaloverzicht (review modal)
-   ────────────────────────────────────────────────────────────── */
-clearSelectedBtn && (clearSelectedBtn.onclick = () => {
-  selected.clear();
-  billsBody.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-  renderSelectedList();
-  sumToPay.textContent = euro(0);
-  recalcDiff();
-});
-
-payReviewBtn && (payReviewBtn.onclick = () => {
-  const body = document.getElementById("reviewBody");
-  body.innerHTML = "";
-  for (const [key, it] of selected.entries()) {
-    const tr = document.createElement("tr");
-    const ben = document.createElement("td"); ben.textContent = it.label.split(" – ")[0] || "";
-    const iban = document.createElement("td"); { const b = bills.find(x => x.id === it.billId); iban.textContent = (b && b.iban) ? b.iban : (it.iban || ""); }
-    const amt = document.createElement("td"); amt.textContent = euro(it.amount);
-    const commTd = document.createElement("td");
-    const b = bills.find(x => x.id === it.billId);
-    commTd.textContent = (b && (b.communication || b.description || "")) || "";
-    const paidTd = document.createElement("td");
-    const chk = document.createElement("input"); chk.type = "checkbox"; chk.checked = true;
-    paidTd.appendChild(chk);
-
-    tr.dataset.key = key;
-    tr.append(ben, iban, amt, commTd, paidTd);
-    body.appendChild(tr);
-  }
-  Modal.open("modal-review");
-});
-
-document.getElementById("review-confirm") && (document.getElementById("review-confirm").onclick = async () => {
-  const rows = Array.from(document.querySelectorAll("#reviewBody tr"));
-  if (!rows.length) {
-    Modal.alert({ title: "Geen selectie", html: "Er staan geen items in het overzicht." });
-    return;
-  }
-
-  try {
-    for (const tr of rows) {
-      const key = tr.dataset.key;
-      const paidChk = tr.querySelector('input[type="checkbox"]');
-      const paid = paidChk ? paidChk.checked : false;
-      if (!paid) continue;
-
-      const it = selected.get(key);
-      if (!it) continue;
-
-      const b = bills.find(x => x.id === it.billId);
-      if (!b) continue;
-
-      const noteCell = tr.children[3];
-      const noteFromCell = noteCell ? (noteCell.textContent || "").trim() : "";
-      const note = noteFromCell || b.communication || b.description || "";
-
-      if (it.type === "part") {
-        const partRef = doc(db, `bills/${it.billId}/instalments/${it.instalmentId}`);
-        await updateDoc(partRef, { status: "paid", paidAt: serverTimestamp() });
-        const newPaid = clamp2(Number(b.paidAmount || 0) + Number(it.amount || 0));
-        await updateDoc(doc(db, "bills", it.billId), { paidAmount: newPaid });
-        await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: it.instalmentId, amount: it.amount, note, at: serverTimestamp() });
-
-        // indien nu volledig afbetaald -> closedAt
-        const remaining = clamp2(Number(b.amountTotal || 0) - newPaid);
-        if (remaining <= 0) await updateDoc(doc(db, "bills", it.billId), { closedAt: serverTimestamp() });
-      } else {
-        const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
-        if (remaining > 0) {
-          await updateDoc(doc(db, "bills", it.billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + remaining) });
-          const partsSnap = await getDocs(collection(db, `bills/${it.billId}/instalments`));
-          for (const d of partsSnap.docs) {
-            if (d.data().status === "open") {
-              await updateDoc(doc(db, `bills/${it.billId}/instalments/${d.id}`), { status: "paid", paidAt: serverTimestamp() });
-            }
-          }
-          await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: null, amount: remaining, note, at: serverTimestamp() });
-          await updateDoc(doc(db, "bills", it.billId), { closedAt: serverTimestamp() });
-        }
-      }
-    }
-
-    Modal.close("modal-review");
-    // selectie blijft staan zodat je het saldo-effect ziet
-    Modal.toast && Modal.toast({ html: "Aangevinkte betalingen zijn gemarkeerd als betaald." });
-  } catch (e) {
-    console.error(e);
-    Modal.alert({ title: "Mislukt", html: "Niet alle betalingen konden gemarkeerd worden." });
-  }
-});
-
-/* ──────────────────────────────────────────────────────────────
-   Volledig als betaald (quick action)
+   Afsluiten / volwaardig betalen (quick)
    ────────────────────────────────────────────────────────────── */
 async function settleAsFull(billId) {
   const b = bills.find(x => x.id === billId);
@@ -1181,61 +978,92 @@ async function settleAsFull(billId) {
 }
 
 /* ──────────────────────────────────────────────────────────────
+   Betaaloverzicht (review modal)
+   ────────────────────────────────────────────────────────────── */
+clearSelectedBtn && (clearSelectedBtn.onclick = () => {
+  selected.clear();
+  billsBody.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+  selectChanged();
+});
+
+payReviewBtn && (payReviewBtn.onclick = () => {
+  const body = document.getElementById("reviewBody");
+  body.innerHTML = "";
+  for (const [key, it] of selected.entries()) {
+    const tr = document.createElement("tr");
+    const ben = document.createElement("td"); ben.textContent = it.label.split(" – ")[0] || "";
+    const iban = document.createElement("td"); { const b = bills.find(x => x.id === it.billId); iban.textContent = (b && b.iban) ? b.iban : (it.iban || ""); }
+    const amt = document.createElement("td"); amt.textContent = euro(it.amount);
+    const commTd = document.createElement("td");
+    const b = bills.find(x => x.id === it.billId);
+    commTd.textContent = (b && (b.communication || b.description || "")) || "";
+    const paidTd = document.createElement("td");
+    const chk = document.createElement("input"); chk.type = "checkbox"; chk.checked = true;
+    paidTd.appendChild(chk);
+
+    tr.dataset.key = key;
+    tr.append(ben, iban, amt, commTd, paidTd);
+    body.appendChild(tr);
+  }
+  Modal.open("modal-review");
+});
+
+document.getElementById("review-confirm") && (document.getElementById("review-confirm").onclick = async () => {
+  const rows = Array.from(document.querySelectorAll("#reviewBody tr"));
+  if (!rows.length) { Modal.alert({ title: "Geen selectie", html: "Er staan geen items in het overzicht." }); return; }
+
+  try {
+    for (const tr of rows) {
+      const key = tr.dataset.key;
+      const paidChk = tr.querySelector('input[type="checkbox"]');
+      const paid = paidChk ? paidChk.checked : false;
+      if (!paid) continue;
+
+      const it = selected.get(key);
+      if (!it) continue;
+
+      const b = bills.find(x => x.id === it.billId);
+      if (!b) continue;
+
+      const noteCell = tr.children[3];
+      const noteFromCell = noteCell ? (noteCell.textContent || "").trim() : "";
+      const note = noteFromCell || b.communication || b.description || "";
+
+      if (it.type === "part") {
+        const partRef = doc(db, `bills/${it.billId}/instalments/${it.instalmentId}`);
+        await updateDoc(partRef, { status: "paid", paidAt: serverTimestamp() });
+        const newPaid = clamp2(Number(b.paidAmount || 0) + Number(it.amount || 0));
+        await updateDoc(doc(db, "bills", it.billId), { paidAmount: newPaid });
+        await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: it.instalmentId, amount: it.amount, note, at: serverTimestamp() });
+        const remaining = clamp2(Number(b.amountTotal || 0) - newPaid);
+        if (remaining <= 0) await updateDoc(doc(db, "bills", it.billId), { closedAt: serverTimestamp() });
+      } else {
+        const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
+        if (remaining > 0) {
+          await updateDoc(doc(db, "bills", it.billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + remaining) });
+          const partsSnap = await getDocs(collection(db, `bills/${it.billId}/instalments`));
+          for (const d of partsSnap.docs) {
+            if (d.data().status === "open") {
+              await updateDoc(doc(db, `bills/${it.billId}/instalments/${d.id}`), { status: "paid", paidAt: serverTimestamp() });
+            }
+          }
+          await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: null, amount: remaining, note, at: serverTimestamp() });
+          await updateDoc(doc(db, "bills", it.billId), { closedAt: serverTimestamp() });
+        }
+      }
+    }
+
+    Modal.close("modal-review");
+    Modal.toast && Modal.toast({ html: "Aangevinkte betalingen zijn gemarkeerd als betaald." });
+  } catch (e) {
+    console.error(e);
+    Modal.alert({ title: "Mislukt", html: "Niet alle betalingen konden gemarkeerd worden." });
+  }
+});
+
+/* ──────────────────────────────────────────────────────────────
    Utils
    ────────────────────────────────────────────────────────────── */
 function escapeHtml(s = "") {
   return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
-
-/* ──────────────────────────────────────────────────────────────
-   Selected-by-month Addon (lokale in-memory per maand)
-   ────────────────────────────────────────────────────────────── */
-(function () {
-  if (window.__selByMonthInit) return;
-  window.__selByMonthInit = true;
-
-  window.selectedByMonth = window.selectedByMonth || new Map();
-  if (!selectedByMonth.has(selectedMonth)) {
-    selectedByMonth.set(selectedMonth, selected || new Map());
-  } else {
-    if (typeof selected !== "undefined") {
-      selectedByMonth.set(selectedMonth, selected);
-    }
-  }
-
-  function switchSelectionForMonth(newMonth) {
-    try {
-      selectedByMonth.set(selectedMonth, selected);
-      const next = selectedByMonth.get(newMonth) || new Map();
-      selected = next;
-      selectedByMonth.set(newMonth, selected);
-      if (typeof renderSelectedList === "function") renderSelectedList();
-      if (typeof sumToPay !== "undefined") sumToPay.textContent = euro(
-        typeof totalSelected === "function" ? totalSelected() : 0
-      );
-      if (typeof recalcDiff === "function") recalcDiff();
-      if (typeof renderBills === "function") renderBills();
-    } catch (e) {
-      console.error("[payments] switchSelectionForMonth error", e);
-    }
-  }
-
-  if (typeof monthPicker !== "undefined" && monthPicker) {
-    const oldOnChange = monthPicker.onchange;
-    monthPicker.onchange = (ev) => {
-      const newM = (typeof monthKey === "function")
-        ? monthKey(monthPicker.value)
-        : (monthPicker.value || "").slice(0, 7);
-      if (newM && newM !== selectedMonth) {
-        selectedMonth = newM;
-        switchSelectionForMonth(selectedMonth);
-      }
-      if (typeof oldOnChange === "function") {
-        try { oldOnChange.call(monthPicker, ev); } catch (e) { console.warn(e); }
-      } else if (typeof onMonthChanged === "function") {
-        onMonthChanged();
-      }
-    };
-  }
-  switchSelectionForMonth(selectedMonth);
-})();
