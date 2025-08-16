@@ -351,4 +351,64 @@
     background: rgba(255, 255, 255, .06);
 }
 
-/* Modal: pauzevelden kunnen we wegklappen via inline style, geen extra CSS nodig */
+
+/* chips naast de maandselector */
+.time-page .month-meta {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    margin: .5rem 0 0 .5rem;
+}
+
+.time-page .pill {
+    border-radius: 999px;
+    padding: .2rem .6rem;
+    font-weight: 600;
+}
+
+.time-page .pill.pos {
+    color: #065f46;
+    background: #ecfdf5;
+}
+
+.time-page .pill.neg {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.time-page .pill.info {
+    color: #1e3a8a;
+    background: #dbeafe;
+}
+
+:root[data-theme="dark"] .time-page .pill.pos {
+    color: #34d399;
+    background: rgba(16, 185, 129, .12);
+}
+
+:root[data-theme="dark"] .time-page .pill.neg {
+    color: #f87171;
+    background: rgba(239, 68, 68, .12);
+}
+
+:root[data-theme="dark"] .time-page .pill.info {
+    color: #93c5fd;
+    background: rgba(59, 130, 246, .12);
+}
+
+/* wekelijkse diff-kleur */
+.time-page .week-total .diff.pos {
+    color: #065f46;
+}
+
+.time-page .week-total .diff.neg {
+    color: #991b1b;
+}
+
+:root[data-theme="dark"] .time-page .week-total .diff.pos {
+    color: #34d399;
+}
+
+:root[data-theme="dark"] .time-page .week-total .diff.neg {
+    color: #f87171;
+}

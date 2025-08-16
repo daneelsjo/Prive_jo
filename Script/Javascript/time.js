@@ -35,7 +35,9 @@ let currentUser = null;
 let monthSegments = [];
 let unsubSeg = null;
 
-const EXCLUDED_TYPES_FOR_TOTALS = new Set(["sport", "oefening", "andere"]); // niet meetellen
+const EXCLUDED_TYPES_FOR_TOTALS = new Set(["sport", "oefening", "andere"]);
+const DAILY_EXPECTED_MIN = 7 * 60 + 36;
+
 
 /* ──────────────────────────────────────────────────────────────
    Helpers
@@ -72,6 +74,43 @@ function computeMinutes(entry) {
     if (bs != null && be != null) total -= Math.max(0, be - bs);
     return Math.max(0, total);
 }
+function ensureMonthMetaUI() {
+    if (!monthPicker) return;
+    let meta = document.getElementById("monthMeta");
+    if (!meta) {
+        meta = document.createElement("div");
+        meta.id = "monthMeta";
+        meta.className = "month-meta";
+        meta.innerHTML = `
+      <span id="glideChip" class="pill"></span>
+      <span id="ovChip" class="pill" style="display:none"></span>
+    `;
+        monthPicker.insertAdjacentElement("afterend", meta);
+    }
+}
+
+function updateMonthMeta(diffMin, overOtherMin) {
+    const chip = document.getElementById("glideChip");
+    const ov = document.getElementById("ovChip");
+    if (!chip) return;
+
+    const sign = diffMin >= 0 ? "pos" : "neg";
+    const abs = minToHM(Math.abs(diffMin));
+    chip.className = `pill ${sign}`;
+    chip.textContent = diffMin >= 0
+        ? `te veel aan glijtijd: ${abs}`
+        : `te weinig aan glijtijd: ${abs}`;
+
+    const showOv = overOtherMin > 0;
+    if (ov) {
+        ov.style.display = showOv ? "" : "none";
+        if (showOv) {
+            ov.className = "pill info";
+            ov.textContent = `Overuren & Andere: ${minToHM(overOtherMin)}`;
+        }
+    }
+}
+
 
 /* ──────────────────────────────────────────────────────────────
    Header-knop (site-breed)
@@ -177,6 +216,7 @@ onAuthStateChanged(auth, (user) => {
 function initTimePage() {
     const d = new Date();
     if (monthPicker) monthPicker.value = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+    ensureMonthMetaUI();
     monthPicker && (monthPicker.onchange = renderTable);
 
     // snelknoppen bovenaan (feestdag/sport/...)
@@ -207,7 +247,19 @@ function renderTable() {
         byDate.get(s.date).push(s);
     });
 
-    let runningWeek = null, weekSum = 0;
+    let runningWeek = null, weekSum = 0, weekWorkdays = 0;
+    let monthDiffTotal = 0;
+    let overOtherTotal = 0;
+
+    // tel “Overuren & Andere” (alle segmenten in maand)
+    monthSegments.forEach(s => {
+        const dt = s.date ? new Date(s.date) : null;
+        if (!dt || dt.getFullYear() !== Y || (dt.getMonth() + 1) !== M) return;
+        const t = (s.type || "").toLowerCase();
+        if (t === "overuren" || t === "andere") {
+            overOtherTotal += computeMinutes(s);
+        }
+    });
 
     for (let day = 1; day <= last.getDate(); day++) {
         const d = new Date(Y, M - 1, day);
@@ -215,21 +267,31 @@ function renderTable() {
         const segs = (byDate.get(dateISO) || [])
             .sort((a, b) => (hmToMin(a.start || "00:00") || 0) - (hmToMin(b.start || "00:00") || 0));
 
+        // werkdag? (ma=1..vr=5)
+        const dow = d.getDay(); // 0=zo .. 6=za
+        const isWorkday = dow >= 1 && dow <= 5;
+
         const w = isoWeek(d);
+        // als we de week verlaten: voeg weektotaal + target toe
         if (runningWeek !== null && w !== runningWeek) {
-            addWeekRow(runningWeek, weekSum);
-            weekSum = 0;
+            const expected = weekWorkdays * DAILY_EXPECTED_MIN;
+            const diff = weekSum - expected;
+            addWeekRow(runningWeek, weekSum, expected, diff);
+            monthDiffTotal += diff;
+            weekSum = 0; weekWorkdays = 0;
         }
         runningWeek = w;
 
         // dagtotaal (excl. sport, oefening, andere)
         const dayMinutes = segs.reduce((sum, s) => {
             const m = computeMinutes(s);
-            return sum + (EXCLUDED_TYPES_FOR_TOTALS.has((s.type || "").toLowerCase()) ? 0 : m);
+            const t = (s.type || "").toLowerCase();
+            return sum + (t === "sport" || t === "oefening" || t === "andere" ? 0 : m);
         }, 0);
         weekSum += dayMinutes;
+        if (isWorkday) weekWorkdays++;
 
-        // datumkop (colspan 7) met ▼/▶ en +
+        // datumkop met toggle + plus
         const hdr = document.createElement("tr");
         hdr.className = "date-header";
         hdr.innerHTML = `
@@ -247,10 +309,8 @@ function renderTable() {
 
         const toggleBtn = hdr.querySelector(".toggle");
         const addBtn = hdr.querySelector(".add");
-
-        let collapsed = segs.length > 1; // als meerdere, initieel dicht
+        let collapsed = (segs.length > 1);
         setToggleUI(toggleBtn, collapsed);
-
         toggleBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             collapsed = !collapsed;
@@ -259,7 +319,6 @@ function renderTable() {
                 tr.style.display = collapsed ? "none" : "";
             });
         });
-
         addBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             openTimeModal({ date: dateISO });
@@ -288,20 +347,36 @@ function renderTable() {
         });
     }
 
-    if (runningWeek !== null) addWeekRow(runningWeek, weekSum);
+    // laatste week afsluiten
+    if (runningWeek !== null) {
+        const expected = weekWorkdays * DAILY_EXPECTED_MIN;
+        const diff = weekSum - expected;
+        addWeekRow(runningWeek, weekSum, expected, diff);
+        monthDiffTotal += diff;
+    }
+
+    // update chips bovenaan
+    updateMonthMeta(monthDiffTotal, overOtherTotal);
 
     function setToggleUI(btn, collapsed) {
         btn.textContent = collapsed ? "▶" : "▼";
         btn.setAttribute("aria-expanded", String(!collapsed));
     }
 
-    function addWeekRow(weekNo, totalMin) {
+    function addWeekRow(weekNo, workedMin, expectedMin, diffMin) {
         const tr = document.createElement("tr");
         tr.className = "week-total";
-        tr.innerHTML = `<td colspan="7">Week ${weekNo} totaal: ${minToHM(totalMin)}</td>`;
+        const diffClass = diffMin >= 0 ? "diff pos" : "diff neg";
+        const diffText = (diffMin === 0) ? "00:00" : minToHM(Math.abs(diffMin));
+        tr.innerHTML = `
+      <td colspan="7">
+        Week ${weekNo} totaal: ${minToHM(workedMin)} / ${minToHM(expectedMin)}
+        <span class="${diffClass}">(${diffMin >= 0 ? "+" : "-"}${diffText})</span>
+      </td>`;
         timeTable.appendChild(tr);
     }
 }
+
 
 /* ──────────────────────────────────────────────────────────────
    Modal (gebruikt inputs met id: tr-date, tr-type, tr-start, tr-beginbreak, tr-endbreak, tr-end, tr-remark)
