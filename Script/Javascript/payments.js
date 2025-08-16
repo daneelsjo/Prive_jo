@@ -767,3 +767,94 @@ async function settleAsFull(billId) {
     Modal.open("modal-pay");
   }
 }
+
+
+// --- Drop-in replacement functions with detailed logging ---
+// Paste these into your payments.js (replace existing versions).
+
+async function fetchOpenInstalments(billId) {
+  const label = `[payments] fetchOpenInstalments ${billId}`;
+  console.debug(label, "start");
+  try {
+    console.time(label);
+    const colPath = `bills/${billId}/instalments`;
+    console.debug(label, "query collection:", colPath);
+    const snap = await getDocs(collection(db, colPath));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    console.debug(label, "snapshot size:", snap.size, "ids:", items.map(x => x.id));
+    const open = items.filter(x => x.status === "open").sort((a, b) => (a.index || 0) - (b.index || 0));
+    console.debug(label, "open parts:", open);
+    console.timeEnd(label);
+    return open;
+  } catch (e) {
+    console.error(label, "error:", e);
+    console.timeEnd(label);
+    throw e;
+  }
+}
+
+async function toggleExpander(billId, forceOpen) {
+  const label = `[payments] toggleExpander ${billId}`;
+  console.debug(label, "called with forceOpen:", forceOpen);
+  const exp = document.getElementById(`exp-${billId}`);
+  if (!exp) { console.warn(label, "expander element not found"); return; }
+  const open = exp.classList.contains("open");
+  if (forceOpen === true && open) { /*no-op*/ }
+  else if (forceOpen === false && !open) { /*no-op*/ }
+  else { exp.classList.toggle("open"); }
+  if (!exp.classList.contains("open")) { console.debug(label, "closing expander"); return; }
+
+  exp.innerHTML = `<div class="muted">Laden…</div>`;
+
+  try {
+    const items = await fetchOpenInstalments(billId);
+    if (!items.length) {
+      exp.innerHTML = `<div class="muted">Geen openstaande delen gevonden voor deze rekening.<br><small>Tip: controleer subcollectie <code>instalments</code> en veld <code>status: "open"</code>.</small></div>`;
+      console.debug(label, "no open parts");
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "list";
+    items.forEach(it => {
+      const key = `${billId}::${it.id}`;
+      const row = document.createElement("label");
+      row.className = "row";
+      row.innerHTML = `<div><input type="checkbox" value="${it.id}" ${selected.has(key) ? 'checked' : ''} style="margin-right:.5rem;">Deel ${it.index}</div><strong>${euro(it.amount)}</strong>`;
+      list.appendChild(row);
+    });
+
+    list.addEventListener("change", (e) => {
+      const input = e.target.closest('input[type="checkbox"]');
+      if (!input) return;
+      const partId = input.value;
+      const it = items.find(x => x.id === partId);
+      const b = bills.find(x => x.id === billId);
+      const key = `${billId}::${partId}`;
+      if (input.checked) {
+        selected.set(key, { type: "part", billId, instalmentId: partId, amount: clamp2(it.amount), label: `${b?.beneficiary || ""} – deel ${it.index}`, iban: b?.iban || "", note: "" });
+      } else {
+        selected.delete(key);
+      }
+      renderSelectedList();
+      sumToPay.textContent = euro(totalSelected());
+      recalcDiff();
+    });
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const retry = document.createElement("button");
+    retry.className = "ghost";
+    retry.textContent = "Opnieuw laden";
+    retry.onclick = () => toggleExpander(billId, true);
+    actions.appendChild(retry);
+
+    exp.innerHTML = "";
+    exp.appendChild(list);
+    exp.appendChild(actions);
+    console.debug(label, "rendered", items.length, "parts");
+  } catch (e) {
+    console.error(label, "failed to load parts:", e);
+    exp.innerHTML = `<div class="muted">Kon delen niet laden. Zie console voor details.</div>`;
+  }
+}
