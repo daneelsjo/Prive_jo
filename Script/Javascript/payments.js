@@ -341,15 +341,7 @@ function renderSelectedList() {
 
 
 
-async function toggleExpander(billId, forceOpen) {
-  const exp = document.getElementById(`exp-${billId}`);
-  if (!exp) return;
-  const open = exp.classList.contains("open");
-  if (forceOpen === true && open) { /*no-op*/ }
-  else if (forceOpen === false && !open) { /*no-op*/ }
-  else { exp.classList.toggle("open"); }
 
-}
 /* ──────────────────────────────────────────────────────────────
    Month picker
    ────────────────────────────────────────────────────────────── */
