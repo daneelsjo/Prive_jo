@@ -400,8 +400,6 @@ async function fetchOpenInstalments(billId) {
 }
 
 
-if (!exp.classList.contains("open")) return;
-
 const items = await fetchOpenInstalments(billId);
 if (!items.length) {
   exp.innerHTML = `<div class="muted">Geen openstaande delen.</div>`;
