@@ -1,9 +1,10 @@
 // Script/Javascript/payments.js
 import {
   getFirebaseApp,
+  // Auth
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc,
-  serverTimestamp, query, where, orderBy
+  // Firestore
+  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc, serverTimestamp, query, where, orderBy
 } from "./firebase-config.js";
 import { getDocs } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 
@@ -56,6 +57,7 @@ const sumIncome = document.getElementById("sumIncome");
 const sumFixed = document.getElementById("sumFixed");
 const sumToPay = document.getElementById("sumToPay");
 const sumDiff = document.getElementById("sumDiff");
+const openTotal = document.getElementById("openTotal");
 
 /* ──────────────────────────────────────────────────────────────
    Helpers
