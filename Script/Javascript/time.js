@@ -306,15 +306,17 @@ function initTimePage() {
     ensureMonthMetaUI();
     monthPicker && (monthPicker.onchange = renderTable);
 
-    // snelknoppen bovenaan (feestdag/sport/...)
+    // ⬇️ PDF export knop
+    document.getElementById("btnExportPdf")?.addEventListener("click", exportMonthPdf);
+
+    // QA-knoppen blijven zoals je al had...
     document.querySelectorAll(".qa[data-type]").forEach(btn => {
-        btn.addEventListener("click", () => {
-            openTimeModal({ date: fmtDateISO(new Date()), type: btn.getAttribute("data-type") });
-        });
+        btn.addEventListener("click", () => openTimeModal({ type: btn.getAttribute("data-type") }));
     });
 
     renderTable();
 }
+
 
 function renderTable() {
     if (!timeTable) return;
@@ -478,6 +480,199 @@ function renderTable() {
     }
 }
 
+async function exportMonthPdf() {
+    if (!window.jspdf || !window.jspdf.jsPDF || !window.jspdf.jsPDF.prototype.autoTable) {
+        alert("PDF bibliotheken niet geladen. Controleer jsPDF & AutoTable scripts.");
+        return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "a4", compress: true });
+
+    // Huidige selectie
+    const [Y, M] = (monthPicker.value || "").split("-").map(Number);
+    if (!Y || !M) { alert("Kies eerst een maand."); return; }
+
+    // Verzamel data zoals in renderTable()
+    const last = new Date(Y, M, 0);
+    const byDate = new Map();
+    monthSegments.forEach(s => {
+        if (!s.date) return;
+        const dt = new Date(s.date);
+        if (dt.getFullYear() !== Y || (dt.getMonth() + 1) !== M) return;
+        if (!byDate.has(s.date)) byDate.set(s.date, []);
+        byDate.get(s.date).push(s);
+    });
+
+    // Maandtotalen voor header-chips
+    let monthDiffTotal = 0;
+    let overOtherTotal = 0;
+    let verlofTotal = 0;
+    let recupTotal = 0;
+    let optOutExcessTotal = 0;
+
+    monthSegments.forEach(s => {
+        const dt = s.date ? new Date(s.date) : null;
+        if (!dt || dt.getFullYear() !== Y || (dt.getMonth() + 1) !== M) return;
+        const t = (s.type || "").toLowerCase();
+        const mins = computeMinutes(s);
+        if (t === "verlof") verlofTotal += mins;
+        if (t === "recup") recupTotal += mins;
+        if (t === "overuren" || t === "andere" || t === "oefening") overOtherTotal += mins;
+    });
+
+    // Tabel opbouwen
+    const head = [[
+        "Datum", "Type", "Start", "Start pauze", "Einde pauze", "Einde", "Min", "Opmerking"
+    ]];
+    const body = [];
+
+    const dayFmt = new Intl.DateTimeFormat("nl-BE", { weekday: "short" });
+
+    let runningWeek = null, weekSum = 0, weekWorkdays = 0, weekOptOut = 0;
+
+    for (let day = 1; day <= last.getDate(); day++) {
+        const d = new Date(Y, M - 1, day);
+        const dateISO = fmtDateISO(d);
+        const segs = (byDate.get(dateISO) || [])
+            .sort((a, b) => (hmToMin(a.start || "00:00") || 0) - (hmToMin(b.start || "00:00") || 0));
+
+        const dow = d.getDay(); // 0..6
+        const isWorkday = dow >= 1 && dow <= 5;
+
+        const w = isoWeek(d);
+        if (runningWeek !== null && w !== runningWeek) {
+            // sluit vorige week en voeg week-totalen
+            const expected = weekWorkdays * DAILY_EXPECTED_MIN;
+            const diff = weekSum - expected;
+            monthDiffTotal += diff;
+            optOutExcessTotal += Math.max(0, weekOptOut - (10 * 60));
+
+            body.push([{
+                content: `Week ${runningWeek} totaal: ${minToHM(weekSum)} / ${minToHM(expected)}  (${diff >= 0 ? "+" : "-"}${minToHM(Math.abs(diff))})  |  opt-out: ${minToHM(weekOptOut)} (${minToDecimalComma(weekOptOut, 1)})`,
+                colSpan: 8,
+                styles: { halign: "center", fillColor: [240, 248, 255], fontStyle: "bold" }
+            }]);
+
+            weekSum = 0; weekWorkdays = 0; weekOptOut = 0;
+        }
+        runningWeek = w;
+
+        // dagtotaal (zoals in renderTable)
+        let dayMinutes = 0;
+        segs.forEach(s => {
+            const t = (s.type || "").toLowerCase();
+            if (t === "sport" || t === "oefening" || t === "andere") return;
+            if (t === "interventie") {
+                const { inside, optout } = computeInterventionSplit(s);
+                dayMinutes += inside;
+                weekOptOut += optout;
+            } else {
+                dayMinutes += computeMinutes(s);
+            }
+        });
+        if (isWorkday) weekWorkdays++;
+
+        if (segs.length) {
+            // dag-header rij
+            body.push([{
+                content: `${dayFmt.format(d)} ${day} — ${dayMinutes ? minToHM(dayMinutes) : "00:00"}`,
+                colSpan: 8,
+                styles: { fillColor: [245, 245, 245], fontStyle: "bold" }
+            }]);
+
+            // segment-rijen
+            segs.forEach(seg => {
+                const mins = computeMinutes(seg);
+                body.push([
+                    "", // datum leeg bij segment
+                    (seg.type || "standard").slice(0, 1).toUpperCase() + (seg.type || "standard").slice(1),
+                    seg.start || "",
+                    seg.beginbreak || "",
+                    seg.endbreak || "",
+                    seg.end || "",
+                    mins ? minToHM(mins) : "",
+                    seg.remark || ""
+                ]);
+            });
+
+            weekSum += dayMinutes;
+        }
+    }
+
+    if (runningWeek !== null) {
+        const expected = weekWorkdays * DAILY_EXPECTED_MIN;
+        const diff = weekSum - expected;
+        monthDiffTotal += diff;
+        optOutExcessTotal += Math.max(0, weekOptOut - (10 * 60));
+
+        body.push([{
+            content: `Week ${runningWeek} totaal: ${minToHM(weekSum)} / ${minToHM(expected)}  (${diff >= 0 ? "+" : "-"}${minToHM(Math.abs(diff))})  |  opt-out: ${minToHM(weekOptOut)} (${minToDecimalComma(weekOptOut, 1)})`,
+            colSpan: 8,
+            styles: { halign: "center", fillColor: [240, 248, 255], fontStyle: "bold" }
+        }]);
+    }
+
+    // Titel & maand-samenvatting
+    const monthName = new Intl.DateTimeFormat("nl-BE", { month: "long", year: "numeric" })
+        .format(new Date(Y, M - 1, 1));
+    const topY = 40;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+    doc.text(`Tijdsregistraties — ${monthName}`, 40, topY);
+
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+    let y = topY + 20;
+
+    const glideAbs = minToHM(Math.abs(monthDiffTotal));
+    const glideDec = minToDecimalComma(monthDiffTotal, 1);
+    const glideTxt = monthDiffTotal >= 0
+        ? `Te veel aan glijtijd: ${glideAbs} (${glideDec})`
+        : `Te weinig aan glijtijd: ${glideAbs} (${glideDec})`;
+
+    const lines = [
+        glideTxt,
+        overOtherTotal > 0 ? `Overuren & Andere & Oefening: ${minToHM(overOtherTotal)} (${minToDecimalComma(overOtherTotal, 1)})` : null,
+        verlofTotal > 0 ? `Verlof: ${minToHM(verlofTotal)} (${minToDecimalComma(verlofTotal, 1)})` : null,
+        recupTotal > 0 ? `Recup: ${minToHM(recupTotal)} (${minToDecimalComma(recupTotal, 1)})` : null,
+        optOutExcessTotal > 0 ? `Te veel aan opt-out: ${minToHM(optOutExcessTotal)} (${minToDecimalComma(optOutExcessTotal, 1)})` : null
+    ].filter(Boolean);
+
+    lines.forEach((t, i) => {
+        doc.text(t, 40, y + i * 14);
+    });
+
+    // AutoTable
+    doc.autoTable({
+        head,
+        body,
+        startY: y + (lines.length ? lines.length * 14 + 10 : 10),
+        theme: "grid",
+        styles: { font: "helvetica", fontSize: 9, cellPadding: 4, overflow: "linebreak" },
+        headStyles: { fillColor: [230, 230, 230], textColor: 20 },
+        columnStyles: {
+            0: { cellWidth: 80 },  // Datum (alleen op de dagheader-rij)
+            1: { cellWidth: 90 },  // Type
+            2: { cellWidth: 55 },  // Start
+            3: { cellWidth: 80 },  // Start pauze
+            4: { cellWidth: 85 },  // Einde pauze
+            5: { cellWidth: 55 },  // Einde
+            6: { cellWidth: 50 },  // Min
+            7: { cellWidth: "auto" } // Opmerking
+        },
+        didDrawPage: (data) => {
+            // paginanummer
+            const pageSize = doc.internal.pageSize;
+            const pageHeight = pageSize.getHeight();
+            const pageWidth = pageSize.getWidth();
+            const str = `Pagina ${doc.getNumberOfPages()}`;
+            doc.setFontSize(9);
+            doc.setTextColor(120);
+            doc.text(str, pageWidth - 40, pageHeight - 20, { align: "right" });
+        }
+    });
+
+    const filename = `${Y}-${pad2(M)}_tijdsregistraties.pdf`;
+    doc.save(filename);
+}
 
 
 

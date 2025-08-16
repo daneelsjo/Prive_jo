@@ -40,6 +40,7 @@
                             Maand:
                             <input id="monthPicker" type="month">
                         </label>
+                        <button id="btnExportPdf" class="primary" title="Exporteer naar PDF">📄 Exporteren PDF</button>
 
                         <div class="spacer"></div>
 
@@ -148,6 +149,12 @@
     <!-- Eerst includes, dan menu, dan tijdsregistratie -->
     <script src="../Script/Javascript/include-partials.js"></script>
     <script src="../Script/Javascript/menu.js"></script>
+
+    <!-- jsPDF + AutoTable -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" defer></script>
+
+
     <script type="module" src="../Script/Javascript/time.js"></script>
 </body>
 
