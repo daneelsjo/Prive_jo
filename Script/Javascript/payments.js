@@ -729,49 +729,78 @@ payReviewBtn && (payReviewBtn.onclick = () => {
 
 document.getElementById("review-confirm") && (document.getElementById("review-confirm").onclick = async () => {
   const rows = Array.from(document.querySelectorAll("#reviewBody tr"));
-  if (!rows.length) { Modal.alert({ title: "Geen selectie", html: "Er staan geen items in het overzicht." }); return; }
+  if (!rows.length) {
+    Modal.alert({ title: "Geen selectie", html: "Er staan geen items in het overzicht." });
+    return;
+  }
 
   try {
     for (const tr of rows) {
       const key = tr.dataset.key;
-      const paid = tr.querySelector('input[type="checkbox"]').checked;
-      const note = tr.querySelector('input[type="text"]').value || "";
+      const paidChk = tr.querySelector('input[type="checkbox"]');
+      const paid = paidChk ? paidChk.checked : false;
       if (!paid) continue;
 
       const it = selected.get(key);
       if (!it) continue;
+
       const b = bills.find(x => x.id === it.billId);
       if (!b) continue;
+
+      // Kolom 4 = Mededeling (plain tekst)
+      const noteCell = tr.children[3];
+      const noteFromCell = noteCell ? (noteCell.textContent || "").trim() : "";
+      const note = noteFromCell || b.communication || b.description || "";
 
       if (it.type === "part") {
         const partRef = doc(db, `bills/${it.billId}/instalments/${it.instalmentId}`);
         await updateDoc(partRef, { status: "paid", paidAt: serverTimestamp() });
-        await updateDoc(doc(db, "bills", it.billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + Number(it.amount || 0)) });
-        await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: it.instalmentId, amount: it.amount, note, at: serverTimestamp() });
+        await updateDoc(doc(db, "bills", it.billId), {
+          paidAmount: clamp2(Number(b.paidAmount || 0) + Number(it.amount || 0))
+        });
+        await addDoc(collection(db, "transactions"), {
+          uid: currentUser?.uid || null,
+          billId: it.billId,
+          instalmentId: it.instalmentId,
+          amount: it.amount,
+          note,
+          at: serverTimestamp()
+        });
       } else {
-        // full
+        // volledige rest
         const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
         if (remaining > 0) {
-          await updateDoc(doc(db, "bills", it.billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + remaining) });
-          // mark all open instalments as paid
+          await updateDoc(doc(db, "bills", it.billId), {
+            paidAmount: clamp2(Number(b.paidAmount || 0) + remaining)
+          });
+          // markeer alle open delen als betaald
           const partsSnap = await getDocs(collection(db, `bills/${it.billId}/instalments`));
           for (const d of partsSnap.docs) {
             if (d.data().status === "open") {
               await updateDoc(doc(db, `bills/${it.billId}/instalments/${d.id}`), { status: "paid", paidAt: serverTimestamp() });
             }
           }
-          await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: null, amount: remaining, note, at: serverTimestamp() });
+          await addDoc(collection(db, "transactions"), {
+            uid: currentUser?.uid || null,
+            billId: it.billId,
+            instalmentId: null,
+            amount: remaining,
+            note,
+            at: serverTimestamp()
+          });
         }
       }
     }
+
     Modal.close("modal-review");
-    // NIET leegmaken: selectie blijft staan zodat balans het effect toont
+    // Selectie blijft staan (zoals gevraagd), zodat je het saldo-effect rechts blijft zien
     Modal.toast && Modal.toast({ html: "Aangevinkte betalingen zijn gemarkeerd als betaald." });
   } catch (e) {
     console.error(e);
     Modal.alert({ title: "Mislukt", html: "Niet alle betalingen konden gemarkeerd worden." });
   }
 });
+
 
 
 async function settleAsFull(billId) {
