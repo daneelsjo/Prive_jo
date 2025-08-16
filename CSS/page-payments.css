@@ -296,3 +296,21 @@ tr.expander-row td {
 #reviewTable td:nth-child(5) {
   text-align: center
 }
+
+/* Title + openTotal stack on the left */
+.toolbar .title-stack {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+
+.toolbar .title-stack .open-sum {
+  margin: 0;
+  font-size: .95rem;
+  color: var(--fg);
+  opacity: .85;
+}
+
+.toolbar .title-stack .open-sum strong {
+  font-size: 1.1rem;
+}
