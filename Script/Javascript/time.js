@@ -498,8 +498,6 @@ async function exportMonthPdf() {
         alert("PDF bibliotheken niet geladen. Controleer jsPDF & AutoTable scripts.");
         return;
     }
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: "pt", format: "a4", compress: true });
 
     // Huidige selectie
     const [Y, M] = (monthPicker.value || "").split("-").map(Number);
