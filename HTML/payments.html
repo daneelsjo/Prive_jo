@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="nl">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -21,6 +22,7 @@
   <link rel="stylesheet" href="../CSS/components-sidemenu.css">
   <link rel="stylesheet" href="../CSS/page-payments.css">
 </head>
+
 <body class="payments-page">
   <!-- AUTH -->
   <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
@@ -53,11 +55,13 @@
                   <th>Te betalen</th>
                   <th>Reeds betaald</th>
                   <th style="width:140px;">Actie</th>
+                  <th style="width:90px;">Selecteer</th>
                 </tr>
               </thead>
               <tbody id="billsBody"></tbody>
             </table>
-            <p id="openBillsHelp" class="muted" style="opacity:.8;margin:.35rem 0 0;">Toon alle rekeningen waarvan het openstaand saldo &gt; 0 is.</p>
+            <p id="openBillsHelp" class="muted" style="opacity:.8;margin:.35rem 0 0;">Toon alle rekeningen waarvan het
+              openstaand saldo &gt; 0 is.</p>
           </div>
         </section>
       </main>
@@ -83,9 +87,12 @@
           </div>
 
           <div class="sidebar-block">
-            <h3>Geselecteerde betaling</h3>
-            <div id="selectedPaymentBox" class="selected-payment">
-              <p class="muted">Selecteer een rekening in de tabel.</p>
+            <h3>Geselecteerde betalingen</h3>
+            <div id="selectedList" class="list"></div>
+            <div class="block-total"><span>Totaal te betalen</span><strong id="selTotal">€ 0,00</strong></div>
+            <div style="margin-top:.4rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+              <button id="paySelectedBtn" class="primary">✅ Markeer geselecteerde betaald</button>
+              <button id="clearSelectedBtn" class="ghost">Leeg lijst</button>
             </div>
           </div>
 
@@ -233,7 +240,8 @@
 
 
   <!-- 5) Historiek transacties -->
-  <div id="modal-history" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-history-title" hidden>
+  <div id="modal-history" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-history-title"
+    hidden>
     <div class="modal-header">
       <h3 id="modal-history-title">Historiek betalingen</h3>
       <button class="modal-close" data-modal-close="modal-history" aria-label="Sluiten">✕</button>
@@ -241,7 +249,14 @@
     <div class="modal-body">
       <div class="table-wrap">
         <table class="bills-table" id="historyTable">
-          <thead><tr><th>Datum</th><th>Begunstigde</th><th>Deel</th><th>Bedrag</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Begunstigde</th>
+              <th>Deel</th>
+              <th>Bedrag</th>
+            </tr>
+          </thead>
           <tbody id="historyBody"></tbody>
         </table>
       </div>
@@ -260,4 +275,5 @@
   <script src="../Script/Javascript/menu.js"></script>
   <script type="module" src="../Script/Javascript/payments.js"></script>
 </body>
+
 </html>

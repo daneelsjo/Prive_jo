@@ -25,8 +25,13 @@ let incomes = [];      // (filtered by selected month)
 let fixedCosts = [];   // all fixed costs; filtered client-side by month
 
 let selectedBillId = null;
-let selectedPartIndex = null; // for parts
+let selectedPartIndex = null; // for parts (legacy single)
 let selectedMonth = (new Date()).toISOString().slice(0, 7); // YYYY-MM
+
+// Multi-select basket
+let selected = new Map(); // key=billId, value={billId, instalmentId|null, amount, label}
+let partChoice = new Map(); // billId -> instalment object (id,index,amount)
+
 
 // DOM
 const loginBtn = document.getElementById("login-btn");
@@ -43,7 +48,11 @@ const incomeList = document.getElementById("incomeList");
 const fixedList = document.getElementById("fixedList");
 const incomeTotal = document.getElementById("incomeTotal");
 const fixedTotal = document.getElementById("fixedTotal");
-const selectedPaymentBox = document.getElementById("selectedPaymentBox");
+const selectedPaymentBox = document.getElementById("selectedPaymentBox"); // legacy
+const selectedList = document.getElementById("selectedList");
+const selTotal = document.getElementById("selTotal");
+const paySelectedBtn = document.getElementById("paySelectedBtn");
+const clearSelectedBtn = document.getElementById("clearSelectedBtn");
 
 const sumIncome = document.getElementById("sumIncome");
 const sumFixed = document.getElementById("sumFixed");
@@ -106,6 +115,7 @@ onAuthStateChanged(auth, async (user) => {
 /* ──────────────────────────────────────────────────────────────
    Bills table
    ────────────────────────────────────────────────────────────── */
+
 function renderBills() {
   if (!billsBody) return;
   billsBody.innerHTML = "";
@@ -114,7 +124,7 @@ function renderBills() {
   if (!open.length) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
-    td.colSpan = 4;
+    td.colSpan = 5;
     td.textContent = "Geen openstaande betalingen.";
     tr.appendChild(td);
     billsBody.appendChild(tr);
@@ -137,16 +147,70 @@ function renderBills() {
 
     const tdAct = document.createElement("td");
     const btn = document.createElement("button");
-    btn.className = "primary";
+    btn.className = "ghost";
     btn.textContent = "Betalen…";
     btn.onclick = (e) => { e.stopPropagation(); selectedBillId = b.id; openPayModal(b.id); };
     tdAct.appendChild(btn);
 
-    tr.append(tdName, tdToPay, tdPaid, tdAct);
-    tr.onclick = () => { selectedBillId = b.id; renderSelectedBox(); };
+    const tdSel = document.createElement("td");
+    tdSel.style.textAlign = "center";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = selected.has(b.id);
+    cb.onchange = async (e) => {
+      if (cb.checked) {
+        if (b.inParts) {
+          // Ensure expander is open and a part chosen
+          toggleExpander(b.id, true);
+          // Fetch parts if not chosen yet
+          if (!partChoice.get(b.id)) {
+            const items = await fetchOpenInstalments(b.id);
+            if (items.length) partChoice.set(b.id, items[0]);
+          }
+          const choice = partChoice.get(b.id);
+          if (!choice) { cb.checked = false; return; }
+          selected.set(b.id, { billId: b.id, instalmentId: choice.id, amount: clamp2(choice.amount), label: `${b.beneficiary} – deel ${choice.index}` });
+        } else {
+          selected.set(b.id, { billId: b.id, instalmentId: null, amount: remaining, label: `${b.beneficiary}` });
+        }
+      } else {
+        selected.delete(b.id);
+      }
+      renderSelectedList();
+      // Update sumToPay (legacy) and diff
+      sumToPay.textContent = euro(totalSelected());
+      recalcDiff();
+    };
+    tdSel.appendChild(cb);
+
+    tr.append(tdName, tdToPay, tdPaid, tdAct, tdSel);
+    // Keep simple click to set legacy selectedBillId for right quick-pay button text
+    tr.onclick = () => { selectedBillId = b.id; };
+
     billsBody.appendChild(tr);
+
+    // Expander row for inParts
+    if (b.inParts) {
+      const expTr = document.createElement("tr");
+      expTr.className = "expander-row";
+      const td = document.createElement("td");
+      td.colSpan = 5;
+      const exp = document.createElement("div");
+      exp.className = "expander";
+      exp.id = `exp-${b.id}`;
+      exp.innerHTML = `<div class="muted">Laden…</div>`;
+      td.appendChild(exp);
+      expTr.appendChild(td);
+      billsBody.appendChild(expTr);
+
+      // Clicking on row (excluding controls) toggles expander
+      tr.addEventListener("dblclick", () => toggleExpander(b.id));
+      tdName.style.cursor = "pointer";
+      tdName.onclick = (e) => { e.stopPropagation(); toggleExpander(b.id); };
+    }
   }
 }
+
 
 /* ──────────────────────────────────────────────────────────────
    Right side summary
@@ -515,4 +579,56 @@ historyBtn && (historyBtn.onclick = async () => {
     body.appendChild(tr);
   }
   Modal.open("modal-history");
+});
+
+
+/* ──────────────────────────────────────────────────────────────
+   Betaal geselecteerde + leegmaken
+   ────────────────────────────────────────────────────────────── */
+clearSelectedBtn && (clearSelectedBtn.onclick = () => {
+  selected.clear();
+  // untick all checkboxes
+  billsBody.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+  renderSelectedList();
+  sumToPay.textContent = euro(0);
+  recalcDiff();
+});
+
+paySelectedBtn && (paySelectedBtn.onclick = async () => {
+  if (selected.size === 0) { Modal.alert({ title: "Geen selectie", html: "Vink één of meer betalingen aan." }); return; }
+  try {
+    // Process each selection
+    for (const it of selected.values()) {
+      const b = bills.find(x => x.id === it.billId);
+      if (!b) continue;
+      if (it.instalmentId) {
+        // part
+        const partRef = doc(db, `bills/${it.billId}/instalments/${it.instalmentId}`);
+        await updateDoc(partRef, { status: "paid", paidAt: serverTimestamp() });
+        await updateDoc(doc(db, "bills", it.billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + Number(it.amount || 0)) });
+        await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: it.instalmentId, amount: it.amount, at: serverTimestamp() });
+      } else {
+        // full remaining
+        const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
+        if (remaining > 0) {
+          await updateDoc(doc(db, "bills", it.billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + remaining) });
+          const partsSnap = await getDocs(collection(db, `bills/${it.billId}/instalments`));
+          const open = partsSnap.docs.find(d => (d.data().status === "open"));
+          if (open) await updateDoc(doc(db, `bills/${it.billId}/instalments/${open.id}`), { status: "paid", paidAt: serverTimestamp() });
+          await addDoc(collection(db, "transactions"), { uid: currentUser?.uid || null, billId: it.billId, instalmentId: open ? open.id : null, amount: remaining, at: serverTimestamp() });
+        }
+      }
+    }
+    // Clear selection after processing
+    selected.clear();
+    renderSelectedList();
+    // Uncheck all
+    billsBody.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+    sumToPay.textContent = euro(0);
+    recalcDiff();
+    Modal.toast && Modal.toast({ html: "Betalingen gemarkeerd als betaald." });
+  } catch (e) {
+    console.error(e);
+    Modal.alert({ title: "Mislukt", html: "Niet alle betalingen konden gemarkeerd worden." });
+  }
 });
