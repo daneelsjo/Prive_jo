@@ -6,6 +6,7 @@ import {
   // Firestore
   getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, getDocs, updateDoc, serverTimestamp, query, where, orderBy
 } from "./firebase-config.js";
+import { getDocs } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 
 const app = getFirebaseApp();
 const db = getFirestore(app);
@@ -23,7 +24,7 @@ let fixedCosts = [];   // all fixed costs; filtered client-side by month
 
 let selectedBillId = null;
 let selectedPartIndex = null; // for parts
-let selectedMonth = (new Date()).toISOString().slice(0,7); // YYYY-MM
+let selectedMonth = (new Date()).toISOString().slice(0, 7); // YYYY-MM
 
 // DOM
 const loginBtn = document.getElementById("login-btn");
@@ -56,7 +57,7 @@ function clamp2(n) { return Math.round(Number(n || 0) * 100) / 100; }
 function monthKey(d) {
   if (typeof d === "string" && /^\d{4}-\d{2}$/.test(d)) return d;
   const dt = (d instanceof Date) ? d : new Date();
-  return dt.toISOString().slice(0,7);
+  return dt.toISOString().slice(0, 7);
 }
 
 function renderAll() {
@@ -81,19 +82,19 @@ onAuthStateChanged(auth, async (user) => {
   appDiv && (appDiv.style.display = "block");
 
   // Streams
-  onSnapshot(query(collection(db, "bills"), where("uid","==", user.uid), orderBy("createdAt","desc")), snap => {
-    bills = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+  onSnapshot(query(collection(db, "bills"), where("uid", "==", user.uid), orderBy("createdAt", "desc")), snap => {
+    bills = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderBills();
   });
 
-  onSnapshot(query(collection(db, "incomes"), where("uid","==", user.uid)), snap => {
-    const all = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+  onSnapshot(query(collection(db, "incomes"), where("uid", "==", user.uid)), snap => {
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     incomes = all.filter(x => x.month === selectedMonth);
     renderSidebar();
   });
 
-  onSnapshot(query(collection(db, "fixedCosts"), where("uid","==", user.uid)), snap => {
-    fixedCosts = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+  onSnapshot(query(collection(db, "fixedCosts"), where("uid", "==", user.uid)), snap => {
+    fixedCosts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderSidebar();
   });
 
@@ -106,7 +107,7 @@ onAuthStateChanged(auth, async (user) => {
 function renderBills() {
   if (!billsBody) return;
   billsBody.innerHTML = "";
-  const open = bills.filter(b => (Number(b.amountTotal||0) - Number(b.paidAmount||0)) > 0);
+  const open = bills.filter(b => (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)) > 0);
 
   if (!open.length) {
     const tr = document.createElement("tr");
@@ -125,12 +126,12 @@ function renderBills() {
     const tdName = document.createElement("td");
     tdName.textContent = b.beneficiary || "(zonder naam)";
 
-    const remaining = clamp2(Number(b.amountTotal||0) - Number(b.paidAmount||0));
+    const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
     const tdToPay = document.createElement("td");
     tdToPay.textContent = euro(remaining);
 
     const tdPaid = document.createElement("td");
-    tdPaid.textContent = euro(Number(b.paidAmount||0));
+    tdPaid.textContent = euro(Number(b.paidAmount || 0));
 
     const tdAct = document.createElement("td");
     const btn = document.createElement("button");
@@ -161,9 +162,9 @@ function renderSidebar() {
     .map(x => row(x.name, x.amount));
   fixedList.innerHTML = fixedRows.join("") || `<div class="muted">Geen vaste kosten voor deze maand.</div>`;
 
-  const incSum = clamp2(incomes.filter(x => x.month === month).reduce((s,x)=>s+Number(x.amount||0),0));
+  const incSum = clamp2(incomes.filter(x => x.month === month).reduce((s, x) => s + Number(x.amount || 0), 0));
   const fixSum = clamp2(fixedCosts.filter(x => x.startMonth <= month && (!x.endMonth || x.endMonth >= month))
-                                 .reduce((s,x)=>s+Number(x.amount||0),0));
+    .reduce((s, x) => s + Number(x.amount || 0), 0));
 
   incomeTotal.textContent = euro(incSum);
   fixedTotal.textContent = euro(fixSum);
@@ -175,7 +176,7 @@ function renderSidebar() {
 }
 
 function row(label, amount) {
-  return `<div class="row"><span>${escapeHtml(String(label||""))}</span><strong>${euro(amount)}</strong></div>`;
+  return `<div class="row"><span>${escapeHtml(String(label || ""))}</span><strong>${euro(amount)}</strong></div>`;
 }
 
 function renderSelectedBox() {
@@ -184,7 +185,7 @@ function renderSelectedBox() {
   const b = bills.find(x => x.id === selectedBillId);
   if (!b) { selectedPaymentBox.innerHTML = `<p class="muted">Rekening niet gevonden.</p>`; sumToPay.textContent = euro(0); recalcDiff(); return; }
 
-  const remaining = clamp2(Number(b.amountTotal||0) - Number(b.paidAmount||0));
+  const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
   const next = b.inParts ? clamp2(b.partAmount || 0) : remaining;
   const lastPart = b.inParts ? clamp2(b.lastPartAmount || 0) : null;
   const hint = (b.inParts && lastPart && remaining <= lastPart) ? ` (laatste deel: ${euro(lastPart)})` : "";
@@ -212,8 +213,8 @@ function recalcDiff() {
 }
 function parseEuro(s) {
   // very naive; relies on euro() output
-  const n = String(s).replace(/[^\d,.-]/g,"").replace(/\./g,"").replace(",", ".");
-  return Number(n||0);
+  const n = String(s).replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  return Number(n || 0);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -261,7 +262,7 @@ function openBillModal() {
   function recalc() {
     const tot = clamp2(amount.value);
     if (!inparts.checked || !tot || !Number(parts.value)) { info.style.display = "none"; return; }
-    const n = Math.max(2, parseInt(parts.value,10) || 2);
+    const n = Math.max(2, parseInt(parts.value, 10) || 2);
     const raw = clamp2(tot / n);
     const last = clamp2(tot - raw * (n - 1));
     perPart.textContent = euro(raw);
@@ -282,7 +283,7 @@ function openBillModal() {
       description: (desc.value || "").trim(),
       amountTotal: clamp2(amount.value),
       inParts: !!inparts.checked,
-      partsCount: inparts.checked ? Math.max(2, parseInt(parts.value,10) || 2) : 1,
+      partsCount: inparts.checked ? Math.max(2, parseInt(parts.value, 10) || 2) : 1,
       createdAt: serverTimestamp(),
       paidAmount: 0
     };
@@ -304,7 +305,7 @@ function openBillModal() {
       // create instalments
       const count = payload.partsCount || 1;
       const per = payload.inParts ? (payload.partAmount || 0) : payload.amountTotal;
-      for (let i=1;i<=count;i++) {
+      for (let i = 1; i <= count; i++) {
         const amt = payload.inParts ? (i === count ? payload.lastPartAmount : per) : per;
         await addDoc(collection(db, `bills/${ref.id}/instalments`), {
           index: i, amount: amt, status: "open", paidAt: null, createdAt: serverTimestamp()
@@ -382,8 +383,8 @@ async function openFixedModal() {
     const start = monthKey(document.getElementById("fixed-start").value);
     const endRaw = document.getElementById("fixed-end").value;
     const end = endRaw ? monthKey(endRaw) : null;
-    if (!name || !amount || !start) { Modal.alert({ title:"Ontbrekende velden", html:"Vul naam, bedrag en startmaand in." }); return; }
-    await addDoc(collection(db,"fixedCosts"), { uid: currentUser?.uid||null, name, amount, startMonth:start, endMonth:end, createdAt: serverTimestamp() });
+    if (!name || !amount || !start) { Modal.alert({ title: "Ontbrekende velden", html: "Vul naam, bedrag en startmaand in." }); return; }
+    await addDoc(collection(db, "fixedCosts"), { uid: currentUser?.uid || null, name, amount, startMonth: start, endMonth: end, createdAt: serverTimestamp() });
     Modal.close("modal-fixed");
   };
 
@@ -401,15 +402,15 @@ async function openPayModal(billId) {
 
   const ctx = document.getElementById("payContext");
   ctx.innerHTML = `<div><strong>${escapeHtml(b.beneficiary || "")}</strong></div>
-    <div>Openstaand: ${euro(clamp2(Number(b.amountTotal)-Number(b.paidAmount||0)))}</div>`;
+    <div>Openstaand: ${euro(clamp2(Number(b.amountTotal) - Number(b.paidAmount || 0)))}</div>`;
 
   const wrap = document.getElementById("payPartsWrap");
   wrap.innerHTML = "";
 
   if (b.inParts) {
     // fetch open parts
-    const snap = await getDocs(query(collection(db, `bills/${billId}/instalments`), where("status","==","open"), orderBy("index","asc")));
-    const items = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    const snap = await getDocs(query(collection(db, `bills/${billId}/instalments`), where("status", "==", "open"), orderBy("index", "asc")));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (!items.length) {
       wrap.innerHTML = `<div class="muted">Geen openstaande delen.</div>`;
     } else {
@@ -438,29 +439,29 @@ async function openPayModal(billId) {
   document.getElementById("pay-confirm").onclick = async () => {
     try {
       if (b.inParts) {
-        if (!selectedPartIndex) { Modal.alert({ title:"Kies een deel", html:"Selecteer het deel dat je wil markeren als betaald." }); return; }
+        if (!selectedPartIndex) { Modal.alert({ title: "Kies een deel", html: "Selecteer het deel dat je wil markeren als betaald." }); return; }
         // find selected instalment
         const partRef = doc(db, `bills/${billId}/instalments/${selectedPartIndex}`);
         const partSnap = await getDoc(partRef);
-        if (!partSnap.exists()) { Modal.alert({ title:"Niet gevonden", html:"Het gekozen deel bestaat niet meer." }); return; }
+        if (!partSnap.exists()) { Modal.alert({ title: "Niet gevonden", html: "Het gekozen deel bestaat niet meer." }); return; }
         const part = partSnap.data();
         // mark paid + update bill totals
         await updateDoc(partRef, { status: "paid", paidAt: serverTimestamp() });
         await updateDoc(doc(db, "bills", billId), {
-          paidAmount: clamp2(Number(b.paidAmount||0) + Number(part.amount||0))
+          paidAmount: clamp2(Number(b.paidAmount || 0) + Number(part.amount || 0))
         });
         await addDoc(collection(db, "transactions"), {
           uid: currentUser?.uid || null,
           billId, instalmentId: selectedPartIndex, amount: part.amount, at: serverTimestamp()
         });
       } else {
-        const remaining = clamp2(Number(b.amountTotal||0) - Number(b.paidAmount||0));
+        const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
         if (remaining <= 0) { Modal.close("modal-pay"); return; }
-        await updateDoc(doc(db, "bills", billId), { paidAmount: clamp2(Number(b.paidAmount||0) + remaining) });
+        await updateDoc(doc(db, "bills", billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + remaining) });
         // ensure single instalment is marked as paid as well
         const partsSnap = await getDocs(collection(db, `bills/${billId}/instalments`));
         const open = partsSnap.docs.find(d => (d.data().status === "open"));
-        if (open) await updateDoc(doc(db, `bills/${billId}/instalments/${open.id}`), { status:"paid", paidAt: serverTimestamp() });
+        if (open) await updateDoc(doc(db, `bills/${billId}/instalments/${open.id}`), { status: "paid", paidAt: serverTimestamp() });
         await addDoc(collection(db, "transactions"), {
           uid: currentUser?.uid || null,
           billId, instalmentId: open ? open.id : null, amount: remaining, at: serverTimestamp()
@@ -469,7 +470,7 @@ async function openPayModal(billId) {
       Modal.close("modal-pay");
     } catch (e) {
       console.error(e);
-      Modal.alert({ title:"Mislukt", html:"Markeren als betaald is niet gelukt." });
+      Modal.alert({ title: "Mislukt", html: "Markeren als betaald is niet gelukt." });
     }
   };
 
@@ -479,7 +480,7 @@ async function openPayModal(billId) {
 /* ──────────────────────────────────────────────────────────────
    Utils
    ────────────────────────────────────────────────────────────── */
-function escapeHtml(s="") {
+function escapeHtml(s = "") {
   return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
@@ -491,22 +492,22 @@ const historyBtn = document.getElementById("historyBtn");
 historyBtn && (historyBtn.onclick = async () => {
   const body = document.getElementById("historyBody");
   body.innerHTML = "";
-  const snap = await getDocs(query(collection(db,"transactions"), where("uid","==", currentUser?.uid||""), orderBy("at","desc")));
-  const txs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-  for (const tx of txs.slice(0,200)) {
+  const snap = await getDocs(query(collection(db, "transactions"), where("uid", "==", currentUser?.uid || ""), orderBy("at", "desc")));
+  const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  for (const tx of txs.slice(0, 200)) {
     // look up bill + instalment index (optional)
     let name = "";
     let idx = "";
     try {
-      const b = await getDoc(doc(db,"bills", tx.billId));
+      const b = await getDoc(doc(db, "bills", tx.billId));
       name = b.exists() ? (b.data().beneficiary || "") : "(onbekend)";
       if (tx.instalmentId) {
         const p = await getDoc(doc(db, `bills/${tx.billId}/instalments/${tx.instalmentId}`));
         idx = p.exists() ? String(p.data().index || "") : "";
       }
-    } catch {}
+    } catch { }
     const tr = document.createElement("tr");
-    const dt = tx.at?.seconds ? new Date(tx.at.seconds*1000) : new Date();
+    const dt = tx.at?.seconds ? new Date(tx.at.seconds * 1000) : new Date();
     const dateStr = dt.toLocaleString("nl-BE");
     tr.innerHTML = `<td>${escapeHtml(dateStr)}</td><td>${escapeHtml(name)}</td><td>${escapeHtml(idx)}</td><td>${euro(tx.amount)}</td>`;
     body.appendChild(tr);
