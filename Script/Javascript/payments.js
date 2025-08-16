@@ -75,6 +75,15 @@ function renderAll() {
   renderSidebar();
 }
 
+function updateOpenTotal() {
+  if (!openTotal) return;
+  const tot = bills.reduce((s, b) => {
+    const rem = Number(b.amountTotal || 0) - Number(b.paidAmount || 0);
+    return s + (rem > 0 ? rem : 0);
+  }, 0);
+  openTotal.textContent = euro(clamp2(tot));
+}
+
 /* ──────────────────────────────────────────────────────────────
    Auth
    ────────────────────────────────────────────────────────────── */
@@ -120,6 +129,10 @@ function renderBills() {
   if (!billsBody) return;
   billsBody.innerHTML = "";
   const open = bills.filter(b => (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)) > 0);
+  if (openTotal) {
+    const tot = open.reduce((s, b) => s + (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)), 0);
+    openTotal.textContent = euro(clamp2(tot));
+  }
 
   if (!open.length) {
     const tr = document.createElement("tr");
@@ -992,3 +1005,75 @@ async function rebalanceAfterPartEdit(billId, editedPartId, newAmt) {
   }
   console.debug(label, "done");
 }
+
+
+// === Selected-by-month Addon ===
+// Drop-in script to keep the "Geselecteerde betalingen" per maand.
+// 1) Zet dit ONDERAAN je payments.js (of importeer dit bestand na payments.js).
+// 2) Er is geen verdere wijziging nodig aan de rest van je code.
+//
+// Werkt met bestaande variabelen: selected, selectedMonth, monthPicker,
+// renderSelectedList, totalSelected, sumToPay, recalcDiff, renderBills, euro().
+
+(function () {
+  if (window.__selByMonthInit) return;
+  window.__selByMonthInit = true;
+
+  // Map<YYYY-MM, Map> -> per maand een eigen selectie-map
+  window.selectedByMonth = window.selectedByMonth || new Map();
+
+  // Zorg dat de huidige 'selected' onder de huidige maand hangt
+  if (!selectedByMonth.has(selectedMonth)) {
+    selectedByMonth.set(selectedMonth, selected || new Map());
+  } else {
+    // Als selected bestaat maar nog niet is opgeslagen, zet het op de huidige maand
+    if (typeof selected !== "undefined") {
+      selectedByMonth.set(selectedMonth, selected);
+    }
+  }
+
+  function switchSelectionForMonth(newMonth) {
+    try {
+      // Bewaar huidige selectie onder de (oude) maand
+      selectedByMonth.set(selectedMonth, selected);
+      // Haal de map voor de nieuwe maand of maak een lege
+      const next = selectedByMonth.get(newMonth) || new Map();
+      // Schakel de globale 'selected' om naar de nieuwe map
+      selected = next;
+      selectedByMonth.set(newMonth, selected);
+      // UI verversen
+      if (typeof renderSelectedList === "function") renderSelectedList();
+      if (typeof sumToPay !== "undefined") sumToPay.textContent = euro(
+        typeof totalSelected === "function" ? totalSelected() : 0
+      );
+      if (typeof recalcDiff === "function") recalcDiff();
+      if (typeof renderBills === "function") renderBills();
+    } catch (e) {
+      console.error("[payments] switchSelectionForMonth error", e);
+    }
+  }
+
+  // Hook in op de maand-selector zonder bestaande logica te breken
+  if (typeof monthPicker !== "undefined" && monthPicker) {
+    const oldOnChange = monthPicker.onchange;
+    monthPicker.onchange = (ev) => {
+      const newM = (typeof monthKey === "function")
+        ? monthKey(monthPicker.value)
+        : (monthPicker.value || "").slice(0, 7);
+      if (newM && newM !== selectedMonth) {
+        const prev = selectedMonth;
+        selectedMonth = newM;
+        switchSelectionForMonth(selectedMonth);
+      }
+      // Behoud bestaande gedrag
+      if (typeof oldOnChange === "function") {
+        try { oldOnChange.call(monthPicker, ev); } catch (e) { console.warn(e); }
+      } else if (typeof onMonthChanged === "function") {
+        onMonthChanged();
+      }
+    };
+  }
+
+  // Init bij load (handig na auth/streams)
+  switchSelectionForMonth(selectedMonth);
+})();
