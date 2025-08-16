@@ -37,7 +37,10 @@ let unsubSeg = null;
 
 const EXCLUDED_TYPES_FOR_TOTALS = new Set(["sport", "oefening", "andere"]);
 const DAILY_EXPECTED_MIN = 7 * 60 + 36;
-
+function minToDecimalComma(min, digits = 1) {
+    const val = Math.abs(min) / 60;
+    return val.toFixed(digits).replace(".", ",");
+}
 
 /* ──────────────────────────────────────────────────────────────
    Helpers
@@ -81,35 +84,78 @@ function ensureMonthMetaUI() {
         meta = document.createElement("div");
         meta.id = "monthMeta";
         meta.className = "month-meta";
-        meta.innerHTML = `
-      <span id="glideChip" class="pill"></span>
-      <span id="ovChip" class="pill" style="display:none"></span>
-    `;
         monthPicker.insertAdjacentElement("afterend", meta);
     }
+    // Zorg dat alle chips bestaan
+    const ensureChip = (id) => {
+        let el = document.getElementById(id);
+        if (!el) {
+            el = document.createElement("span");
+            el.id = id;
+            el.className = "pill";
+            el.style.display = "none";
+            meta.appendChild(el);
+        }
+        return el;
+    };
+    ensureChip("glideChip"); // glijtijd +/-
+    ensureChip("ovChip");    // Overuren & Andere (& Oefening)
+    ensureChip("vlChip");    // Verlof
+    ensureChip("rcChip");    // Recup
 }
 
-function updateMonthMeta(diffMin, overOtherMin) {
+function updateMonthMeta(diffMin, overOtherMin, verlofMin, recupMin) {
     const chip = document.getElementById("glideChip");
     const ov = document.getElementById("ovChip");
-    if (!chip) return;
+    const vl = document.getElementById("vlChip");
+    const rc = document.getElementById("rcChip");
 
-    const sign = diffMin >= 0 ? "pos" : "neg";
-    const abs = minToHM(Math.abs(diffMin));
-    chip.className = `pill ${sign}`;
-    chip.textContent = diffMin >= 0
-        ? `te veel aan glijtijd: ${abs}`
-        : `te weinig aan glijtijd: ${abs}`;
+    // Glijtijd
+    if (chip) {
+        const sign = diffMin >= 0 ? "pos" : "neg";
+        chip.className = `pill ${sign}`;
+        chip.style.display = "";
+        const absHM = minToHM(Math.abs(diffMin));
+        const absDec = minToDecimalComma(diffMin, 1);
+        chip.textContent = diffMin >= 0
+            ? `te veel aan glijtijd: ${absHM} (${absDec})`
+            : `te weinig aan glijtijd: ${absHM} (${absDec})`;
+    }
 
-    const showOv = overOtherMin > 0;
+    // Overuren & Andere & Oefening
     if (ov) {
-        ov.style.display = showOv ? "" : "none";
-        if (showOv) {
+        if (overOtherMin > 0) {
+            ov.style.display = "";
             ov.className = "pill info";
-            ov.textContent = `Overuren & Andere: ${minToHM(overOtherMin)}`;
+            ov.textContent = `Overuren & Andere & Oefening: ${minToHM(overOtherMin)} (${minToDecimalComma(overOtherMin, 1)})`;
+        } else {
+            ov.style.display = "none";
+        }
+    }
+
+    // Verlof
+    if (vl) {
+        if (verlofMin > 0) {
+            vl.style.display = "";
+            vl.className = "pill verlof";
+            vl.textContent = `Verlof: ${minToHM(verlofMin)} (${minToDecimalComma(verlofMin, 1)})`;
+        } else {
+            vl.style.display = "none";
+        }
+    }
+
+    // Recup
+    if (rc) {
+        if (recupMin > 0) {
+            rc.style.display = "";
+            rc.className = "pill recup";
+            rc.textContent = `Recup: ${minToHM(recupMin)} (${minToDecimalComma(recupMin, 1)})`;
+        } else {
+            rc.style.display = "none";
         }
     }
 }
+
 
 
 /* ──────────────────────────────────────────────────────────────
@@ -249,16 +295,19 @@ function renderTable() {
 
     let runningWeek = null, weekSum = 0, weekWorkdays = 0;
     let monthDiffTotal = 0;
-    let overOtherTotal = 0;
 
-    // tel “Overuren & Andere” (alle segmenten in maand)
+    // TOTAAL: Overuren & Andere & Oefening + Verlof + Recup in de maand
+    let overOtherTotal = 0;
+    let verlofTotal = 0;
+    let recupTotal = 0;
     monthSegments.forEach(s => {
         const dt = s.date ? new Date(s.date) : null;
         if (!dt || dt.getFullYear() !== Y || (dt.getMonth() + 1) !== M) return;
         const t = (s.type || "").toLowerCase();
-        if (t === "overuren" || t === "andere") {
-            overOtherTotal += computeMinutes(s);
-        }
+        const mins = computeMinutes(s);
+        if (t === "verlof") verlofTotal += mins;
+        if (t === "recup") recupTotal += mins;
+        if (t === "overuren" || t === "andere" || t === "oefening") overOtherTotal += mins; // 👈 oefening erbij
     });
 
     for (let day = 1; day <= last.getDate(); day++) {
@@ -267,12 +316,10 @@ function renderTable() {
         const segs = (byDate.get(dateISO) || [])
             .sort((a, b) => (hmToMin(a.start || "00:00") || 0) - (hmToMin(b.start || "00:00") || 0));
 
-        // werkdag? (ma=1..vr=5)
         const dow = d.getDay(); // 0=zo .. 6=za
         const isWorkday = dow >= 1 && dow <= 5;
 
         const w = isoWeek(d);
-        // als we de week verlaten: voeg weektotaal + target toe
         if (runningWeek !== null && w !== runningWeek) {
             const expected = weekWorkdays * DAILY_EXPECTED_MIN;
             const diff = weekSum - expected;
@@ -282,7 +329,7 @@ function renderTable() {
         }
         runningWeek = w;
 
-        // dagtotaal (excl. sport, oefening, andere)
+        // dagtotaal (exclude sport, oefening, andere)
         const dayMinutes = segs.reduce((sum, s) => {
             const m = computeMinutes(s);
             const t = (s.type || "").toLowerCase();
@@ -291,7 +338,7 @@ function renderTable() {
         weekSum += dayMinutes;
         if (isWorkday) weekWorkdays++;
 
-        // datumkop met toggle + plus
+        // header + toggle + plus
         const hdr = document.createElement("tr");
         hdr.className = "date-header";
         hdr.innerHTML = `
@@ -309,8 +356,11 @@ function renderTable() {
 
         const toggleBtn = hdr.querySelector(".toggle");
         const addBtn = hdr.querySelector(".add");
-        let collapsed = (segs.length > 1);
+
+        // 👇 ALTIJD standaard dicht
+        let collapsed = true;
         setToggleUI(toggleBtn, collapsed);
+
         toggleBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             collapsed = !collapsed;
@@ -319,6 +369,7 @@ function renderTable() {
                 tr.style.display = collapsed ? "none" : "";
             });
         });
+
         addBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             openTimeModal({ date: dateISO });
@@ -347,7 +398,6 @@ function renderTable() {
         });
     }
 
-    // laatste week afsluiten
     if (runningWeek !== null) {
         const expected = weekWorkdays * DAILY_EXPECTED_MIN;
         const diff = weekSum - expected;
@@ -355,8 +405,8 @@ function renderTable() {
         monthDiffTotal += diff;
     }
 
-    // update chips bovenaan
-    updateMonthMeta(monthDiffTotal, overOtherTotal);
+    // update chips bovenaan (incl. kommagetal)
+    updateMonthMeta(monthDiffTotal, overOtherTotal, verlofTotal, recupTotal);
 
     function setToggleUI(btn, collapsed) {
         btn.textContent = collapsed ? "▶" : "▼";
@@ -376,6 +426,7 @@ function renderTable() {
         timeTable.appendChild(tr);
     }
 }
+
 
 
 /* ──────────────────────────────────────────────────────────────

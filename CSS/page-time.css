@@ -412,3 +412,24 @@
 :root[data-theme="dark"] .time-page .week-total .diff.neg {
     color: #f87171;
 }
+
+/* extra varianten voor Recup/Verlof */
+.time-page .pill.verlof {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.time-page .pill.recup {
+    color: #b45309;
+    background: #ffedd5;
+}
+
+:root[data-theme="dark"] .time-page .pill.verlof {
+    color: #f87171;
+    background: rgba(239, 68, 68, .12);
+}
+
+:root[data-theme="dark"] .time-page .pill.recup {
+    color: #fdba74;
+    background: rgba(251, 146, 60, .12);
+}
