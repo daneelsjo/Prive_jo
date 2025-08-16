@@ -18,18 +18,17 @@ const provider = new GoogleAuthProvider();
    ────────────────────────────────────────────────────────────── */
 let currentUser = null;
 
-let bills = [];        // {id, beneficiary, amountTotal, paidAmount, inParts, partsCount, partAmount, lastPartAmount, ...}
+let bills = [];        // {id, beneficiary, amountTotal, paidAmount, inParts, partsCount, partAmount, lastPartAmount, dueDate, iban, ...}
 let incomes = [];      // (filtered by selected month)
 let fixedCosts = [];   // all fixed costs; filtered client-side by month
 
 let selectedBillId = null;
-let selectedPartIndex = null; // for parts (legacy single)
+let selectedPartIndex = null; // for parts modal
 let selectedMonth = (new Date()).toISOString().slice(0, 7); // YYYY-MM
 
-// Multi-select basket
-let selected = new Map(); // key=billId, value={billId, instalmentId|null, amount, label}
+// Multi-select basket (per maand persist via Firestore)
+let selected = new Map(); // key = `${billId}::FULL` of `${billId}::instalmentId`, val={type, billId, instalmentId|null, amount, label, iban, note}
 let partChoice = new Map(); // billId -> instalment object (id,index,amount)
-
 
 // DOM
 const loginBtn = document.getElementById("login-btn");
@@ -46,7 +45,7 @@ const incomeList = document.getElementById("incomeList");
 const fixedList = document.getElementById("fixedList");
 const incomeTotal = document.getElementById("incomeTotal");
 const fixedTotal = document.getElementById("fixedTotal");
-const selectedPaymentBox = document.getElementById("selectedPaymentBox"); // legacy
+const selectedPaymentBox = document.getElementById("selectedPaymentBox"); // legacy/quick-pay
 const selectedList = document.getElementById("selectedList");
 const selTotal = document.getElementById("selTotal");
 const payReviewBtn = document.getElementById("payReviewBtn");
@@ -69,19 +68,85 @@ function monthKey(d) {
   const dt = (d instanceof Date) ? d : new Date();
   return dt.toISOString().slice(0, 7);
 }
+function parseEuro(s) {
+  const n = String(s).replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  return Number(n || 0);
+}
+function escapeHtml(s = "") {
+  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* Nog te betalen onder de titel = Σ(initieel) − Σ(reeds betaald) van alle OPEN rijen */
+function updateOpenTotal() {
+  if (!openTotal) return;
+  const openRows = bills.filter(b => (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)) > 0);
+  const sumInitial = openRows.reduce((s, b) => s + Number(b.amountTotal || 0), 0);
+  const sumPaid = openRows.reduce((s, b) => s + Number(b.paidAmount || 0), 0);
+  openTotal.textContent = euro(clamp2(sumInitial - sumPaid));
+}
 
 function renderAll() {
   renderBills();
   renderSidebar();
 }
 
-function updateOpenTotal() {
-  if (!openTotal) return;
-  const tot = bills.reduce((s, b) => {
-    const rem = Number(b.amountTotal || 0) - Number(b.paidAmount || 0);
-    return s + (rem > 0 ? rem : 0);
-  }, 0);
-  openTotal.textContent = euro(clamp2(tot));
+/* ──────────────────────────────────────────────────────────────
+   Persistente selectie (per user + per maand)
+   ────────────────────────────────────────────────────────────── */
+function debounce(fn, ms = 600) {
+  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+function selectionDocRef(month) {
+  if (!currentUser) return null;
+  return doc(db, `users/${currentUser.uid}/selections/${month}`);
+}
+function serializeSelection() {
+  const arr = [];
+  for (const [key, it] of selected.entries()) arr.push({ key, ...it });
+  return arr;
+}
+async function saveSelection() {
+  const ref = selectionDocRef(selectedMonth);
+  if (!ref) return;
+  await setDoc(ref, {
+    month: selectedMonth,
+    items: serializeSelection(),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}
+const saveSelectionDebounced = debounce(saveSelection);
+
+async function loadSelection(month) {
+  selected.clear();
+  const ref = selectionDocRef(month);
+  if (!ref) { renderSelectedList(); sumToPay.textContent = euro(0); recalcDiff(); return; }
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    const items = snap.data().items || [];
+    for (const it of items) selected.set(it.key, it);
+  }
+  renderSelectedList();
+  sumToPay.textContent = euro(totalSelected());
+  recalcDiff();
+  syncTableChecks();
+}
+
+function syncTableChecks() {
+  if (!billsBody) return;
+  billsBody.querySelectorAll('tr[data-id]').forEach(tr => {
+    const billId = tr.dataset.id;
+    // enkel de "FULL" checkbox in hoofd-rij
+    const cb = tr.querySelector('td:last-child input[type="checkbox"]');
+    if (cb) cb.checked = selected.has(`${billId}::FULL`);
+  });
+}
+
+function clearSelectionUI() {
+  selected.clear();
+  billsBody && billsBody.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+  renderSelectedList();
+  sumToPay && (sumToPay.textContent = euro(0));
+  recalcDiff();
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -104,6 +169,7 @@ onAuthStateChanged(auth, async (user) => {
   onSnapshot(query(collection(db, "bills"), orderBy("createdAt", "desc")), snap => {
     bills = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderBills();
+    syncTableChecks();
   });
 
   onSnapshot(query(collection(db, "incomes")), snap => {
@@ -118,21 +184,18 @@ onAuthStateChanged(auth, async (user) => {
   });
 
   monthPicker.value = selectedMonth;
+  await loadSelection(selectedMonth); // laad selectie voor deze maand
 });
 
 /* ──────────────────────────────────────────────────────────────
    Bills table
    ────────────────────────────────────────────────────────────── */
-
-
 function renderBills() {
   if (!billsBody) return;
   billsBody.innerHTML = "";
+
   const open = bills.filter(b => (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)) > 0);
-  if (openTotal) {
-    const tot = open.reduce((s, b) => s + (Number(b.amountTotal || 0) - Number(b.paidAmount || 0)), 0);
-    openTotal.textContent = euro(clamp2(tot));
-  }
+  updateOpenTotal();
 
   if (!open.length) {
     const tr = document.createElement("tr");
@@ -153,9 +216,12 @@ function renderBills() {
     const tdName = document.createElement("td");
     tdName.textContent = b.beneficiary || "(zonder naam)";
 
-    const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
+    const initial = Number(b.amountTotal || 0);
+    const remaining = clamp2(initial - Number(b.paidAmount || 0));
+
     const tdToPay = document.createElement("td");
-    tdToPay.textContent = euro(remaining);
+    // Toon ALTIJD initieel bedrag
+    tdToPay.textContent = euro(initial);
 
     const tdPaid = document.createElement("td");
     tdPaid.textContent = euro(Number(b.paidAmount || 0));
@@ -170,55 +236,69 @@ function renderBills() {
     }
 
     const tdAct = document.createElement("td");
-
+    // "V" volledig betaald
     const btnPaid = document.createElement("button");
     btnPaid.className = "ghost";
     btnPaid.title = "Markeer volledig als betaald";
     btnPaid.textContent = "V";
     btnPaid.onclick = (e) => { e.stopPropagation(); settleAsFull(b.id); };
-
+    // "✎" bewerken
     const btnEdit = document.createElement("button");
     btnEdit.className = "ghost";
     btnEdit.title = "Wijzig rekening";
     btnEdit.textContent = "✎";
     btnEdit.style.marginLeft = ".35rem";
     btnEdit.onclick = (e) => { e.stopPropagation(); openBillModal(b.id); };
-
     tdAct.append(btnPaid, btnEdit);
 
     const tdSel = document.createElement("td");
     tdSel.style.textAlign = "center";
     if (b.inParts) {
-      // expander caret
       const caret = document.createElement("button");
       caret.className = "caret-btn";
       caret.title = "Toon delen";
       caret.textContent = "▸";
-      caret.onclick = (e) => { e.stopPropagation(); toggleExpander(b.id); caret.textContent = (caret.textContent === "▸" ? "▾" : "▸"); };
+      caret.onclick = (e) => {
+        e.stopPropagation();
+        toggleExpander(b.id);
+        caret.textContent = (caret.textContent === "▸" ? "▾" : "▸");
+      };
       tdSel.appendChild(caret);
     } else {
-      // single: checkbox to select full remaining
+      // enkelvoudig: checkbox => selecteer volledige rest
       const cb = document.createElement("input");
       cb.type = "checkbox";
       const key = `${b.id}::FULL`;
       cb.checked = selected.has(key);
-      cb.onchange = (e) => {
+      cb.onchange = () => {
         if (cb.checked) {
-          selected.set(key, { type: "full", billId: b.id, instalmentId: null, amount: remaining, label: `${b.beneficiary}`, iban: b.iban || "", note: "" });
+          selected.set(key, {
+            type: "full",
+            billId: b.id,
+            instalmentId: null,
+            amount: remaining,
+            label: `${b.beneficiary}`,
+            iban: b.iban || "",
+            note: ""
+          });
         } else {
           selected.delete(key);
         }
         renderSelectedList();
         sumToPay.textContent = euro(totalSelected());
         recalcDiff();
+        saveSelectionDebounced();
       };
       tdSel.appendChild(cb);
     }
 
     tr.append(tdName, tdToPay, tdPaid, tdDue, tdAct, tdSel);
+    // klik op rij → quick-pay box rechts vullen
+    tr.onclick = () => { selectedBillId = b.id; renderSelectedBox(); };
+
     billsBody.appendChild(tr);
 
-    // Expander row for inParts
+    // Expander voor delen
     if (b.inParts) {
       const expTr = document.createElement("tr");
       expTr.className = "expander-row";
@@ -232,7 +312,6 @@ function renderBills() {
       expTr.appendChild(td);
       billsBody.appendChild(expTr);
 
-      // Clicking on name toggles expander
       tdName.style.cursor = "pointer";
       tdName.onclick = (e) => { e.stopPropagation(); toggleExpander(b.id); };
     }
@@ -243,7 +322,6 @@ function renderBills() {
    Right side summary
    ────────────────────────────────────────────────────────────── */
 function renderSidebar() {
-  // month lists
   const month = selectedMonth;
   const incomeRows = incomes
     .filter(x => x.month === month)
@@ -264,10 +342,8 @@ function renderSidebar() {
   sumIncome.textContent = euro(incSum);
   sumFixed.textContent = euro(fixSum);
 
-  // selected payment
   renderSelectedBox();
 }
-
 function row(label, amount) {
   return `<div class="row"><span>${escapeHtml(String(label || ""))}</span><strong>${euro(amount)}</strong></div>`;
 }
@@ -283,7 +359,7 @@ function renderSelectedBox() {
   const lastPart = b.inParts ? clamp2(b.lastPartAmount || 0) : null;
   const hint = (b.inParts && lastPart && remaining <= lastPart) ? ` (laatste deel: ${euro(lastPart)})` : "";
 
-  selectedPartIndex = null; // reset
+  selectedPartIndex = null;
   selectedPaymentBox.innerHTML = `
     <div><strong>${escapeHtml(b.beneficiary || "(zonder naam)")}</strong></div>
     <div class="hint">Openstaand: ${euro(remaining)}</div>
@@ -304,12 +380,6 @@ function recalcDiff() {
   const diff = clamp2(inc - fix - pay);
   sumDiff.textContent = euro(diff);
 }
-function parseEuro(s) {
-  // very naive; relies on euro() output
-  const n = String(s).replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
-  return Number(n || 0);
-}
-
 
 /* ──────────────────────────────────────────────────────────────
    Multi-select helpers
@@ -319,9 +389,6 @@ function totalSelected() {
   for (const it of selected.values()) s += Number(it.amount || 0);
   return clamp2(s);
 }
-
-
-
 
 function renderSelectedList() {
   if (!selectedList) return;
@@ -346,6 +413,7 @@ function renderSelectedList() {
       x.title = "Verwijder uit selectie";
       x.onclick = () => {
         selected.delete(key);
+        // untick hoofd-checkbox indien full
         if (it.type === "full") {
           const cb = billsBody.querySelector(`tr[data-id="${it.billId}"] input[type="checkbox"]`);
           if (cb) cb.checked = false;
@@ -353,6 +421,7 @@ function renderSelectedList() {
         renderSelectedList();
         sumToPay.textContent = euro(totalSelected());
         recalcDiff();
+        saveSelectionDebounced();
       };
       right.append(amt, x);
       row.append(left, right);
@@ -362,24 +431,21 @@ function renderSelectedList() {
   selTotal && (selTotal.textContent = euro(totalSelected()));
 }
 
-
-
-
 /* ──────────────────────────────────────────────────────────────
    Month picker
    ────────────────────────────────────────────────────────────── */
-monthPicker && (monthPicker.onchange = () => {
+monthPicker && (monthPicker.onchange = async () => {
   selectedMonth = monthKey(monthPicker.value);
-  // incomes stream already loaded; filter client-side
   onMonthChanged();
+  await loadSelection(selectedMonth); // laad selectie van die maand (kan leeg zijn)
+  syncTableChecks();
 });
 function onMonthChanged() {
-  // recompute filtered incomes + fixed
   renderSidebar();
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Modals: Nieuwe rekening
+   Modals: Nieuwe rekening + bewerken
    ────────────────────────────────────────────────────────────── */
 newBillBtn && (newBillBtn.onclick = () => {
   openBillModal();
@@ -450,7 +516,7 @@ function openBillModal(billId = null) {
       dueDate: (due.value || null),
       inParts: !!inparts.checked,
       partsCount: inparts.checked ? Math.max(2, parseInt(parts.value, 10) || 2) : 1,
-      createdAt: serverTimestamp(), // alleen voor nieuw; edit overschrijft niet
+      createdAt: serverTimestamp(), // voor nieuw; bij edit overschrijven we niet bewust serverTimestamp
       paidAmount: bills.find(x => x.id === editId)?.paidAmount || 0
     };
     if (!payload.beneficiary || !payload.amountTotal) {
@@ -507,7 +573,6 @@ function openBillModal(billId = null) {
   Modal.open("modal-bill");
 }
 
-
 /* ──────────────────────────────────────────────────────────────
    Modals: Inkomsten
    ────────────────────────────────────────────────────────────── */
@@ -549,7 +614,6 @@ addIncomeBtn && (addIncomeBtn.onclick = () => {
 fixedCostsBtn && (fixedCostsBtn.onclick = () => openFixedModal());
 
 async function openFixedModal() {
-  // render list
   const list = document.getElementById("fixedListModal");
   list.innerHTML = (fixedCosts.length ? "" : `<div class="muted">Nog geen vaste kosten.</div>`);
   for (const f of fixedCosts) {
@@ -595,7 +659,6 @@ async function openPayModal(billId) {
   wrap.innerHTML = "";
 
   if (b.inParts) {
-    // fetch open parts
     const snap = await getDocs(query(collection(db, `bills/${billId}/instalments`), where("status", "==", "open"), orderBy("index", "asc")));
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (!items.length) {
@@ -610,7 +673,6 @@ async function openPayModal(billId) {
         list.appendChild(row);
       });
       wrap.appendChild(list);
-      // default select first
       const firstRadio = list.querySelector('input[type="radio"]');
       if (firstRadio) { firstRadio.checked = true; selectedPartIndex = firstRadio.value; }
       list.addEventListener("change", (e) => {
@@ -622,17 +684,15 @@ async function openPayModal(billId) {
     wrap.innerHTML = `<div class="muted">Enkelvoudige betaling. Dit zal het volledige resterende bedrag markeren als betaald.</div>`;
   }
 
-  // confirm handler
   document.getElementById("pay-confirm").onclick = async () => {
     try {
       if (b.inParts) {
         if (!selectedPartIndex) { Modal.alert({ title: "Kies een deel", html: "Selecteer het deel dat je wil markeren als betaald." }); return; }
-        // find selected instalment
         const partRef = doc(db, `bills/${billId}/instalments/${selectedPartIndex}`);
         const partSnap = await getDoc(partRef);
         if (!partSnap.exists()) { Modal.alert({ title: "Niet gevonden", html: "Het gekozen deel bestaat niet meer." }); return; }
         const part = partSnap.data();
-        // mark paid + update bill totals
+
         await updateDoc(partRef, { status: "paid", paidAt: serverTimestamp() });
         await updateDoc(doc(db, "bills", billId), {
           paidAmount: clamp2(Number(b.paidAmount || 0) + Number(part.amount || 0))
@@ -645,7 +705,6 @@ async function openPayModal(billId) {
         const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
         if (remaining <= 0) { Modal.close("modal-pay"); return; }
         await updateDoc(doc(db, "bills", billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + remaining) });
-        // ensure single instalment is marked as paid as well
         const partsSnap = await getDocs(collection(db, `bills/${billId}/instalments`));
         const open = partsSnap.docs.find(d => (d.data().status === "open"));
         if (open) await updateDoc(doc(db, `bills/${billId}/instalments/${open.id}`), { status: "paid", paidAt: serverTimestamp() });
@@ -665,14 +724,6 @@ async function openPayModal(billId) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Utils
-   ────────────────────────────────────────────────────────────── */
-function escapeHtml(s = "") {
-  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
-
-/* ──────────────────────────────────────────────────────────────
    Historiek
    ────────────────────────────────────────────────────────────── */
 const historyBtn = document.getElementById("historyBtn");
@@ -682,7 +733,6 @@ historyBtn && (historyBtn.onclick = async () => {
   const snap = await getDocs(query(collection(db, "transactions"), orderBy("at", "desc")));
   const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   for (const tx of txs.slice(0, 200)) {
-    // look up bill + instalment index (optional)
     let name = "";
     let idx = "";
     try {
@@ -702,29 +752,25 @@ historyBtn && (historyBtn.onclick = async () => {
   Modal.open("modal-history");
 });
 
-
 /* ──────────────────────────────────────────────────────────────
-   Betaal geselecteerde + leegmaken
+   Betaaloverzicht (review modal) + leegmaken
    ────────────────────────────────────────────────────────────── */
 clearSelectedBtn && (clearSelectedBtn.onclick = () => {
   selected.clear();
-  // untick all checkboxes
   billsBody.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
   renderSelectedList();
   sumToPay.textContent = euro(0);
   recalcDiff();
+  saveSelectionDebounced();
 });
 
-/* ──────────────────────────────────────────────────────────────
-   Betaaloverzicht (review modal)
-   ────────────────────────────────────────────────────────────── */
 payReviewBtn && (payReviewBtn.onclick = () => {
   const body = document.getElementById("reviewBody");
   body.innerHTML = "";
   for (const [key, it] of selected.entries()) {
     const tr = document.createElement("tr");
     const ben = document.createElement("td"); ben.textContent = it.label.split(" – ")[0] || "";
-    const iban = document.createElement("td"); { const b = bills.find(x => x.id === it.billId); iban.textContent = (b && b.iban) ? b.iban : (it.iban || ""); }
+    const ibanTd = document.createElement("td"); { const b = bills.find(x => x.id === it.billId); ibanTd.textContent = (b && b.iban) ? b.iban : (it.iban || ""); }
     const amt = document.createElement("td"); amt.textContent = euro(it.amount);
     const commTd = document.createElement("td");
     const b = bills.find(x => x.id === it.billId);
@@ -734,7 +780,7 @@ payReviewBtn && (payReviewBtn.onclick = () => {
     paidTd.appendChild(chk);
 
     tr.dataset.key = key;
-    tr.append(ben, iban, amt, commTd, paidTd);
+    tr.append(ben, ibanTd, amt, commTd, paidTd);
     body.appendChild(tr);
   }
   Modal.open("modal-review");
@@ -760,7 +806,6 @@ document.getElementById("review-confirm") && (document.getElementById("review-co
       const b = bills.find(x => x.id === it.billId);
       if (!b) continue;
 
-      // Kolom 4 = Mededeling (plain tekst)
       const noteCell = tr.children[3];
       const noteFromCell = noteCell ? (noteCell.textContent || "").trim() : "";
       const note = noteFromCell || b.communication || b.description || "";
@@ -780,13 +825,11 @@ document.getElementById("review-confirm") && (document.getElementById("review-co
           at: serverTimestamp()
         });
       } else {
-        // volledige rest
         const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
         if (remaining > 0) {
           await updateDoc(doc(db, "bills", it.billId), {
             paidAmount: clamp2(Number(b.paidAmount || 0) + remaining)
           });
-          // markeer alle open delen als betaald
           const partsSnap = await getDocs(collection(db, `bills/${it.billId}/instalments`));
           for (const d of partsSnap.docs) {
             if (d.data().status === "open") {
@@ -806,7 +849,6 @@ document.getElementById("review-confirm") && (document.getElementById("review-co
     }
 
     Modal.close("modal-review");
-    // Selectie blijft staan (zoals gevraagd), zodat je het saldo-effect rechts blijft zien
     Modal.toast && Modal.toast({ html: "Aangevinkte betalingen zijn gemarkeerd als betaald." });
   } catch (e) {
     console.error(e);
@@ -814,14 +856,15 @@ document.getElementById("review-confirm") && (document.getElementById("review-co
   }
 });
 
-
-
+/* ──────────────────────────────────────────────────────────────
+   Snel: markeer volledige rest als betaald
+   ────────────────────────────────────────────────────────────── */
 async function settleAsFull(billId) {
   const b = bills.find(x => x.id === billId);
   if (!b) return;
   const remaining = clamp2(Number(b.amountTotal || 0) - Number(b.paidAmount || 0));
   if (remaining <= 0) return;
-  // Reuse pay modal to confirm
+
   const ctx = document.getElementById("payContext");
   const wrap = document.getElementById("payPartsWrap");
   if (ctx && wrap) {
@@ -831,7 +874,6 @@ async function settleAsFull(billId) {
     document.getElementById("pay-confirm").onclick = async () => {
       try {
         await updateDoc(doc(db, "bills", billId), { paidAmount: clamp2(Number(b.paidAmount || 0) + remaining) });
-        // mark all open parts as paid
         const partsSnap = await getDocs(collection(db, `bills/${billId}/instalments`));
         for (const d of partsSnap.docs) {
           if (d.data().status === "open") {
@@ -849,35 +891,17 @@ async function settleAsFull(billId) {
   }
 }
 
-
-// --- Drop-in replacement functions with detailed logging ---
-// Paste these into your payments.js (replace existing versions).
-
+/* ──────────────────────────────────────────────────────────────
+   Delen laden + expander + deelbedragen aanpassen
+   ────────────────────────────────────────────────────────────── */
 async function fetchOpenInstalments(billId) {
-  const label = `[payments] fetchOpenInstalments ${billId}`;
-  console.debug(label, "start");
-  try {
-    console.time(label);
-    const colPath = `bills/${billId}/instalments`;
-    console.debug(label, "query collection:", colPath);
-    const snap = await getDocs(collection(db, colPath));
-    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    console.debug(label, "snapshot size:", snap.size, "ids:", items.map(x => x.id));
-    const open = items.filter(x => x.status === "open").sort((a, b) => (a.index || 0) - (b.index || 0));
-    console.debug(label, "open parts:", open);
-    console.timeEnd(label);
-    return open;
-  } catch (e) {
-    console.error(label, "error:", e);
-    console.timeEnd(label);
-    throw e;
-  }
+  const snap = await getDocs(query(collection(db, `bills/${billId}/instalments`), where("status", "==", "open"), orderBy("index", "asc")));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 async function toggleExpander(billId, forceOpen) {
-  const label = `[payments] toggleExpander ${billId}`;
   const exp = document.getElementById(`exp-${billId}`);
-  if (!exp) { console.warn(label, "expander element not found"); return; }
+  if (!exp) return;
 
   const isOpen = exp.classList.contains("open");
   if (forceOpen === true && isOpen) { /*no-op*/ }
@@ -921,9 +945,22 @@ async function toggleExpander(billId, forceOpen) {
         try {
           await rebalanceAfterPartEdit(billId, it.id, newAmt);
           amt.textContent = euro(newAmt);
+          // ververs openstaande delen voor juiste selectie bedragen
+          const fresh = await fetchOpenInstalments(billId);
+          fresh.forEach(f => {
+            const k = `${billId}::${f.id}`;
+            if (selected.has(k) && selected.get(k).type === "part") {
+              const cur = selected.get(k);
+              selected.set(k, { ...cur, amount: clamp2(f.amount) });
+            }
+          });
+          renderSelectedList();
+          sumToPay.textContent = euro(totalSelected());
+          recalcDiff();
+          saveSelectionDebounced();
         } catch (e) {
           console.error("Rebalance failed:", e);
-          Modal.alert && Modal.alert({ title: "Oeps", html: "Kon de bedragen niet herrekenen. Zie console." });
+          Modal.alert && Modal.alert({ title: "Oeps", html: "Kon de bedragen niet herrekenen." });
         }
       };
 
@@ -947,6 +984,7 @@ async function toggleExpander(billId, forceOpen) {
       renderSelectedList();
       sumToPay.textContent = euro(totalSelected());
       recalcDiff();
+      saveSelectionDebounced();
     });
 
     const actions = document.createElement("div");
@@ -961,19 +999,13 @@ async function toggleExpander(billId, forceOpen) {
     exp.appendChild(list);
     exp.appendChild(actions);
   } catch (e) {
-    console.error(label, "failed to load parts:", e);
-    exp.innerHTML = `<div class="muted">Kon delen niet laden. Zie console voor details.</div>`;
+    console.error("delen laden mislukt:", e);
+    exp.innerHTML = `<div class="muted">Kon delen niet laden.</div>`;
   }
 }
 
-/**
- * Na aanpassen van één deel (open) wordt het bedrag van dat deel gezet
- * en de overige OPEN delen evenredig herverdeeld zodat het totaal weer klopt.
- * Betaalde delen blijven onaangeroerd. paidAmount blijft ongewijzigd.
- */
+/* Na aanpassen van één deel: zet dat bedrag, herverdeel overige OPEN delen evenredig zodat totaal klopt. */
 async function rebalanceAfterPartEdit(billId, editedPartId, newAmt) {
-  const label = `[payments] rebalance ${billId} -> ${editedPartId} = ${newAmt}`;
-  console.debug(label);
   if (Number.isNaN(Number(newAmt)) || Number(newAmt) < 0) throw new Error("Invalid amount");
 
   const bSnap = await getDoc(doc(db, "bills", billId));
@@ -993,7 +1025,6 @@ async function rebalanceAfterPartEdit(billId, editedPartId, newAmt) {
   const others = open.filter(p => p.id !== editedPartId);
   if (remainingBudget < 0) throw new Error("New amount exceeds remaining total");
 
-  // gelijk verdelen, laatste vangt afronding op
   const n = others.length;
   const even = n ? clamp2(remainingBudget / n) : 0;
 
@@ -1003,77 +1034,4 @@ async function rebalanceAfterPartEdit(billId, editedPartId, newAmt) {
     const amt = (i === n - 1) ? clamp2(remainingBudget - even * (n - 1)) : even;
     await updateDoc(doc(db, `bills/${billId}/instalments/${p.id}`), { amount: amt });
   }
-  console.debug(label, "done");
 }
-
-
-// === Selected-by-month Addon ===
-// Drop-in script to keep the "Geselecteerde betalingen" per maand.
-// 1) Zet dit ONDERAAN je payments.js (of importeer dit bestand na payments.js).
-// 2) Er is geen verdere wijziging nodig aan de rest van je code.
-//
-// Werkt met bestaande variabelen: selected, selectedMonth, monthPicker,
-// renderSelectedList, totalSelected, sumToPay, recalcDiff, renderBills, euro().
-
-(function () {
-  if (window.__selByMonthInit) return;
-  window.__selByMonthInit = true;
-
-  // Map<YYYY-MM, Map> -> per maand een eigen selectie-map
-  window.selectedByMonth = window.selectedByMonth || new Map();
-
-  // Zorg dat de huidige 'selected' onder de huidige maand hangt
-  if (!selectedByMonth.has(selectedMonth)) {
-    selectedByMonth.set(selectedMonth, selected || new Map());
-  } else {
-    // Als selected bestaat maar nog niet is opgeslagen, zet het op de huidige maand
-    if (typeof selected !== "undefined") {
-      selectedByMonth.set(selectedMonth, selected);
-    }
-  }
-
-  function switchSelectionForMonth(newMonth) {
-    try {
-      // Bewaar huidige selectie onder de (oude) maand
-      selectedByMonth.set(selectedMonth, selected);
-      // Haal de map voor de nieuwe maand of maak een lege
-      const next = selectedByMonth.get(newMonth) || new Map();
-      // Schakel de globale 'selected' om naar de nieuwe map
-      selected = next;
-      selectedByMonth.set(newMonth, selected);
-      // UI verversen
-      if (typeof renderSelectedList === "function") renderSelectedList();
-      if (typeof sumToPay !== "undefined") sumToPay.textContent = euro(
-        typeof totalSelected === "function" ? totalSelected() : 0
-      );
-      if (typeof recalcDiff === "function") recalcDiff();
-      if (typeof renderBills === "function") renderBills();
-    } catch (e) {
-      console.error("[payments] switchSelectionForMonth error", e);
-    }
-  }
-
-  // Hook in op de maand-selector zonder bestaande logica te breken
-  if (typeof monthPicker !== "undefined" && monthPicker) {
-    const oldOnChange = monthPicker.onchange;
-    monthPicker.onchange = (ev) => {
-      const newM = (typeof monthKey === "function")
-        ? monthKey(monthPicker.value)
-        : (monthPicker.value || "").slice(0, 7);
-      if (newM && newM !== selectedMonth) {
-        const prev = selectedMonth;
-        selectedMonth = newM;
-        switchSelectionForMonth(selectedMonth);
-      }
-      // Behoud bestaande gedrag
-      if (typeof oldOnChange === "function") {
-        try { oldOnChange.call(monthPicker, ev); } catch (e) { console.warn(e); }
-      } else if (typeof onMonthChanged === "function") {
-        onMonthChanged();
-      }
-    };
-  }
-
-  // Init bij load (handig na auth/streams)
-  switchSelectionForMonth(selectedMonth);
-})();
