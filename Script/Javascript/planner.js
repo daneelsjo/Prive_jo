@@ -1,93 +1,80 @@
 import {
-// time col
-const tc = div('time-col');
-for(let h=hStart; h<hEnd; h++){
-const slot = div('time-slot'); slot.textContent = `${pad(h)}:00`; tc.appendChild(slot);
+getFirebaseApp,
+getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
+getFirestore, collection, addDoc, onSnapshot, doc, setDoc, updateDoc, deleteDoc,
+query, where, orderBy
+} from "./firebase-config.js";
+
+
+// ───────── Firebase init ─────────
+const app = getFirebaseApp();
+const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+
+// ───────── DOM ─────────
+const loginBtn = document.getElementById("login-btn");
+const authDiv = document.getElementById("auth");
+const appDiv = document.getElementById("app");
+
+
+const weekTitle = document.getElementById("weekTitle");
+const prevWeekBtn = document.getElementById("prevWeek");
+const nextWeekBtn = document.getElementById("nextWeek");
+const calRoot = document.getElementById("calendar");
+
+
+const backlogGroups = document.getElementById("backlogGroups");
+const newBacklogBtn = document.getElementById("newBacklogBtn");
+
+
+const printStart = document.getElementById("printStart");
+const printEnd = document.getElementById("printEnd");
+const printListBtn = document.getElementById("printList");
+
+
+// Modal velden
+const blSubjects = document.getElementById("bl-subjects");
+const blSubject = document.getElementById("bl-subject");
+const blType = document.getElementById("bl-type");
+const blTitle = document.getElementById("bl-title");
+const blDuration = document.getElementById("bl-duration");
+const blDue = document.getElementById("bl-due");
+const blColor = document.getElementById("bl-color");
+const blSave = document.getElementById("bl-save");
+
+
+// ───────── State ─────────
+let currentUser = null;
+let subjects = []; // {id,name,color,uid}
+let backlog = []; // {id,subjectId,subjectName,type,title,durationHours,dueDate,color,symbol,uid,done}
+let plans = []; // {id,itemId,start,durationHours,uid}
+
+
+// Week state
+let weekStart = startOfWeek(new Date()); // maandag
+
+
+// ───────── Helpers ─────────
+const SYMBOL_BY_TYPE = { taak: "📝", toets: "🧪" };
+function sym(type){ return SYMBOL_BY_TYPE[type] || "📌"; }
+function pad(n){ return String(n).padStart(2,'0'); }
+function startOfWeek(d){
+const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const day = (x.getDay()+6)%7; // ma=0
+x.setDate(x.getDate()-day);
+x.setHours(0,0,0,0);
+return x;
 }
-calRoot.appendChild(tc);
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function fmtDate(d){ return d.toLocaleDateString('nl-BE',{weekday:'short', day:'2-digit', month:'2-digit'}); }
+function toISODate(d){ return d.toISOString().slice(0,10); }
+function hoursBetween(a,b){ return (b-a)/3600000; }
+function clamp(v,min,max){ return Math.max(min, Math.min(max,v)); }
 
 
-// day cols
-for(let d=0; d<7; d++){
-const col = div('day-col');
-col.dataset.day = String(d);
-// build droppable rows (hour start)
-for(let h=hStart; h<hEnd; h++){
-const z = div('dropzone');
-z.dataset.hour = String(h);
-z.ondragover = (e)=>{ e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
-z.ondragleave = ()=> z.removeAttribute('aria-dropeffect');
-z.ondrop = async (e)=>{
-e.preventDefault(); z.removeAttribute('aria-dropeffect');
-const data = safeParse(e.dataTransfer.getData('text/plain'));
-if(!data || data.kind!=='backlog') return;
-const item = backlog.find(x=>x.id===data.id);
-if(!item) return;
-const start = addDays(weekStart, d);
-start.setHours(hStart,0,0,0);
-start.setHours(parseInt(z.dataset.hour,10),0,0,0);
-await addDoc(collection(db,'plans'),{
-itemId: item.id,
-title: item.title,
-type: item.type,
-subjectId: item.subjectId,
-subjectName: item.subjectName,
-color: item.color,
-symbol: item.symbol,
-start,
-durationHours: item.durationHours||1,
-uid: currentUser.uid,
-createdAt: new Date()
-});
-};
-col.appendChild(z);
+// contrast text op kleur
+function getContrast(hex){
+if(!/^#?[0-9a-f]{6}$/i.test(hex)) return '#000';
 }
-calRoot.appendChild(col);
-}
-
-
-// render events for current week
-plans.forEach(p=> placeEvent(p));
-}
-
-
-function placeEvent(p){
-// compute column and top/height
-const d = clamp(Math.floor((p.start - weekStart)/86400000), 0, 6);
-const hStart = 7; // must match rendering
-const hour = p.start.getHours();
-const topRows = clamp(hour - hStart, 0, 24);
-const height = Math.max(1, Math.round((p.durationHours||1)));
-
-
-// find day col
-const cols = calRoot.querySelectorAll('.day-col');
-const col = cols[d]; if(!col) return;
-
-
-const block = div('event');
-const bg = p.color || '#2196F3';
-block.style.background = bg; block.style.color = getContrast(bg);
-block.style.top = `${topRows*40 + 2}px`; // 40px per uur
-block.style.height = `${height*40 - 4}px`;
-block.innerHTML = `
-<div class="title">${p.symbol||sym(p.type)} ${escapeHtml(p.title||'')}</div>
-<div class="meta">${(p.subjectName||'')} • ${pad(p.start.getHours())}:${pad(p.start.getMinutes())} • ${p.durationHours}u</div>
-`;
-
-
-// context: klik = verwijderen
-block.addEventListener('click', async ()=>{
-if(!confirm('Deze planning verwijderen?')) return;
-await deleteDoc(doc(db,'plans', p.id));
-});
-
-
-col.appendChild(block);
-}
-
-
-// ───────── Utils ─────────
-function div(cls){ const el = document.createElement('div'); if(cls) el.className=cls; return el; }
-function escapeHtml(s=''){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
-function safeParse(s){ try{ return JSON.parse(s); }catch{ return null; } }
