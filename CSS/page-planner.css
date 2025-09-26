@@ -90,3 +90,26 @@
     order: 2;
   }
 }
+
+/* Type buttons */
+.type-group {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.type-btn {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--card);
+  cursor: pointer;
+}
+.type-btn:hover {
+  outline: 2px solid #0002;
+  outline-offset: -2px;
+}
+.type-btn.is-active {
+  outline: 2px solid var(--primary, #2196f3);
+  border-color: var(--primary, #2196f3);
+}

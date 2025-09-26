@@ -74,41 +74,59 @@
   <!-- Gedeelde modals via partials (algemene modals) -->
   <div data-include="../partials/modals.html"></div>
 
-  <!-- PLANNER-SPECIFIEKE MODAL (moet in DOM staan) -->
-  <div id="modal-backlog" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-backlog-title" hidden>
-    <div class="modal-header">
-      <h3 id="modal-backlog-title">Nieuw item</h3>
-      <button class="modal-close" data-modal-close="modal-backlog" aria-label="Sluiten">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <label>Vak
-          <input id="bl-subject" list="bl-subjects" placeholder="bv. Wiskunde" />
-          <datalist id="bl-subjects"></datalist>
-        </label>
-        <label>Type
-          <select id="bl-type">
-            <option value="taak">Taak</option>
-            <option value="toets">Toets</option>
-          </select>
-        </label>
-        <label>Titel / onderwerp
-          <input id="bl-title" placeholder="Onderwerp (bv. Hoofdstuk 3 – Breuken)" />
-        </label>
-        <label>Duur (uren)
-          <input id="bl-duration" type="number" min="0.5" step="0.5" value="1" />
-        </label>
-        <label>Deadline (tegen wanneer)
-          <input id="bl-due" type="date" />
-        </label>
+<!-- Backlog-item aanmaken/bewerken -->
+<div id="modal-backlog" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-backlog-title" hidden>
+  <div class="modal-header">
+    <h3 id="modal-backlog-title">Nieuw item</h3>
+    <button class="modal-close" data-modal-close="modal-backlog" aria-label="Sluiten">✕</button>
+  </div>
 
+  <div class="modal-body">
+    <div class="form-grid">
+
+      <!-- VAK (met custom dropdown en kleur-chip) -->
+      <label for="bl-subject">Vak</label>
+      <div class="subj-wrap">
+        <input id="bl-subject" placeholder="bv. Wiskunde" autocomplete="off" />
+        <span id="bl-subject-chip" class="chip" hidden>
+          <span class="dot"></span><span class="txt"></span>
+        </span>
+        <div id="bl-subject-menu" class="subj-menu" hidden></div>
       </div>
-    </div>
-    <div class="modal-footer">
-      <button id="bl-save" class="primary">💾 Opslaan</button>
-      <button class="ghost" data-modal-close="modal-backlog">Annuleren</button>
+
+      <!-- TYPE (drukknoppen + hidden input) -->
+      <label for="bl-type">Type</label>
+      <div>
+        <input id="bl-type" value="taak" />
+        <div class="type-group" role="group" aria-label="Kies type">
+          <button type="button" class="type-btn is-active" data-type="taak">📝 Taak</button>
+          <button type="button" class="type-btn" data-type="toets">🧪 Toets</button>
+          <button type="button" class="type-btn" data-type="andere">📚 Andere</button>
+        </div>
+      </div>
+
+      <!-- TITEL / ONDERWERP -->
+      <label for="bl-title">Titel / onderwerp</label>
+      <input id="bl-title" placeholder="bv. Hoofdstuk 3 – Breuken" />
+
+      <!-- DUUR (uren) -->
+      <label for="bl-duration">Duur (uren)</label>
+      <input id="bl-duration" type="number" min="0.5" step="0.5" value="1" inputmode="decimal" />
+
+      <!-- DEADLINE -->
+      <label for="bl-due">Deadline (tegen wanneer)</label>
+      <input id="bl-due" type="date" />
+
+      <!-- Let op: GEEN kleurveld hier; kleur komt uit gekozen vak -->
     </div>
   </div>
+
+  <div class="modal-footer">
+    <button id="bl-save" class="primary">💾 Opslaan</button>
+    <button class="ghost" data-modal-close="modal-backlog">Annuleren</button>
+  </div>
+</div>
+
 
   <!-- Vakken beheren -->
 <div id="modal-subjects" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-subjects-title" hidden>

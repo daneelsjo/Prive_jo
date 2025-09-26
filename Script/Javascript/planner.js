@@ -13,7 +13,7 @@ import {
 } from "./firebase-config.js";
 
 /* ───────────────────────── Helpers ───────────────────────── */
-const SYMBOL_BY_TYPE = { taak: "📝", toets: "🧪" };
+const SYMBOL_BY_TYPE = { taak: "📝", toets: "🧪", andere: "📚" };
 const sym  = (t)=> SYMBOL_BY_TYPE[t] || "📌";
 const pad  = (n)=> String(n).padStart(2,"0");
 const div  = (cls)=>{ const el=document.createElement("div"); if(cls) el.className=cls; return el; };
@@ -45,6 +45,56 @@ function getContrast(hex){
   return yiq>=128?'#000':'#fff';
 }
 
+function setSubjectChip(name, color){
+  const chip = document.getElementById("bl-subject-chip");
+  if(!chip) return;
+  if(!name){ chip.hidden = true; return; }
+  const dot = chip.querySelector(".dot");
+  const txt = chip.querySelector(".txt");
+  if(dot) dot.style.background = color || "#ccc";
+  if(txt) txt.textContent = name;
+  chip.hidden = false;
+}
+
+function renderSubjectMenu(filterText=""){
+  const menu = document.getElementById("bl-subject-menu");
+  if(!menu) return;
+  const f = (filterText||"").trim().toLowerCase();
+
+  const list = subjects
+    .slice()
+    .filter(s => !f || (s.name||"").toLowerCase().includes(f));
+
+  if(list.length === 0){
+    menu.innerHTML = `<div class="subj-opt" style="justify-content:center;opacity:.7">Geen resultaten</div>`;
+    return;
+  }
+
+  menu.innerHTML = list.map(s=>{
+    const fg = getContrast(s.color||"#ccc");
+    return `
+      <div class="subj-opt" data-id="${s.id}" style="background:${s.color||"#ccc"};color:${fg};">
+        <span class="name">${esc(s.name||"")}</span>
+        <span class="hex">${esc(s.color||"")}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function openSubjectMenu(){
+  const menu = document.getElementById("bl-subject-menu");
+  if(!menu) return;
+  renderSubjectMenu(""); // altijd de volledige lijst tonen bij openen
+  menu.hidden = false;
+}
+
+function closeSubjectMenu(){
+  const menu = document.getElementById("bl-subject-menu");
+  if(!menu) return;
+  menu.hidden = true;
+}
+
+
 // Veilige event-binding (logt waarschuwing i.p.v. crash)
 function bind(selectorOrEl, event, handler){
   const el = typeof selectorOrEl === "string" ? document.querySelector(selectorOrEl) : selectorOrEl;
@@ -72,6 +122,74 @@ window.addEventListener("DOMContentLoaded", () => {
   const weekTitle = document.getElementById("weekTitle");
   const calRoot   = document.getElementById("calendar");
   const blSubjects= document.getElementById("bl-subjects");
+  // Subject input: altijd volledige lijst tonen bij focus/klik
+document.addEventListener("focusin", (ev)=>{
+  const input = ev.target.closest("#bl-subject");
+  if(!input) return;
+  openSubjectMenu();
+});
+
+// Typen = filteren; lege input = volledige lijst
+document.addEventListener("input", (ev)=>{
+  const input = ev.target.closest("#bl-subject");
+  if(!input) return;
+  const val = input.value || "";
+  renderSubjectMenu(val);              // filter
+  if(val === "") openSubjectMenu();    // leeg => toon alles
+});
+
+// Optie aanklikken
+document.addEventListener("click", (ev)=>{
+  const opt = ev.target.closest(".subj-opt");
+  if(!opt) return;
+  const id = opt.dataset.id;
+  const s = subjects.find(x=>x.id===id);
+  const input = document.getElementById("bl-subject");
+  if(s && input){
+    input.value = s.name || "";
+    setSubjectChip(s.name, s.color);
+  }
+  closeSubjectMenu();
+});
+
+// Type-knoppen: zet actieve knop + schrijf waarde naar hidden input #bl-type
+document.addEventListener("click", (ev)=>{
+  const btn = ev.target.closest(".type-btn");
+  if (!btn) return;
+  const group = btn.closest(".type-group");
+  group?.querySelectorAll(".type-btn").forEach(b=> b.classList.remove("is-active"));
+  btn.classList.add("is-active");
+  const hidden = document.getElementById("bl-type");
+  if (hidden) hidden.value = btn.dataset.type || "taak";
+});
+
+// Buiten klikken => sluiten
+document.addEventListener("click", (ev)=>{
+  const wrap = ev.target.closest(".subj-wrap");
+  if(wrap) return;
+  closeSubjectMenu();
+});
+
+// Escape sluit menu
+document.addEventListener("keydown", (ev)=>{
+  if(ev.key === "Escape") closeSubjectMenu();
+});
+
+// Bij openen van de backlog-modal chip initialiseren (op basis van ingevoerde tekst)
+document.addEventListener("click", (ev)=>{
+  const btn = ev.target.closest("#newBacklogBtn,[data-modal-open='modal-backlog']");
+  if(!btn) return;
+  // wacht een tikje tot modal zichtbaar is
+  setTimeout(()=>{
+    const input = document.getElementById("bl-subject");
+    if(!input) return;
+    const s = subjects.find(x=> (x.name||"").toLowerCase() === (input.value||"").toLowerCase());
+    setSubjectChip(s?.name || "", s?.color || "");
+    // bij openen meteen volledige lijst
+    openSubjectMenu();
+  }, 0);
+});
+
 
 
   // 15 vaste kleuren
@@ -91,24 +209,6 @@ const PALETTE = [
   bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderWeek(); if(currentUser) refreshPlans(); });
   bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderWeek(); if(currentUser) refreshPlans(); });
 
-  bind("#newBacklogBtn", "click", () => {
-    if(!currentUser){ alert("Log eerst in om items te bewaren."); return; }
-    // reset waarden on the fly
-    const blSubject  = document.getElementById("bl-subject");
-    const blTitle    = document.getElementById("bl-title");
-    const blType     = document.getElementById("bl-type");
-    const blDuration = document.getElementById("bl-duration");
-    const blDue      = document.getElementById("bl-due");
-    const blColor    = document.getElementById("bl-color");
-    if (blSubject)  blSubject.value  = "";
-    if (blTitle)    blTitle.value    = "";
-    if (blType)     blType.value     = "taak";
-    if (blDuration) blDuration.value = "1";
-    if (blDue)      blDue.value      = "";
-    if (blColor)    blColor.value    = "#2196F3";
-    if (window.Modal?.open) Modal.open("modal-backlog");
-    else document.getElementById("modal-backlog")?.removeAttribute("hidden");
-  });
 
 // Open "Vakken beheren" en render tabel
 document.addEventListener("click", (ev) => {
@@ -229,13 +329,18 @@ document.addEventListener("click", async (ev) => {
     durationHours: parseFloat(blDuration?.value) || 1,
     dueDate: blDue?.value ? new Date(blDue.value) : null,
     color: subj.color,                                // <— hier
-    symbol: (blType?.value === "toets") ? "🧪" : "📝",
+symbol: sym(blType?.value || "taak"),
     uid: currentUser.uid,
     done: false,
     createdAt: new Date()
   };
 
   await addDoc(collection(db, "backlog"), payload);
+
+  // update chip naar huidige (of reset)
+const chosen = subjects.find(s => (s.name||"").toLowerCase() === (document.getElementById("bl-subject")?.value||"").toLowerCase());
+setSubjectChip(chosen?.name || "", chosen?.color || "");
+
 
   // modal sluiten (of laat open als je dat wil)
   if (window.Modal?.close) Modal.close("modal-backlog");
@@ -561,9 +666,20 @@ function renderSubjectsManager(){
       query(collection(db,'subjects'), where('uid','==', currentUser.uid), orderBy('name','asc')),
       (snap)=>{
         subjects = snap.docs.map(d=>({id:d.id, ...d.data()}));
-        renderSubjectsDatalist();
-        renderBacklog();
-        renderCalendar();
+renderSubjectsDatalist();
+renderBacklog();
+renderCalendar();
+
+// ▼ Extra UI: herteken manager / subject-menu als modals open zijn
+const subjModalOpen = !document.getElementById("modal-subjects")?.hasAttribute("hidden");
+if (subjModalOpen) renderSubjectsManager();
+
+const subjInputVisible = !!document.getElementById("bl-subject") && !document.getElementById("modal-backlog")?.hasAttribute("hidden");
+if (subjInputVisible){
+  const input = document.getElementById("bl-subject");
+  renderSubjectMenu(input?.value || "");
+}
+
       },
       (err)=> console.error("subjects stream error", err)
     );
@@ -579,8 +695,8 @@ function renderSubjectsManager(){
 
   
     refreshPlans();
-    const subjModalOpen = !document.getElementById("modal-subjects")?.hasAttribute("hidden");
-if (subjModalOpen) renderSubjectsManager();
+
+
 
   }
 
