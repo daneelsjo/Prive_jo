@@ -9,7 +9,7 @@ import {
   getFirebaseApp,
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
   getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc,
-  query, where, orderBy
+  query, where, orderBy,getDocs
 } from "./firebase-config.js";
 
 /* ───────────────────────── Helpers ───────────────────────── */
@@ -363,69 +363,105 @@ document.addEventListener("click", async (ev) => {
 
   if (!currentUser) { alert("Log eerst in."); return; }
 
-  // pak velden op het moment van klikken (modal kan later geladen zijn)
+  // elementen ophalen
+  const idEl       = document.getElementById("bl-id");
   const blSubject  = document.getElementById("bl-subject");
   const blType     = document.getElementById("bl-type");
   const blTitle    = document.getElementById("bl-title");
   const blDuration = document.getElementById("bl-duration");
   const blDue      = document.getElementById("bl-due");
+  const propEl     = document.getElementById("bl-propagate");
 
-  const subjName = (blSubject?.value || "").trim();
-  if (!subjName) {
-    window.Modal?.alert
-      ? Modal.alert({ title: "Vak vereist", html: "Geef een vaknaam op." })
-      : alert("Vak vereist");
-    return;
-  }
+  const editingId   = idEl?.value || "";               // leeg = nieuw
+  const subjNameRaw = (blSubject?.value || "").trim();
+  const typeVal     = blType?.value || "taak";
+  const titleVal    = (blTitle?.value || "").trim();
+  const durVal      = parseFloat(blDuration?.value) || 1;
+  const dueVal      = blDue?.value ? new Date(blDue.value) : null;
+  const propagate   = !!propEl?.checked;
 
-  // Zoek/maak vak + kleur
-  let subj = subjects.find(s => (s.name||"").toLowerCase() === subjName.toLowerCase());
+  if (!subjNameRaw) { alert("Geef een vaknaam."); return; }
+  if (!titleVal)    { alert("Geef een titel/onderwerp."); return; }
 
-  // >>> HIER staat jouw gevraagde stuk (kleur uit vak, anders default uit PALETTE[0])
-  const defaultColor = PALETTE[0]; // bv. "#2196F3"
-  if (!subj) {
+  // subject zoeken/aanmaken
+  let subj = subjects.find(s => (s.name||"").toLowerCase() === subjNameRaw.toLowerCase());
+  if (!subj){
+    // nieuw vak met default kleur
+    const defaultColor = PALETTE[0];
     const ref = await addDoc(collection(db, "subjects"), {
-      name: subjName,
-      color: defaultColor,
-      uid: currentUser.uid
+      name: subjNameRaw, color: defaultColor, uid: currentUser.uid
     });
-    subj = { id: ref.id, name: subjName, color: defaultColor };
+    subj = { id: ref.id, name: subjNameRaw, color: defaultColor };
   }
-  // <<< einde kleur- en vak-creatie
 
-  // Payload gebruikt altijd de kleur van het vak
-  const payload = {
-    subjectId: subj.id,
-    subjectName: subj.name,
-    type: blType?.value || "taak",
-    title: (blTitle?.value || "").trim(),
-    durationHours: parseFloat(blDuration?.value) || 1,
-    dueDate: blDue?.value ? new Date(blDue.value) : null,
-    color: subj.color,                                // <— hier
-symbol: sym(blType?.value || "taak"),
-    uid: currentUser.uid,
-    done: false,
-    createdAt: new Date()
-  };
+  if (!editingId) {
+    // ── NIEUW backlog-item
+    await addDoc(collection(db,"backlog"),{
+      subjectId: subj.id,
+      subjectName: subj.name,
+      type: typeVal,
+      title: titleVal,
+      durationHours: durVal,
+      dueDate: dueVal,
+      color: subj.color,
+      symbol: sym(typeVal),
+      uid: currentUser.uid,
+      done: false,
+      createdAt: new Date()
+    });
+  } else {
+    // ── UPDATE bestaand backlog-item
+    await updateDoc(doc(db,"backlog", editingId), {
+      subjectId: subj.id,
+      subjectName: subj.name,
+      type: typeVal,
+      title: titleVal,
+      durationHours: durVal,
+      dueDate: dueVal,
+      color: subj.color,
+      symbol: sym(typeVal),
+      updatedAt: new Date()
+    });
 
-  await addDoc(collection(db, "backlog"), payload);
+    // Optioneel: ook alle geplande blokken die op dit item gebaseerd zijn updaten
+    if (propagate){
+      try{
+        // haal alle plannen met dit itemId binnen de user
+        const q = query(
+          collection(db,'plans'),
+          where('uid','==', currentUser.uid),
+          where('itemId','==', editingId)
+        );
+        const snap = await getDocs(q); // <-- zorg dat getDocs is geïmporteerd
+        const updates = [];
+        snap.forEach(d=>{
+          updates.push(updateDoc(doc(db,'plans', d.id), {
+            title: titleVal,
+            type: typeVal,
+            subjectId: subj.id,
+            subjectName: subj.name,
+            color: subj.color,
+            symbol: sym(typeVal),
+            // dueDate meenemen voor tooltip/afdruk
+            dueDate: dueVal || null
+            // durationHours laten we staan: die is vaak per sessie aangepast
+          }));
+        });
+        await Promise.all(updates);
+      }catch(err){
+        console.error('propagate plans error', err);
+        alert('Geplande blokken konden niet allemaal geüpdatet worden.');
+      }
+    }
+  }
 
-  // update chip naar huidige (of reset)
-const chosen = subjects.find(s => (s.name||"").toLowerCase() === (document.getElementById("bl-subject")?.value||"").toLowerCase());
-setSubjectChip(chosen?.name || "", chosen?.color || "");
-
-
-  // modal sluiten (of laat open als je dat wil)
-  if (window.Modal?.close) Modal.close("modal-backlog");
-  else document.getElementById("modal-backlog")?.setAttribute("hidden", "");
-
-  // (optioneel) formulier resetten
-  if (blSubject)  blSubject.value  = "";
-  if (blTitle)    blTitle.value    = "";
-  if (blType)     blType.value     = "taak";
-  if (blDuration) blDuration.value = "1";
-  if (blDue)      blDue.value      = "";
+  // modal sluiten + reset
+  window.Modal?.close ? Modal.close("modal-backlog") : document.getElementById("modal-backlog")?.setAttribute("hidden","");
+  if (idEl) idEl.value = ""; // reset edit-state
+  const titleHdr = document.getElementById('modal-backlog-title');
+  if (titleHdr) titleHdr.textContent = 'Nieuw item';
 });
+
 
 
 
@@ -608,7 +644,7 @@ function renderSubjectsManager(){
     }
   }
 
- function renderBacklogItem(it){
+function renderBacklogItem(it){
   const row = document.createElement('div');
   row.className = 'bl-item';
   row.draggable = true;
@@ -620,34 +656,75 @@ function renderSubjectsManager(){
       <div class="sub">${it.type} • ${it.durationHours||1}u${it.dueDate?` • tegen ${toDate(it.dueDate).toLocaleDateString('nl-BE')}`:''}</div>
     </div>
     <div class="bl-actions">
+      <button class="btn-icon sm edit"   title="Bewerken"   aria-label="Bewerken">✏️</button>
       <button class="btn-icon sm neutral" title="Markeer klaar" aria-label="Markeer klaar">✓</button>
       <button class="btn-icon sm danger"  title="Verwijderen"    aria-label="Verwijderen">🗑️</button>
     </div>
   `;
 
-  // DRAG START/END (krachtiger + highlighting)
+  // drag voor plannen
   row.addEventListener('dragstart', (e)=>{
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/json', JSON.stringify({kind:'backlog', id: it.id}));
-    e.dataTransfer.setData('text/plain', JSON.stringify({kind:'backlog', id: it.id})); // fallback
+    e.dataTransfer.setData('text/plain', JSON.stringify({kind:'backlog', id: it.id}));
     document.body.classList.add('dragging-backlog');
   });
-  row.addEventListener('dragend', ()=>{
-    document.body.classList.remove('dragging-backlog');
-  });
+  row.addEventListener('dragend', ()=> document.body.classList.remove('dragging-backlog'));
 
-  // done / delete
+  // klaar
   row.querySelector('.neutral').onclick = async ()=>{
     if(!currentUser){ alert('Log eerst in.'); return; }
     await updateDoc(doc(db,'backlog', it.id), { done: true, doneAt: new Date() });
   };
+
+  // verwijderen
   row.querySelector('.danger').onclick = async ()=>{
     if(!currentUser){ alert('Log eerst in.'); return; }
     if(!confirm('Item verwijderen?')) return;
     await deleteDoc(doc(db,'backlog', it.id));
   };
+
+  // ✏️ bewerken – gebruik unieke namen (geen idEl/prop die elders al bestaan)
+  row.querySelector('.edit').onclick = ()=>{
+    if(!currentUser){ alert('Log eerst in.'); return; }
+
+    const modalTitle = document.getElementById('modal-backlog-title');
+    if (modalTitle) modalTitle.textContent = 'Item bewerken';
+
+    const blIdInput = document.getElementById('bl-id');        // <-- unieke naam
+    if (blIdInput) blIdInput.value = it.id;
+
+    const inSubject  = document.getElementById("bl-subject");
+    const inType     = document.getElementById("bl-type");
+    const inTitle    = document.getElementById("bl-title");
+    const inDuration = document.getElementById("bl-duration");
+    const inDue      = document.getElementById("bl-due");
+    const propagateChk = document.getElementById('bl-propagate');
+
+    if (inSubject)  inSubject.value  = it.subjectName || '';
+    if (inTitle)    inTitle.value    = it.title || '';
+    if (inType)     inType.value     = it.type || 'taak';
+    if (inDuration) inDuration.value = (it.durationHours||1);
+    if (inDue)      inDue.value      = it.dueDate ? toISODate(toDate(it.dueDate)) : '';
+    if (propagateChk) propagateChk.checked = true;
+
+    // knoppen visueel
+    document.querySelectorAll("#modal-backlog .type-btn").forEach(b=>{
+      b.classList.toggle("is-active", b.dataset.type === (it.type||'taak'));
+    });
+
+    // subject chip + lijst
+    setSubjectChip(it.subjectName||'', it.color||'');
+    renderSubjectMenu('');
+
+    // open modal
+    if (window.Modal?.open) Modal.open('modal-backlog');
+    else document.getElementById('modal-backlog')?.removeAttribute('hidden');
+  };
+
   return row;
 }
+
 
 function renderCalendar(){
   if(!calRoot) return;
