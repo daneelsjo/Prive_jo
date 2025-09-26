@@ -26,5 +26,5 @@ export {
 // ---- Exports: Firestore (LET OP: inclusief query/orderBy/getDoc!) ----
 export {
     getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc,
-    deleteDoc, serverTimestamp, deleteField, query, orderBy, where
+    deleteDoc, serverTimestamp, deleteField, query, orderBy, where,getDocs
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
