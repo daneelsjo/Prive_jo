@@ -1,83 +1,129 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="icon" href="../IMG/JD_Web_Solutions.ico">
-<title>Weekplanner – School</title>
-<script>
-(function () {
-try {
-var pref = localStorage.getItem('app.theme') || 'system';
-var final = pref === 'system'
-? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-: pref;
-document.documentElement.setAttribute('data-theme', final);
-} catch (e) {}
-})();
-</script>
-<!-- Gedeelde CSS -->
-<link rel="stylesheet" href="../CSS/main.css" />
-<link rel="stylesheet" href="../CSS/components-menu.css" />
-<link rel="stylesheet" href="../CSS/components-sidemenu.css" />
-<!-- Pagina CSS -->
-<link rel="stylesheet" href="../CSS/page-planner.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="../IMG/JD_Web_Solutions.ico">
+  <title>Weekplanner – School</title>
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem('app.theme') || 'system';
+        var final = pref === 'system'
+          ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : pref;
+        document.documentElement.setAttribute('data-theme', final);
+      } catch (e) {}
+    })();
+  </script>
+  <!-- Gedeelde CSS -->
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/components-menu.css" />
+  <link rel="stylesheet" href="../CSS/components-sidemenu.css" />
+  <!-- Pagina CSS -->
+  <link rel="stylesheet" href="../CSS/page-planner.css" />
 </head>
 <body class="planner-page">
-<!-- AUTH -->
-<div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
+  <!-- AUTH -->
+  <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
 
+  <!-- gedeelde header -->
+  <div data-include="../partials/header.html"></div>
 
-<!-- gedeelde header -->
-<div data-include="../partials/header.html"></div>
+  <!-- APP -->
+  <div id="app" style="display:none;">
+    <div class="page">
+      <main class="content">
+        <!-- Weekkop met navigatie en print -->
+        <section class="card headbar">
+          <div class="week-nav">
+            <button id="prevWeek" class="ghost">◀ Vorige</button>
+            <h2 id="weekTitle">Week</h2>
+            <button id="nextWeek" class="ghost">Volgende ▶</button>
+          </div>
+          <div class="printbar">
+            <input id="printStart" type="date" />
+            <span>—</span>
+            <input id="printEnd" type="date" />
+            <button id="printList" class="primary">🖨️ Afdruk (lijst)</button>
+          </div>
+        </section>
 
+        <!-- Kalender -->
+        <section class="card">
+          <div id="calendar" class="calendar" aria-label="Weekrooster" role="grid"></div>
+        </section>
+      </main>
 
-<!-- APP -->
-<div id="app" style="display:none;">
-<div class="page">
-<main class="content">
-<!-- Weekkop met navigatie en print -->
-<section class="card headbar">
-<div class="week-nav">
-<button id="prevWeek" class="ghost">◀ Vorige</button>
-<h2 id="weekTitle">Week</h2>
-<button id="nextWeek" class="ghost">Volgende ▶</button>
-</div>
-<div class="printbar">
-<input id="printStart" type="date" />
-<span>—</span>
-<input id="printEnd" type="date" />
-<button id="printList" class="primary">🖨️ Afdruk (lijst)</button>
-</div>
-</section>
+      <!-- Backlog rechts -->
+      <aside class="rightcol">
+        <section class="card backlog">
+          <div class="backlog-head">
+            <h3>Backlog (vakken)</h3>
+            <button id="newBacklogBtn" class="primary">＋ NIEUW</button>
+          </div>
+          <div id="backlogGroups" class="backlog-groups" aria-live="polite"></div>
+        </section>
+      </aside>
+    </div>
+  </div>
 
+  <!-- Gedeelde modals via partials (algemene modals) -->
+  <div data-include="../partials/modals.html"></div>
 
-<!-- Kalender -->
-<section class="card">
-<div id="calendar" class="calendar" aria-label="Weekrooster" role="grid"></div>
-</section>
-</main>
+  <!-- PLANNER-SPECIFIEKE MODAL (moet in DOM staan) -->
+  <div id="modal-backlog" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-backlog-title" hidden>
+    <div class="modal-header">
+      <h3 id="modal-backlog-title">Nieuw item</h3>
+      <button class="modal-close" data-modal-close="modal-backlog" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label>Vak
+          <input id="bl-subject" list="bl-subjects" placeholder="bv. Wiskunde" />
+          <datalist id="bl-subjects"></datalist>
+        </label>
+        <label>Type
+          <select id="bl-type">
+            <option value="taak">Taak</option>
+            <option value="toets">Toets</option>
+          </select>
+        </label>
+        <label>Titel / onderwerp
+          <input id="bl-title" placeholder="Onderwerp (bv. Hoofdstuk 3 – Breuken)" />
+        </label>
+        <label>Duur (uren)
+          <input id="bl-duration" type="number" min="0.5" step="0.5" value="1" />
+        </label>
+        <label>Deadline (tegen wanneer)
+          <input id="bl-due" type="date" />
+        </label>
+        <label>Kleur (vak)
+          <input id="bl-color" type="color" value="#2196F3" />
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="bl-save" class="primary">💾 Opslaan</button>
+      <button class="ghost" data-modal-close="modal-backlog">Annuleren</button>
+    </div>
+  </div>
 
+  <!-- Print-venster template -->
+  <template id="print-template">
+    <style>
+      body{font-family:system-ui,Segoe UI,Roboto,Arial;}
+      h2{margin:.2rem 0 .6rem}
+      .day{margin:.4rem 0 .6rem}
+      .item{padding:.2rem .4rem;border-bottom:1px solid #ddd}
+    </style>
+    <h2>Lijst geplande items</h2>
+    <div id="print-root"></div>
+  </template>
 
-<!-- Backlog links -->
-<aside class="rightcol">
-<section class="card backlog">
-<div class="backlog-head">
-<h3>Backlog (vakken)</h3>
-<button id="newBacklogBtn" class="primary">＋ NIEUW</button>
-</div>
-<div id="backlogGroups" class="backlog-groups" aria-live="polite"></div>
-</section>
-</aside>
-</div>
-</div>
-
-
-<!-- Gedeelde modals -->
-<div data-include="../partials/modals.html"></div>
-
-    <!-- Eerst includes, dan menu, dan page-script -->
-    <script src="../Script/Javascript/include-partials.js"></script>
-    <script src="../Script/Javascript/menu.js"></script>
-    <script type="module" src="../Script/Javascript/planner.js"></script>
+  <!-- SCRIPTS (deze ontbraken) -->
+  <script src="../Script/Javascript/include-partials.js"></script>
+  <script type="module" src="../Script/Javascript/modal.js"></script>
+  <script type="module" src="../Script/Javascript/planner.js"></script>
+</body>
 </html>
