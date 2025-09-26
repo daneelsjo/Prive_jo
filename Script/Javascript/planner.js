@@ -102,59 +102,33 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   // 🔧 Event delegation voor Save-knop (#bl-save), werkt ook als partials later laden
-  document.addEventListener("click", async (ev) => {
-    const saveBtn = ev.target.closest("#bl-save");
-    if (!saveBtn) return;
 
-    if(!currentUser){ alert("Log eerst in."); return; }
+document.addEventListener("click", (ev) => {
+  const btn = ev.target.closest("#newBacklogBtn,[data-modal-open='modal-backlog']");
+  if (!btn) return;
 
-    // Query velden op klikmoment
-    const blSubject  = document.getElementById("bl-subject");
-    const blType     = document.getElementById("bl-type");
-    const blTitle    = document.getElementById("bl-title");
-    const blDuration = document.getElementById("bl-duration");
-    const blDue      = document.getElementById("bl-due");
-    const blColor    = document.getElementById("bl-color");
+  if (!currentUser) { alert("Log eerst in om items te bewaren."); return; }
 
-    const subjName = (blSubject?.value || "").trim();
-    if (!subjName) {
-      window.Modal?.alert ? Modal.alert({ title: "Vak vereist", html: "Geef een vaknaam op." }) : alert("Vak vereist");
-      return;
-    }
+  // reset velden per klik (modal kan later geladen zijn)
+  const blSubject  = document.getElementById("bl-subject");
+  const blTitle    = document.getElementById("bl-title");
+  const blType     = document.getElementById("bl-type");
+  const blDuration = document.getElementById("bl-duration");
+  const blDue      = document.getElementById("bl-due");
+  const blColor    = document.getElementById("bl-color");
 
-    // Vak zoeken/aanmaken
-    let subj = subjects.find(s => s.name.toLowerCase() === subjName.toLowerCase());
-    const desiredColor = blColor?.value || "#2196F3";
+  if (blSubject)  blSubject.value  = "";
+  if (blTitle)    blTitle.value    = "";
+  if (blType)     blType.value     = "taak";
+  if (blDuration) blDuration.value = "1";
+  if (blDue)      blDue.value      = "";
+  if (blColor)    blColor.value    = "#2196F3";
 
-    if (!subj) {
-      const ref = await addDoc(collection(db, "subjects"), {
-        name: subjName, color: desiredColor, uid: currentUser.uid
-      });
-      subj = { id: ref.id, name: subjName, color: desiredColor };
-    } else if (subj.color !== desiredColor) {
-      await updateDoc(doc(db, "subjects", subj.id), { color: desiredColor });
-      subj.color = desiredColor;
-    }
+  // open modal – gebruik Modal util als die geladen is, anders fallback
+  if (window.Modal?.open) Modal.open("modal-backlog");
+  else document.getElementById("modal-backlog")?.removeAttribute("hidden");
+});
 
-    const payload = {
-      subjectId: subj.id,
-      subjectName: subj.name,
-      type: blType?.value || "taak",
-      title: (blTitle?.value || "").trim(),
-      durationHours: parseFloat(blDuration?.value) || 1,
-      dueDate: blDue?.value ? new Date(blDue.value) : null,
-      color: subj.color,
-      symbol: (blType?.value === "toets") ? "🧪" : "📝",
-      uid: currentUser.uid,
-      done: false,
-      createdAt: new Date()
-    };
-
-    await addDoc(collection(db, "backlog"), payload);
-    window.Modal?.close
-      ? Modal.close("modal-backlog")
-      : document.getElementById("modal-backlog")?.setAttribute("hidden", "");
-  });
 
   bind("#printList", "click", () => {
     const sEl = document.getElementById("printStart");
