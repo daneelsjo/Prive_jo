@@ -75,4 +75,9 @@ document.documentElement.setAttribute('data-theme', final);
 
 <!-- Gedeelde modals -->
 <div data-include="../partials/modals.html"></div>
+
+    <!-- Eerst includes, dan menu, dan page-script -->
+    <script src="../Script/Javascript/include-partials.js"></script>
+    <script src="../Script/Javascript/menu.js"></script>
+    <script type="module" src="../Script/Javascript/planner.js"></script>
 </html>
