@@ -574,8 +574,7 @@ function renderSubjectsManager(){
   return row;
 }
 
-
- function renderCalendar(){
+function renderCalendar(){
   if(!calRoot) return;
 
   calRoot.innerHTML = '';
@@ -590,128 +589,154 @@ function renderSubjectsManager(){
 
   const hStart = 7, hEnd = 22;
 
-  // tijdkolom
+  // tijdkolom (één label per uur, maar twee slots hoog)
   const tc = div('time-col');
   for(let h=hStart; h<hEnd; h++){
     const slot = div('time-slot'); slot.textContent = `${pad(h)}:00`; tc.appendChild(slot);
   }
   calRoot.appendChild(tc);
 
-  // dagkolommen met **twee** dropniveaus:
-  // - kleine "dropzones" per uur
-  // - fallback: de hele dagkolom (als je tussen de rijen dropt)
   for(let d=0; d<7; d++){
     const col = div('day-col');
     col.dataset.day = String(d);
 
-    // FALLBACK drop op volledige kolom (zet uur op hStart)
+    // Kolom fallback (als je tussen rijen dropt) => 07:00
     col.ondragover = (e)=>{ e.preventDefault(); };
     col.ondrop = async (e)=>{
       e.preventDefault();
       if(!currentUser){ alert('Log in om te plannen.'); return; }
       let data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
-      if(!data || data.kind!=='backlog') return;
+      if(!data) return;
 
-      const item = backlog.find(x=>x.id===data.id);
-      if(!item) return;
-
-      const start = addDays(weekStart, d);
-      start.setHours(hStart,0,0,0);
-      try{
-        await addDoc(collection(db,'plans'),{
-          itemId: item.id,
-          title: item.title,
-          type: item.type,
-          subjectId: item.subjectId,
-          subjectName: item.subjectName,
-          color: item.color,
-          symbol: item.symbol,
-          start,
-          durationHours: item.durationHours||1,
-          uid: currentUser.uid,
-          createdAt: new Date()
-        });
-      }catch(err){
-        console.error('plan add error (col drop):', err);
-        alert('Kon niet plannen: ' + (err?.message||err));
+      if(data.kind==='backlog'){
+        const item = backlog.find(x=>x.id===data.id); if(!item) return;
+        const start = addDays(weekStart, d); start.setHours(hStart,0,0,0);
+        try{
+          await addDoc(collection(db,'plans'),{
+            itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,color:item.color,symbol:item.symbol,
+            start,durationHours:item.durationHours||1,uid:currentUser.uid,createdAt:new Date()
+          });
+        }catch(err){ console.error('plan add error (col drop):', err); alert('Kon niet plannen: '+(err?.message||err)); }
+      }else if(data.kind==='planmove'){
+        // verplaatsing naar 07:00 van die dag
+        const id = data.id;
+        const start = addDays(weekStart, d); start.setHours(hStart,0,0,0);
+        try{ await updateDoc(doc(db,'plans', id), { start }); }
+        catch(err){ console.error('plan move error (col):', err); alert('Kon niet verplaatsen: '+(err?.message||err)); }
       }
     };
 
-    // Dropzones per uur (precies plannen)
+    // 30-min dropzones
     for(let h=hStart; h<hEnd; h++){
-      const z = div('dropzone');
-      z.dataset.hour = String(h);
-      z.ondragover = (e)=>{ e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
-      z.ondragleave = ()=> z.removeAttribute('aria-dropeffect');
-      z.ondrop = async (e)=>{
-        e.preventDefault(); z.removeAttribute('aria-dropeffect');
-        if(!currentUser){ alert('Log in om te plannen.'); return; }
-        let data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
-        if(!data || data.kind!=='backlog') return;
-        const item = backlog.find(x=>x.id===data.id);
-        if(!item) return;
+      for(let m of [0,30]){
+        const z = div('dropzone');
+        z.dataset.hour = String(h);
+        z.dataset.min = String(m);
+        z.ondragover = (e)=>{ e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
+        z.ondragleave = ()=> z.removeAttribute('aria-dropeffect');
+        z.ondrop = async (e)=>{
+          e.preventDefault();
+          e.stopPropagation(); // ⛔️ voorkom dat ook de kolom-drop vuurt (dubbele planning)
+          z.removeAttribute('aria-dropeffect');
+          if(!currentUser){ alert('Log in om te plannen.'); return; }
+          let data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
+          if(!data) return;
 
-        const start = addDays(weekStart, d);
-        start.setHours(parseInt(z.dataset.hour,10),0,0,0);
+          const start = addDays(weekStart, d);
+          start.setHours(parseInt(z.dataset.hour,10), parseInt(z.dataset.min,10), 0, 0);
 
-        try{
-          await addDoc(collection(db,'plans'),{
-            itemId: item.id,
-            title: item.title,
-            type: item.type,
-            subjectId: item.subjectId,
-            subjectName: item.subjectName,
-            color: item.color,
-            symbol: item.symbol,
-            start,
-            durationHours: item.durationHours||1,
-            uid: currentUser.uid,
-            createdAt: new Date()
-          });
-        }catch(err){
-          console.error('plan add error (slot drop):', err);
-          alert('Kon niet plannen: ' + (err?.message||err));
-        }
-      };
-      col.appendChild(z);
+          try{
+            if(data.kind==='backlog'){
+              const item = backlog.find(x=>x.id===data.id); if(!item) return;
+              await addDoc(collection(db,'plans'),{
+                itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,color:item.color,symbol:item.symbol,
+                start,durationHours:item.durationHours||1,uid:currentUser.uid,createdAt:new Date()
+              });
+            }else if(data.kind==='planmove'){
+              await updateDoc(doc(db,'plans', data.id), { start });
+            }
+          }catch(err){
+            console.error('drop error:', err);
+            alert('Kon niet plannen/verplaatsen: ' + (err?.message||err));
+          }
+        };
+        col.appendChild(z);
+      }
     }
     calRoot.appendChild(col);
   }
 
+  // events tekenen
   if (Array.isArray(plans) && plans.length){
     plans.forEach(p=> placeEvent(p));
   }
 }
 
+ function placeEvent(p){
+  const start = toDate(p.start);
+  const d = clamp(Math.floor((start - weekStart)/86400000), 0, 6);
+  const hStart = 7;
+  const hour = start.getHours();
+  const mins = start.getMinutes();
+  const rowsFromTop = ((hour - hStart) * 2) + (mins >= 30 ? 1 : 0);
+  const heightRows = Math.max(1, Math.round((p.durationHours||1) * 2)); // 0.5u = 1 rij
 
-  function placeEvent(p){
-    const d = clamp(Math.floor((toDate(p.start) - weekStart)/86400000), 0, 6);
-    const hStart = 7;
-    const hour = toDate(p.start).getHours();
-    const topRows = clamp(hour - hStart, 0, 24);
-    const height = Math.max(1, Math.round((p.durationHours||1)));
+  const cols = calRoot.querySelectorAll('.day-col');
+  const col = cols[d]; if(!col) return;
 
-    const cols = calRoot.querySelectorAll('.day-col');
-    const col = cols[d]; if(!col) return;
+  const block = div('event');
+  const bg = p.color || '#2196F3';
+  block.style.background = bg; block.style.color = getContrast(bg);
+  block.style.top = `${rowsFromTop * parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h'))}px`;
+  block.style.height = `${heightRows * parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) - 4}px`;
+  block.innerHTML = `
+    <div class="title">${p.symbol||sym(p.type)} ${esc(p.title||'')}</div>
+    <div class="meta">${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${p.durationHours}u</div>
+  `;
 
-    const block = div('event');
-    const bg = p.color || '#2196F3';
-    block.style.background = bg; block.style.color = getContrast(bg);
-    block.style.top = `${topRows*40 + 2}px`;
-    block.style.height = `${height*40 - 4}px`;
-    block.innerHTML = `
-      <div class="title">${p.symbol||sym(p.type)} ${esc(p.title||'')}</div>
-      <div class="meta">${(p.subjectName||'')} • ${pad(toDate(p.start).getHours())}:${pad(toDate(p.start).getMinutes())} • ${p.durationHours}u</div>
-    `;
+  // Hover tooltip
+  block.addEventListener('mouseenter', (ev)=>{
+    const tip = document.getElementById('evt-tip'); if(!tip) return;
+    const due = p.dueDate ? toDate(p.dueDate).toLocaleDateString('nl-BE') : '—';
+    tip.innerHTML = `<div class="t">${esc(p.title||'')}</div>
+      <div class="m">${esc(p.subjectName||'')} • ${p.type} • ${p.durationHours}u</div>
+      <div class="m">Tegen: ${due}</div>`;
+    tip.style.display = 'block';
+    positionTip(ev, tip);
+  });
+  block.addEventListener('mousemove', (ev)=>{
+    const tip = document.getElementById('evt-tip'); if(tip && tip.style.display==='block') positionTip(ev, tip);
+  });
+  block.addEventListener('mouseleave', ()=>{
+    const tip = document.getElementById('evt-tip'); if(tip) tip.style.display = 'none';
+  });
 
-    block.addEventListener('click', async ()=>{
-      if(!currentUser){ alert('Log eerst in.'); return; }
-      if(!confirm('Deze planning verwijderen?')) return;
-      await deleteDoc(doc(db,'plans', p.id));
-    });
-
-    col.appendChild(block);
+  function positionTip(ev, tip){
+    const x = ev.clientX + 12, y = ev.clientY + 12;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
   }
+
+  // Klik = verwijderen (zoals je had)
+  block.addEventListener('click', async ()=>{
+    if(!currentUser){ alert('Log eerst in.'); return; }
+    if(!confirm('Deze planning verwijderen?')) return;
+    await deleteDoc(doc(db,'plans', p.id));
+  });
+
+  // Drag to move
+  block.setAttribute('draggable', 'true');
+  block.addEventListener('dragstart', (e)=>{
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/json', JSON.stringify({kind:'planmove', id: p.id}));
+    e.dataTransfer.setData('text/plain', JSON.stringify({kind:'planmove', id: p.id}));
+    document.body.classList.add('dragging-event');
+  });
+  block.addEventListener('dragend', ()=>{
+    document.body.classList.remove('dragging-event');
+  });
+
+  col.appendChild(block);
+}
 
   /* ───────────────────── Firestore streams ───────────────────── */
   function bindStreams(){
