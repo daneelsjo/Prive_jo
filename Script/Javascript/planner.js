@@ -533,79 +533,128 @@ function renderSubjectsManager(){
     }
   }
 
-  function renderBacklogItem(it){
-    const row = document.createElement('div');
-    row.className = 'bl-item';
-    row.draggable = true;
-    row.dataset.id = it.id;
-    row.innerHTML = `
-      <div class="bl-sym">${it.symbol||sym(it.type)}</div>
-      <div class="bl-main">
-        <div class="t">${esc(it.title||'(zonder titel)')}</div>
-        <div class="sub">${it.type} • ${it.durationHours||1}u${it.dueDate?` • tegen ${toDate(it.dueDate).toLocaleDateString('nl-BE')}`:''}</div>
-      </div>
-      <div class="bl-actions">
-        <button class="btn-icon sm neutral" title="Markeer klaar" aria-label="Markeer klaar">✓</button>
-        <button class="btn-icon sm danger"  title="Verwijderen"    aria-label="Verwijderen">🗑️</button>
-      </div>
-    `;
-    row.addEventListener('dragstart', (e)=>{
-      e.dataTransfer.setData('text/plain', JSON.stringify({kind:'backlog', id: it.id}));
-    });
-    row.querySelector('.neutral').onclick = async ()=>{
-      if(!currentUser){ alert('Log eerst in.'); return; }
-      await updateDoc(doc(db,'backlog', it.id), { done: true, doneAt: new Date() });
-    };
-    row.querySelector('.danger').onclick = async ()=>{
-      if(!currentUser){ alert('Log eerst in.'); return; }
-      if(!confirm('Item verwijderen?')) return;
-      await deleteDoc(doc(db,'backlog', it.id));
-    };
-    return row;
+ function renderBacklogItem(it){
+  const row = document.createElement('div');
+  row.className = 'bl-item';
+  row.draggable = true;
+  row.dataset.id = it.id;
+  row.innerHTML = `
+    <div class="bl-sym">${it.symbol||sym(it.type)}</div>
+    <div class="bl-main">
+      <div class="t">${esc(it.title||'(zonder titel)')}</div>
+      <div class="sub">${it.type} • ${it.durationHours||1}u${it.dueDate?` • tegen ${toDate(it.dueDate).toLocaleDateString('nl-BE')}`:''}</div>
+    </div>
+    <div class="bl-actions">
+      <button class="btn-icon sm neutral" title="Markeer klaar" aria-label="Markeer klaar">✓</button>
+      <button class="btn-icon sm danger"  title="Verwijderen"    aria-label="Verwijderen">🗑️</button>
+    </div>
+  `;
+
+  // DRAG START/END (krachtiger + highlighting)
+  row.addEventListener('dragstart', (e)=>{
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/json', JSON.stringify({kind:'backlog', id: it.id}));
+    e.dataTransfer.setData('text/plain', JSON.stringify({kind:'backlog', id: it.id})); // fallback
+    document.body.classList.add('dragging-backlog');
+  });
+  row.addEventListener('dragend', ()=>{
+    document.body.classList.remove('dragging-backlog');
+  });
+
+  // done / delete
+  row.querySelector('.neutral').onclick = async ()=>{
+    if(!currentUser){ alert('Log eerst in.'); return; }
+    await updateDoc(doc(db,'backlog', it.id), { done: true, doneAt: new Date() });
+  };
+  row.querySelector('.danger').onclick = async ()=>{
+    if(!currentUser){ alert('Log eerst in.'); return; }
+    if(!confirm('Item verwijderen?')) return;
+    await deleteDoc(doc(db,'backlog', it.id));
+  };
+  return row;
+}
+
+
+ function renderCalendar(){
+  if(!calRoot) return;
+
+  calRoot.innerHTML = '';
+  const headTime = div('col-head'); headTime.textContent = '';
+  calRoot.appendChild(headTime);
+  for(let d=0; d<7; d++){
+    const day = addDays(weekStart, d);
+    const h = div('col-head');
+    h.textContent = day.toLocaleDateString('nl-BE',{weekday:'long', day:'2-digit', month:'2-digit'});
+    calRoot.appendChild(h);
   }
 
-  function renderCalendar(){
-    if(!calRoot) return;
+  const hStart = 7, hEnd = 22;
 
-    calRoot.innerHTML = '';
-    const headTime = div('col-head'); headTime.textContent = '';
-    calRoot.appendChild(headTime);
-    for(let d=0; d<7; d++){
-      const day = addDays(weekStart, d);
-      const h = div('col-head');
-      h.textContent = day.toLocaleDateString('nl-BE',{weekday:'long', day:'2-digit', month:'2-digit'});
-      calRoot.appendChild(h);
-    }
+  // tijdkolom
+  const tc = div('time-col');
+  for(let h=hStart; h<hEnd; h++){
+    const slot = div('time-slot'); slot.textContent = `${pad(h)}:00`; tc.appendChild(slot);
+  }
+  calRoot.appendChild(tc);
 
-    const hStart = 7, hEnd = 22;
+  // dagkolommen met **twee** dropniveaus:
+  // - kleine "dropzones" per uur
+  // - fallback: de hele dagkolom (als je tussen de rijen dropt)
+  for(let d=0; d<7; d++){
+    const col = div('day-col');
+    col.dataset.day = String(d);
 
-    const tc = div('time-col');
+    // FALLBACK drop op volledige kolom (zet uur op hStart)
+    col.ondragover = (e)=>{ e.preventDefault(); };
+    col.ondrop = async (e)=>{
+      e.preventDefault();
+      if(!currentUser){ alert('Log in om te plannen.'); return; }
+      let data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
+      if(!data || data.kind!=='backlog') return;
+
+      const item = backlog.find(x=>x.id===data.id);
+      if(!item) return;
+
+      const start = addDays(weekStart, d);
+      start.setHours(hStart,0,0,0);
+      try{
+        await addDoc(collection(db,'plans'),{
+          itemId: item.id,
+          title: item.title,
+          type: item.type,
+          subjectId: item.subjectId,
+          subjectName: item.subjectName,
+          color: item.color,
+          symbol: item.symbol,
+          start,
+          durationHours: item.durationHours||1,
+          uid: currentUser.uid,
+          createdAt: new Date()
+        });
+      }catch(err){
+        console.error('plan add error (col drop):', err);
+        alert('Kon niet plannen: ' + (err?.message||err));
+      }
+    };
+
+    // Dropzones per uur (precies plannen)
     for(let h=hStart; h<hEnd; h++){
-      const slot = div('time-slot'); slot.textContent = `${pad(h)}:00`; tc.appendChild(slot);
-    }
-    calRoot.appendChild(tc);
+      const z = div('dropzone');
+      z.dataset.hour = String(h);
+      z.ondragover = (e)=>{ e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
+      z.ondragleave = ()=> z.removeAttribute('aria-dropeffect');
+      z.ondrop = async (e)=>{
+        e.preventDefault(); z.removeAttribute('aria-dropeffect');
+        if(!currentUser){ alert('Log in om te plannen.'); return; }
+        let data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
+        if(!data || data.kind!=='backlog') return;
+        const item = backlog.find(x=>x.id===data.id);
+        if(!item) return;
 
-    for(let d=0; d<7; d++){
-      const col = div('day-col');
-      col.dataset.day = String(d);
+        const start = addDays(weekStart, d);
+        start.setHours(parseInt(z.dataset.hour,10),0,0,0);
 
-      for(let h=hStart; h<hEnd; h++){
-        const z = div('dropzone');
-        z.dataset.hour = String(h);
-        z.ondragover = (e)=>{ e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
-        z.ondragleave = ()=> z.removeAttribute('aria-dropeffect');
-        z.ondrop = async (e)=>{
-          e.preventDefault(); z.removeAttribute('aria-dropeffect');
-          if(!currentUser){ alert('Log in om te plannen.'); return; }
-          const data = safeParse(e.dataTransfer.getData('text/plain'));
-          if(!data || data.kind!=='backlog') return;
-          const item = backlog.find(x=>x.id===data.id);
-          if(!item) return;
-
-          const start = addDays(weekStart, d);
-          start.setHours(hStart,0,0,0);
-          start.setHours(parseInt(z.dataset.hour,10),0,0,0);
-
+        try{
           await addDoc(collection(db,'plans'),{
             itemId: item.id,
             title: item.title,
@@ -619,16 +668,21 @@ function renderSubjectsManager(){
             uid: currentUser.uid,
             createdAt: new Date()
           });
-        };
-        col.appendChild(z);
-      }
-      calRoot.appendChild(col);
+        }catch(err){
+          console.error('plan add error (slot drop):', err);
+          alert('Kon niet plannen: ' + (err?.message||err));
+        }
+      };
+      col.appendChild(z);
     }
-
-    if (Array.isArray(plans) && plans.length){
-      plans.forEach(p=> placeEvent(p));
-    }
+    calRoot.appendChild(col);
   }
+
+  if (Array.isArray(plans) && plans.length){
+    plans.forEach(p=> placeEvent(p));
+  }
+}
+
 
   function placeEvent(p){
     const d = clamp(Math.floor((toDate(p.start) - weekStart)/86400000), 0, 6);
@@ -710,7 +764,7 @@ if (subjInputVisible){
         where('start','<',  end)
       ),
       (snap)=>{
-        plans = snap.docs.map(d=>({id:d.id, ...d.data(), start: toDate(d.data().start)}));
+plans = snap.docs.map(d=>({id:d.id, ...d.data(), start: toDate(d.data().start)}));
         renderCalendar();
       },
       (err)=> console.error("plans stream error", err)
