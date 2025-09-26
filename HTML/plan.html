@@ -95,15 +95,14 @@
       </div>
 
       <!-- TYPE (drukknoppen + hidden input) -->
-      <label for="bl-type">Type</label>
-      <div>
-        <input id="bl-type" value="taak" />
-        <div class="type-group" role="group" aria-label="Kies type">
-          <button type="button" class="type-btn is-active" data-type="taak">📝 Taak</button>
-          <button type="button" class="type-btn" data-type="toets">🧪 Toets</button>
-          <button type="button" class="type-btn" data-type="andere">📚 Andere</button>
-        </div>
-      </div>
+   <span id="bl-type-label" class="form-label">Type</span>
+<input id="bl-type" type="hidden" value="taak" />
+<div class="type-group" role="group" aria-labelledby="bl-type-label">
+  <button type="button" class="type-btn is-active" data-type="taak">📝 Taak</button>
+  <button type="button" class="type-btn" data-type="toets">🧪 Toets</button>
+  <button type="button" class="type-btn" data-type="andere">📚 Andere</button>
+</div>
+
 
       <!-- TITEL / ONDERWERP -->
       <label for="bl-title">Titel / onderwerp</label>

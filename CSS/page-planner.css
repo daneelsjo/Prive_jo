@@ -113,3 +113,110 @@
   outline: 2px solid var(--primary, #2196f3);
   border-color: var(--primary, #2196f3);
 }
+/* ====== Paginalay-out ====== */
+.planner-page .page {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1rem;
+}
+.rightcol {
+  min-width: 320px;
+}
+
+/* ====== Kalender lay-out (dagen HORIZONTAAL) ====== */
+:root {
+  --slot-h: 40px; /* hoogte per uur */
+  --time-col-w: 80px; /* breedte tijdkolom */
+}
+.calendar {
+  display: grid;
+  grid-template-columns: var(--time-col-w) repeat(7, 1fr);
+  gap: 0.25rem;
+  user-select: none;
+}
+
+/* Koppen (1e rij) */
+.col-head {
+  font-weight: 800;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+  text-transform: capitalize;
+}
+
+/* Tijdkolom (1e kolom, 2e rij t/m eind) */
+.time-col {
+  grid-column: 1 / 2;
+  display: grid;
+}
+.time-slot {
+  height: var(--slot-h);
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+  padding-left: 0.35rem;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Dagkolommen (kolom 2..8, 2e rij t/m eind) */
+.day-col {
+  position: relative; /* nodig voor absolute .event */
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+  display: grid; /* de dropzones vormen de hoogte */
+}
+
+/* Dropzones per uur */
+.dropzone {
+  height: var(--slot-h);
+  border-top: 1px dashed transparent;
+}
+.dropzone:hover {
+  background: color-mix(in srgb, var(--primary, #2196f3) 6%, transparent);
+  border-top-color: color-mix(
+    in srgb,
+    var(--primary, #2196f3) 35%,
+    transparent
+  );
+}
+.dragging-backlog .dropzone {
+  border-top-color: color-mix(
+    in srgb,
+    var(--primary, #2196f3) 25%,
+    transparent
+  );
+}
+
+/* Gepland blok */
+.event {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+.event .title {
+  font-weight: 800;
+  line-height: 1.1;
+}
+.event .meta {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+/* Extra: tijdens slepen highlighten */
+[aria-dropeffect="move"] {
+  outline: 2px dashed
+    color-mix(in srgb, var(--primary, #2196f3) 55%, transparent);
+  outline-offset: -2px;
+}
+
+/* Optioneel: klein randje rond kalenderkaart */
+.content .card > .calendar {
+  margin-top: 0.25rem;
+}
