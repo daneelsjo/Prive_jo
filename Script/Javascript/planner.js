@@ -1,5 +1,9 @@
 // Script/Javascript/planner.js
-// Robust versie: veilige event-binding + DOMContentLoaded + dezelfde functionaliteit.
+// Weekplanner met backlog (vakken + taken/toetsen) en Firestore-opslag.
+// - Backlog: gegroepeerd per vak (kleur per vak, symbool per type)
+// - Drag & drop: backlog → weekrooster (zelfde item mag meermaals gepland worden)
+// - Afdruk als lijst (van–tot)
+// - UI toont grid ook zonder login; Firestore-acties vragen login
 
 import {
   getFirebaseApp,
@@ -8,10 +12,10 @@ import {
   query, where, orderBy
 } from "./firebase-config.js";
 
-/* ========== Helpers (algemeen) ========== */
+/* ───────────────────────── Helpers ───────────────────────── */
 const SYMBOL_BY_TYPE = { taak: "📝", toets: "🧪" };
 const sym  = (t)=> SYMBOL_BY_TYPE[t] || "📌";
-const pad  = (n)=> String(n).padStart(2, "0");
+const pad  = (n)=> String(n).padStart(2,"0");
 const div  = (cls)=>{ const el=document.createElement("div"); if(cls) el.className=cls; return el; };
 const esc  = (s="")=> s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 const safeParse = (s)=> { try{ return JSON.parse(s); } catch{ return null; } };
@@ -41,55 +45,52 @@ function getContrast(hex){
   return yiq>=128?'#000':'#fff';
 }
 
-// Veilige event-binding (crasht niet als element ontbreekt)
+// Veilige event-binding (logt waarschuwing i.p.v. crash)
 function bind(selectorOrEl, event, handler){
   const el = typeof selectorOrEl === "string" ? document.querySelector(selectorOrEl) : selectorOrEl;
-  if(!el){ console.warn("[planner] element not found for", selectorOrEl); return;
-  }
+  if(!el){ console.warn("[planner] element not found for", selectorOrEl); return; }
   el.addEventListener(event, handler);
 }
 
-/* ========== Firebase init ========== */
+/* ───────────────────────── Firebase init ───────────────────────── */
 const app  = getFirebaseApp();
 const db   = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-/* ========== State ========== */
+/* ───────────────────────── State ───────────────────────── */
 let currentUser = null;
 let subjects = []; // {id,name,color,uid}
 let backlog  = []; // {id,subjectId,subjectName,type,title,durationHours,dueDate,color,symbol,uid,done}
 let plans    = []; // {id,itemId,start,durationHours,uid}
 let weekStart = startOfWeek(new Date());
 
-/* ========== DOM setup na DOMContentLoaded ========== */
+/* ───────────────────────── DOM na load ───────────────────────── */
 window.addEventListener("DOMContentLoaded", () => {
-  const authDiv      = document.getElementById("auth");
-  const appDiv       = document.getElementById("app");
-  const weekTitle    = document.getElementById("weekTitle");
-  const calRoot      = document.getElementById("calendar");
-  const blSubjects   = document.getElementById("bl-subjects");
-  const blSubject    = document.getElementById("bl-subject");
-  const blType       = document.getElementById("bl-type");
-  const blTitle      = document.getElementById("bl-title");
-  const blDuration   = document.getElementById("bl-duration");
-  const blDue        = document.getElementById("bl-due");
-  const blColor      = document.getElementById("bl-color");
+  const authDiv   = document.getElementById("auth");
+  const appDiv    = document.getElementById("app");
+  const weekTitle = document.getElementById("weekTitle");
+  const calRoot   = document.getElementById("calendar");
+  const blSubjects= document.getElementById("bl-subjects");
 
-  // Zorg dat de UI zichtbaar is (ook zonder login)
+  // UI zichtbaar houden (ook zonder login)
   if (authDiv) authDiv.style.display = "block";
   if (appDiv)  appDiv.style.display  = "block";
 
-  // Auth button
+  /* ── UI wiring ── */
   bind("#login-btn", "click", () => signInWithPopup(auth, provider));
-
-  // Week navigatie
   bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderWeek(); if(currentUser) refreshPlans(); });
   bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderWeek(); if(currentUser) refreshPlans(); });
 
-  // Nieuw backlog-item
   bind("#newBacklogBtn", "click", () => {
     if(!currentUser){ alert("Log eerst in om items te bewaren."); return; }
+    // reset waarden on the fly
+    const blSubject  = document.getElementById("bl-subject");
+    const blTitle    = document.getElementById("bl-title");
+    const blType     = document.getElementById("bl-type");
+    const blDuration = document.getElementById("bl-duration");
+    const blDue      = document.getElementById("bl-due");
+    const blColor    = document.getElementById("bl-color");
     if (blSubject)  blSubject.value  = "";
     if (blTitle)    blTitle.value    = "";
     if (blType)     blType.value     = "taak";
@@ -100,42 +101,61 @@ window.addEventListener("DOMContentLoaded", () => {
     else document.getElementById("modal-backlog")?.removeAttribute("hidden");
   });
 
-  // Save backlog-item
-  bind("#bl-save", "click", async () => {
-    if(!currentUser){ alert('Log eerst in.'); return; }
-    const subjName = (blSubject?.value||"").trim();
-    if(!subjName){ window.Modal?.alert ? Modal.alert({title:'Vak vereist', html:'Geef een vaknaam op.'}) : alert('Vak vereist'); return; }
+  // 🔧 Event delegation voor Save-knop (#bl-save), werkt ook als partials later laden
+  document.addEventListener("click", async (ev) => {
+    const saveBtn = ev.target.closest("#bl-save");
+    if (!saveBtn) return;
 
-    // Zoek/maak vak
-    let subj = subjects.find(s=> s.name.toLowerCase()===subjName.toLowerCase());
-    if(!subj){
-      const ref = await addDoc(collection(db,'subjects'),{ name: subjName, color: blColor?.value || '#2196F3', uid: currentUser.uid });
-      subj = { id: ref.id, name: subjName, color: blColor?.value || '#2196F3' };
-    }else{
-      if (blColor && subj.color !== blColor.value){
-        await updateDoc(doc(db,'subjects',subj.id), { color: blColor.value });
-        subj.color = blColor.value;
-      }
+    if(!currentUser){ alert("Log eerst in."); return; }
+
+    // Query velden op klikmoment
+    const blSubject  = document.getElementById("bl-subject");
+    const blType     = document.getElementById("bl-type");
+    const blTitle    = document.getElementById("bl-title");
+    const blDuration = document.getElementById("bl-duration");
+    const blDue      = document.getElementById("bl-due");
+    const blColor    = document.getElementById("bl-color");
+
+    const subjName = (blSubject?.value || "").trim();
+    if (!subjName) {
+      window.Modal?.alert ? Modal.alert({ title: "Vak vereist", html: "Geef een vaknaam op." }) : alert("Vak vereist");
+      return;
+    }
+
+    // Vak zoeken/aanmaken
+    let subj = subjects.find(s => s.name.toLowerCase() === subjName.toLowerCase());
+    const desiredColor = blColor?.value || "#2196F3";
+
+    if (!subj) {
+      const ref = await addDoc(collection(db, "subjects"), {
+        name: subjName, color: desiredColor, uid: currentUser.uid
+      });
+      subj = { id: ref.id, name: subjName, color: desiredColor };
+    } else if (subj.color !== desiredColor) {
+      await updateDoc(doc(db, "subjects", subj.id), { color: desiredColor });
+      subj.color = desiredColor;
     }
 
     const payload = {
       subjectId: subj.id,
       subjectName: subj.name,
-      type: blType?.value || 'taak',
-      title: (blTitle?.value||'').trim(),
-      durationHours: parseFloat(blDuration?.value)||1,
+      type: blType?.value || "taak",
+      title: (blTitle?.value || "").trim(),
+      durationHours: parseFloat(blDuration?.value) || 1,
       dueDate: blDue?.value ? new Date(blDue.value) : null,
       color: subj.color,
-      symbol: sym(blType?.value || 'taak'),
+      symbol: (blType?.value === "toets") ? "🧪" : "📝",
       uid: currentUser.uid,
       done: false,
       createdAt: new Date()
     };
-    await addDoc(collection(db,'backlog'), payload);
-    window.Modal?.close ? Modal.close('modal-backlog') : document.getElementById('modal-backlog')?.setAttribute('hidden','');
+
+    await addDoc(collection(db, "backlog"), payload);
+    window.Modal?.close
+      ? Modal.close("modal-backlog")
+      : document.getElementById("modal-backlog")?.setAttribute("hidden", "");
   });
 
-  // Afdruk (lijst)
   bind("#printList", "click", () => {
     const sEl = document.getElementById("printStart");
     const eEl = document.getElementById("printEnd");
@@ -174,10 +194,10 @@ window.addEventListener("DOMContentLoaded", () => {
     win.focus();
   });
 
-  /* ===== Eerste render: grid altijd zichtbaar ===== */
+  /* ── Eerste render: grid altijd zichtbaar ── */
   renderWeek();
 
-  /* ===== Auth stream ===== */
+  /* ── Auth stream ── */
   onAuthStateChanged(auth, (user)=>{
     if(!user){
       currentUser = null;
@@ -193,7 +213,7 @@ window.addEventListener("DOMContentLoaded", () => {
     renderWeek();
   });
 
-  /* ===== Renderers & Data-functies (hebben toegang tot bovengenoemde vars) ===== */
+  /* ───────────────────── Renderers & Data ───────────────────── */
   function renderWeek(){
     const end = addDays(weekStart,6);
     weekTitle && (weekTitle.textContent = `Week ${fmtDate(weekStart)} – ${fmtDate(end)}`);
@@ -359,7 +379,7 @@ window.addEventListener("DOMContentLoaded", () => {
     col.appendChild(block);
   }
 
-  /* ===== Firestore Streams ===== */
+  /* ───────────────────── Firestore streams ───────────────────── */
   function bindStreams(){
     onSnapshot(
       query(collection(db,'subjects'), where('uid','==', currentUser.uid), orderBy('name','asc')),
