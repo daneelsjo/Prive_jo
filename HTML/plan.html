@@ -101,9 +101,7 @@
         <label>Deadline (tegen wanneer)
           <input id="bl-due" type="date" />
         </label>
-        <label>Kleur (vak)
-          <input id="bl-color" type="color" value="#2196F3" />
-        </label>
+
       </div>
     </div>
     <div class="modal-footer">
@@ -119,17 +117,28 @@
     <button class="modal-close" data-modal-close="modal-subjects" aria-label="Sluiten">✕</button>
   </div>
   <div class="modal-body">
-    <div class="form-grid" style="margin-bottom:.75rem;">
-      <label>Vaknaam
-        <input id="sub-name" placeholder="bv. Wiskunde" />
-      </label>
-      <label>Kleur
-        <input id="sub-color" type="color" value="#2196F3" />
-      </label>
-      <div style="align-self:end;">
-        <button id="sub-save" class="primary">➕ Toevoegen / bijwerken</button>
-      </div>
+<div class="form-grid" style="margin-bottom:.75rem;">
+  <label>Vaknaam
+    <input id="sub-name" placeholder="bv. Wiskunde" />
+  </label>
+
+  <div>
+    <div style="font-weight:600;margin-bottom:.25rem;">Kleur (kies 1 van 15)</div>
+    <div id="sub-palette" class="palette" style="display:flex;flex-wrap:wrap;gap:.35rem;"></div>
+    <div style="margin-top:.35rem;display:flex;align-items:center;gap:.5rem;">
+      <span class="muted">Geselecteerd:</span>
+      <span id="sub-color-preview" class="badge" style="min-width:76px;display:inline-flex;align-items:center;gap:.4rem;">
+        <span class="dot" style="width:14px;height:14px;border-radius:50%;display:inline-block;background:#2196F3;"></span>
+        <span id="sub-color-text">#2196F3</span>
+      </span>
     </div>
+  </div>
+
+  <div style="align-self:end;">
+    <button id="sub-save" class="primary">➕ Toevoegen / bijwerken</button>
+  </div>
+</div>
+
 
     <div class="table-wrap" style="max-height:50vh; overflow:auto;">
       <table class="table">

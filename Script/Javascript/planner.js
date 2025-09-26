@@ -73,6 +73,15 @@ window.addEventListener("DOMContentLoaded", () => {
   const calRoot   = document.getElementById("calendar");
   const blSubjects= document.getElementById("bl-subjects");
 
+
+  // 15 vaste kleuren
+const PALETTE = [
+  "#2196F3","#3F51B5","#00BCD4","#4CAF50","#8BC34A",
+  "#FFC107","#FF9800","#FF5722","#E91E63","#9C27B0",
+  "#795548","#607D8B","#009688","#673AB7","#F44336"
+];
+
+
   // UI zichtbaar houden (ook zonder login)
   if (authDiv) authDiv.style.display = "block";
   if (appDiv)  appDiv.style.display  = "block";
@@ -106,10 +115,11 @@ document.addEventListener("click", (ev) => {
   const btn = ev.target.closest("#manageSubjectsBtn");
   if (!btn) return;
   if (!currentUser) { alert("Log eerst in."); return; }
-  renderSubjectsManager();               // bouw de tabel op uit 'subjects'
+  renderSubjectsManager();
   if (window.Modal?.open) Modal.open("modal-subjects");
   else document.getElementById("modal-subjects")?.removeAttribute("hidden");
 });
+
 
 // Toevoegen of bijwerken (boven het tabelletje)
 document.addEventListener("click", async (ev) => {
@@ -117,24 +127,29 @@ document.addEventListener("click", async (ev) => {
   if (!save) return;
   if (!currentUser){ alert("Log eerst in."); return; }
 
-  const nameEl  = document.getElementById("sub-name");
-  const colorEl = document.getElementById("sub-color");
+  const nameEl = document.getElementById("sub-name");
+  const colorText = document.getElementById("sub-color-text");
   const name  = (nameEl?.value || "").trim();
-  const color = colorEl?.value || "#2196F3";
+  const color = colorText?.textContent || "#2196F3";
   if (!name){ alert("Geef een vaknaam."); return; }
 
-  // Bestaat dit vak al? (case-insensitive)
   let subj = subjects.find(s => (s.name||"").toLowerCase() === name.toLowerCase());
   if (!subj){
     await addDoc(collection(db, "subjects"), { name, color, uid: currentUser.uid });
-  } else if (subj.color !== color){
-    await updateDoc(doc(db, "subjects", subj.id), { color });
+  } else {
+    // update naam/kleur indien gewijzigd
+    const updates = {};
+    if (subj.name !== name)  updates.name  = name;
+    if (subj.color !== color) updates.color = color;
+    if (Object.keys(updates).length) await updateDoc(doc(db, "subjects", subj.id), updates);
   }
-  // formulier resetten
-  if (nameEl)  nameEl.value = "";
-  if (colorEl) colorEl.value = "#2196F3";
-  // stream van subjects triggert autorefresh van tabel & datalist
+  // reset naamveld, preview laat ik staan op laatst gekozen kleur
+  if (nameEl) nameEl.value = "";
+
+  // Direct hertekenen (naast de live stream)
+  renderSubjectsManager();
 });
+
 
 // Rij opslaan (update)
 document.addEventListener("click", async (ev) => {
@@ -145,9 +160,9 @@ document.addEventListener("click", async (ev) => {
   if (!tr) return;
   const id = tr.dataset.id;
   const name  = tr.querySelector(".s-name")?.value?.trim() || "";
-  const color = tr.querySelector(".s-color")?.value || "#2196F3";
   if (!name){ alert("Naam mag niet leeg zijn."); return; }
-  await updateDoc(doc(db, "subjects", id), { name, color });
+  await updateDoc(doc(db, "subjects", id), { name }); // kleur wijzig je via het palet bovenaan
+  renderSubjectsManager();
 });
 
 // Verwijderen
@@ -158,13 +173,81 @@ document.addEventListener("click", async (ev) => {
   const tr = btn.closest("tr[data-id]");
   if (!tr) return;
   const id = tr.dataset.id;
-  if (!confirm("Dit vak verwijderen? (Let op: bestaande backlog-items behouden hun oude vaknaam)")) return;
+  if (!confirm("Dit vak verwijderen? (Backlog-items behouden hun oude vaknaam/kleur)")) return;
   await deleteDoc(doc(db, "subjects", id));
+  renderSubjectsManager();
 });
 
 
 
+
   // 🔧 Event delegation voor Save-knop (#bl-save), werkt ook als partials later laden
+
+  // ▼▼ Backlog item opslaan (modal) – volledige functie ▼▼
+document.addEventListener("click", async (ev) => {
+  const saveBtn = ev.target.closest("#bl-save");
+  if (!saveBtn) return;
+
+  if (!currentUser) { alert("Log eerst in."); return; }
+
+  // pak velden op het moment van klikken (modal kan later geladen zijn)
+  const blSubject  = document.getElementById("bl-subject");
+  const blType     = document.getElementById("bl-type");
+  const blTitle    = document.getElementById("bl-title");
+  const blDuration = document.getElementById("bl-duration");
+  const blDue      = document.getElementById("bl-due");
+
+  const subjName = (blSubject?.value || "").trim();
+  if (!subjName) {
+    window.Modal?.alert
+      ? Modal.alert({ title: "Vak vereist", html: "Geef een vaknaam op." })
+      : alert("Vak vereist");
+    return;
+  }
+
+  // Zoek/maak vak + kleur
+  let subj = subjects.find(s => (s.name||"").toLowerCase() === subjName.toLowerCase());
+
+  // >>> HIER staat jouw gevraagde stuk (kleur uit vak, anders default uit PALETTE[0])
+  const defaultColor = PALETTE[0]; // bv. "#2196F3"
+  if (!subj) {
+    const ref = await addDoc(collection(db, "subjects"), {
+      name: subjName,
+      color: defaultColor,
+      uid: currentUser.uid
+    });
+    subj = { id: ref.id, name: subjName, color: defaultColor };
+  }
+  // <<< einde kleur- en vak-creatie
+
+  // Payload gebruikt altijd de kleur van het vak
+  const payload = {
+    subjectId: subj.id,
+    subjectName: subj.name,
+    type: blType?.value || "taak",
+    title: (blTitle?.value || "").trim(),
+    durationHours: parseFloat(blDuration?.value) || 1,
+    dueDate: blDue?.value ? new Date(blDue.value) : null,
+    color: subj.color,                                // <— hier
+    symbol: (blType?.value === "toets") ? "🧪" : "📝",
+    uid: currentUser.uid,
+    done: false,
+    createdAt: new Date()
+  };
+
+  await addDoc(collection(db, "backlog"), payload);
+
+  // modal sluiten (of laat open als je dat wil)
+  if (window.Modal?.close) Modal.close("modal-backlog");
+  else document.getElementById("modal-backlog")?.setAttribute("hidden", "");
+
+  // (optioneel) formulier resetten
+  if (blSubject)  blSubject.value  = "";
+  if (blTitle)    blTitle.value    = "";
+  if (blType)     blType.value     = "taak";
+  if (blDuration) blDuration.value = "1";
+  if (blDue)      blDue.value      = "";
+});
 
 
 
@@ -264,23 +347,56 @@ document.addEventListener("click", (ev) => {
     blSubjects.innerHTML = subjects.map(s=>`<option value="${esc(s.name)}"></option>`).join('');
   }
 
-  function renderSubjectsManager(){
+function renderSubjectsManager(){
   const tbody = document.getElementById("subjectsTable");
   if (!tbody) return;
+
   if (!Array.isArray(subjects) || subjects.length === 0){
     tbody.innerHTML = `<tr><td colspan="3" class="muted">Nog geen vakken…</td></tr>`;
-    return;
+  } else {
+    tbody.innerHTML = subjects.map(s => `
+      <tr data-id="${s.id}">
+        <td><input class="s-name" value="${esc(s.name||'')}" /></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <span class="dot" style="width:16px;height:16px;border-radius:50%;display:inline-block;background:${esc(s.color||'#2196F3')};border:1px solid #0001"></span>
+            <code>${esc(s.color||'#2196F3')}</code>
+          </div>
+        </td>
+        <td style="display:flex; gap:.4rem;">
+          <button class="subj-update">Opslaan</button>
+          <button class="subj-del danger">Verwijder</button>
+        </td>
+      </tr>
+    `).join("");
   }
-  tbody.innerHTML = subjects.map(s => `
-    <tr data-id="${s.id}">
-      <td><input class="s-name" value="${esc(s.name||'')}" /></td>
-      <td><input class="s-color" type="color" value="${esc(s.color||'#2196F3')}" /></td>
-      <td style="display:flex; gap:.4rem;">
-        <button class="subj-update">Opslaan</button>
-        <button class="subj-del danger">Verwijder</button>
-      </td>
-    </tr>
-  `).join("");
+
+  // (Re)render palette + preview elke keer dat modal open of subjects wijzigen
+  const palRoot = document.getElementById("sub-palette");
+  const previewDot  = document.querySelector("#sub-color-preview .dot");
+  const previewText = document.getElementById("sub-color-text");
+
+  if (palRoot && previewDot && previewText){
+    palRoot.innerHTML = "";
+    const current = previewText.textContent || "#2196F3";
+    PALETTE.forEach(hex=>{
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "swatch";
+      b.style.cssText = `width:22px;height:22px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0002;background:${hex};cursor:pointer;`;
+      if (hex.toLowerCase() === current.toLowerCase()){
+        b.style.outline = "2px solid #0005";
+      }
+      b.addEventListener("click", ()=>{
+        previewDot.style.background = hex;
+        previewText.textContent = hex;
+        // mark active
+        palRoot.querySelectorAll(".swatch").forEach(s=> s.style.outline="");
+        b.style.outline = "2px solid #0005";
+      });
+      palRoot.appendChild(b);
+    });
+  }
 }
 
 
@@ -440,6 +556,7 @@ document.addEventListener("click", (ev) => {
 
   /* ───────────────────── Firestore streams ───────────────────── */
   function bindStreams(){
+    
     onSnapshot(
       query(collection(db,'subjects'), where('uid','==', currentUser.uid), orderBy('name','asc')),
       (snap)=>{
@@ -460,7 +577,11 @@ document.addEventListener("click", (ev) => {
       (err)=> console.error("backlog stream error", err)
     );
 
+  
     refreshPlans();
+    const subjModalOpen = !document.getElementById("modal-subjects")?.hasAttribute("hidden");
+if (subjModalOpen) renderSubjectsManager();
+
   }
 
   function refreshPlans(){
