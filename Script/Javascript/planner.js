@@ -101,7 +101,72 @@ window.addEventListener("DOMContentLoaded", () => {
     else document.getElementById("modal-backlog")?.removeAttribute("hidden");
   });
 
+// Open "Vakken beheren" en render tabel
+document.addEventListener("click", (ev) => {
+  const btn = ev.target.closest("#manageSubjectsBtn");
+  if (!btn) return;
+  if (!currentUser) { alert("Log eerst in."); return; }
+  renderSubjectsManager();               // bouw de tabel op uit 'subjects'
+  if (window.Modal?.open) Modal.open("modal-subjects");
+  else document.getElementById("modal-subjects")?.removeAttribute("hidden");
+});
+
+// Toevoegen of bijwerken (boven het tabelletje)
+document.addEventListener("click", async (ev) => {
+  const save = ev.target.closest("#sub-save");
+  if (!save) return;
+  if (!currentUser){ alert("Log eerst in."); return; }
+
+  const nameEl  = document.getElementById("sub-name");
+  const colorEl = document.getElementById("sub-color");
+  const name  = (nameEl?.value || "").trim();
+  const color = colorEl?.value || "#2196F3";
+  if (!name){ alert("Geef een vaknaam."); return; }
+
+  // Bestaat dit vak al? (case-insensitive)
+  let subj = subjects.find(s => (s.name||"").toLowerCase() === name.toLowerCase());
+  if (!subj){
+    await addDoc(collection(db, "subjects"), { name, color, uid: currentUser.uid });
+  } else if (subj.color !== color){
+    await updateDoc(doc(db, "subjects", subj.id), { color });
+  }
+  // formulier resetten
+  if (nameEl)  nameEl.value = "";
+  if (colorEl) colorEl.value = "#2196F3";
+  // stream van subjects triggert autorefresh van tabel & datalist
+});
+
+// Rij opslaan (update)
+document.addEventListener("click", async (ev) => {
+  const btn = ev.target.closest(".subj-update");
+  if (!btn) return;
+  if (!currentUser){ alert("Log eerst in."); return; }
+  const tr = btn.closest("tr[data-id]");
+  if (!tr) return;
+  const id = tr.dataset.id;
+  const name  = tr.querySelector(".s-name")?.value?.trim() || "";
+  const color = tr.querySelector(".s-color")?.value || "#2196F3";
+  if (!name){ alert("Naam mag niet leeg zijn."); return; }
+  await updateDoc(doc(db, "subjects", id), { name, color });
+});
+
+// Verwijderen
+document.addEventListener("click", async (ev) => {
+  const btn = ev.target.closest(".subj-del");
+  if (!btn) return;
+  if (!currentUser){ alert("Log eerst in."); return; }
+  const tr = btn.closest("tr[data-id]");
+  if (!tr) return;
+  const id = tr.dataset.id;
+  if (!confirm("Dit vak verwijderen? (Let op: bestaande backlog-items behouden hun oude vaknaam)")) return;
+  await deleteDoc(doc(db, "subjects", id));
+});
+
+
+
   // 🔧 Event delegation voor Save-knop (#bl-save), werkt ook als partials later laden
+
+
 
 document.addEventListener("click", (ev) => {
   const btn = ev.target.closest("#newBacklogBtn,[data-modal-open='modal-backlog']");
@@ -198,6 +263,26 @@ document.addEventListener("click", (ev) => {
     if(!blSubjects) return;
     blSubjects.innerHTML = subjects.map(s=>`<option value="${esc(s.name)}"></option>`).join('');
   }
+
+  function renderSubjectsManager(){
+  const tbody = document.getElementById("subjectsTable");
+  if (!tbody) return;
+  if (!Array.isArray(subjects) || subjects.length === 0){
+    tbody.innerHTML = `<tr><td colspan="3" class="muted">Nog geen vakken…</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = subjects.map(s => `
+    <tr data-id="${s.id}">
+      <td><input class="s-name" value="${esc(s.name||'')}" /></td>
+      <td><input class="s-color" type="color" value="${esc(s.color||'#2196F3')}" /></td>
+      <td style="display:flex; gap:.4rem;">
+        <button class="subj-update">Opslaan</button>
+        <button class="subj-del danger">Verwijder</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
 
   function renderBacklog(){
     const container = document.getElementById("backlogGroups");

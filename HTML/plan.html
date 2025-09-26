@@ -59,9 +59,12 @@
       <aside class="rightcol">
         <section class="card backlog">
           <div class="backlog-head">
-            <h3>Backlog (vakken)</h3>
-            <button id="newBacklogBtn" class="primary">＋ NIEUW</button>
-          </div>
+  <h3>Backlog (vakken)</h3>
+  <div style="display:flex; gap:.5rem;">
+    <button id="manageSubjectsBtn" class="ghost">Vakken beheren</button>
+    <button id="newBacklogBtn" class="primary">＋ NIEUW</button>
+  </div>
+</div>
           <div id="backlogGroups" class="backlog-groups" aria-live="polite"></div>
         </section>
       </aside>
@@ -108,6 +111,39 @@
       <button class="ghost" data-modal-close="modal-backlog">Annuleren</button>
     </div>
   </div>
+
+  <!-- Vakken beheren -->
+<div id="modal-subjects" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-subjects-title" hidden>
+  <div class="modal-header">
+    <h3 id="modal-subjects-title">Vakken beheren</h3>
+    <button class="modal-close" data-modal-close="modal-subjects" aria-label="Sluiten">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid" style="margin-bottom:.75rem;">
+      <label>Vaknaam
+        <input id="sub-name" placeholder="bv. Wiskunde" />
+      </label>
+      <label>Kleur
+        <input id="sub-color" type="color" value="#2196F3" />
+      </label>
+      <div style="align-self:end;">
+        <button id="sub-save" class="primary">➕ Toevoegen / bijwerken</button>
+      </div>
+    </div>
+
+    <div class="table-wrap" style="max-height:50vh; overflow:auto;">
+      <table class="table">
+        <thead><tr><th>Vak</th><th>Kleur</th><th style="width:140px;">Acties</th></tr></thead>
+        <tbody id="subjectsTable"><tr><td colspan="3" class="muted">Nog geen vakken…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="muted" style="margin-top:.5rem">Tip: wijzigen = pas naam/kleur aan en klik “Opslaan”.</p>
+  </div>
+  <div class="modal-footer">
+    <button class="ghost" data-modal-close="modal-subjects">Sluiten</button>
+  </div>
+</div>
+
 
   <!-- Print-venster template -->
   <template id="print-template">
