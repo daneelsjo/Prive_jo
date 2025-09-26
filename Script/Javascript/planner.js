@@ -209,6 +209,79 @@ const PALETTE = [
   bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderWeek(); if(currentUser) refreshPlans(); });
   bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderWeek(); if(currentUser) refreshPlans(); });
 
+  // open snel-plannen
+document.addEventListener("click",(e)=>{
+  if(!e.target.closest("#quickPlanBtn")) return;
+  if(!currentUser){ alert('Log eerst in.'); return; }
+  // defaults
+  document.getElementById("qp-title").value = "";
+  document.getElementById("qp-type").value = "andere";
+  document.querySelectorAll("#modal-quick .type-btn").forEach(b=> b.classList.toggle("is-active", b.dataset.type==="andere"));
+  const today = new Date(); const iso = (d)=>d.toISOString().slice(0,10);
+  document.getElementById("qp-start").value = iso(today);
+  document.getElementById("qp-end").value   = iso(today);
+  if(window.Modal?.open) Modal.open("modal-quick"); else document.getElementById("modal-quick").hidden=false;
+});
+
+// type-knoppen in quick modal
+document.addEventListener("click",(e)=>{
+  const b = e.target.closest("#modal-quick .type-btn"); if(!b) return;
+  const group = b.closest(".type-group");
+  group.querySelectorAll(".type-btn").forEach(x=> x.classList.remove("is-active"));
+  b.classList.add("is-active");
+  document.getElementById("qp-type").value = b.dataset.type;
+});
+
+// save snel-plannen
+document.addEventListener("click", async (e)=>{
+  if(!e.target.closest("#qp-save")) return;
+  if(!currentUser){ alert('Log eerst in.'); return; }
+
+  const title = (document.getElementById("qp-title").value||"").trim();
+  const type  = document.getElementById("qp-type").value || "andere";
+  const ds    = document.getElementById("qp-start").value;
+  const de    = document.getElementById("qp-end").value;
+  const time  = document.getElementById("qp-time").value || "18:00";
+  const dur   = parseFloat(document.getElementById("qp-dur").value)||1;
+  const dows  = [...document.querySelectorAll(".qp-dow:checked")].map(x=> parseInt(x.value,10));
+
+  if(!title){ alert("Titel is verplicht."); return; }
+  if(!ds || !de){ alert("Van en tot datum verplicht."); return; }
+  if(dows.length===0){ alert("Kies minstens één weekdag."); return; }
+
+  const [hh,mm] = time.split(":").map(n=> parseInt(n,10));
+  const startDate = new Date(ds); startDate.setHours(0,0,0,0);
+  const endDate   = new Date(de); endDate.setHours(23,59,59,999);
+
+  const batchDays = [];
+  for(let d=new Date(startDate); d<=endDate; d.setDate(d.getDate()+1)){
+    if(dows.includes(d.getDay())){
+      const s = new Date(d); s.setHours(hh,mm,0,0);
+      batchDays.push(s);
+    }
+  }
+
+  // plannen aanmaken (los van vak/subject)
+  for(const s of batchDays){
+    await addDoc(collection(db,'plans'),{
+      itemId: null,
+      title,
+      type,
+      subjectId: null,
+      subjectName: '',         // vrij event
+      color: '#607D8B',        // neutrale kleur (pas aan naar smaak)
+      symbol: sym(type),
+      start: s,
+      durationHours: dur,
+      dueDate: null,
+      uid: currentUser.uid,
+      createdAt: new Date()
+    });
+  }
+
+  window.Modal?.close ? Modal.close("modal-quick") : (document.getElementById("modal-quick").hidden=true);
+});
+
 
 // Open "Vakken beheren" en render tabel
 document.addEventListener("click", (ev) => {
@@ -412,7 +485,9 @@ document.addEventListener("click", (ev) => {
         root.appendChild(h);
       }
       const li = win.document.createElement('div'); li.className='item';
-      li.textContent = `${d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})} • ${p.title} (${p.type}) – ${p.subjectName} [${p.durationHours}u]`;
+const typeLabel = (p.type||'').toUpperCase();
+const symb = p.symbol || sym(p.type);
+li.textContent = `${symb} [${typeLabel}] ${d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})} • ${p.title} – ${p.subjectName} [${p.durationHours}u]`;
       root.appendChild(li);
     });
 
@@ -613,9 +688,20 @@ function renderCalendar(){
         const start = addDays(weekStart, d); start.setHours(hStart,0,0,0);
         try{
           await addDoc(collection(db,'plans'),{
-            itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,color:item.color,symbol:item.symbol,
-            start,durationHours:item.durationHours||1,uid:currentUser.uid,createdAt:new Date()
-          });
+  itemId:item.id,
+  title:item.title,
+  type:item.type,
+  subjectId:item.subjectId,
+  subjectName:item.subjectName,
+  color:item.color,
+  symbol:item.symbol,
+  start,
+  durationHours:item.durationHours||1,
+  dueDate: item.dueDate || null,        // ← NIEUW
+  uid:currentUser.uid,
+  createdAt:new Date()
+});
+
         }catch(err){ console.error('plan add error (col drop):', err); alert('Kon niet plannen: '+(err?.message||err)); }
       }else if(data.kind==='planmove'){
         // verplaatsing naar 07:00 van die dag
@@ -672,10 +758,15 @@ function renderCalendar(){
   }
 }
 
- function placeEvent(p){
+function placeEvent(p){
   const start = toDate(p.start);
   const d = clamp(Math.floor((start - weekStart)/86400000), 0, 6);
-  const hStart = 7;
+
+  // rasterconfig
+  const hStart = 7, hEnd = 22;
+  const totalRows = (hEnd - hStart) * 2; // 30-min slots
+  const slotH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) || 28;
+
   const hour = start.getHours();
   const mins = start.getMinutes();
   const rowsFromTop = ((hour - hStart) * 2) + (mins >= 30 ? 1 : 0);
@@ -687,17 +778,19 @@ function renderCalendar(){
   const block = div('event');
   const bg = p.color || '#2196F3';
   block.style.background = bg; block.style.color = getContrast(bg);
-  block.style.top = `${rowsFromTop * parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h'))}px`;
-  block.style.height = `${heightRows * parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) - 4}px`;
+  block.style.top = `${rowsFromTop * slotH}px`;
+  block.style.height = `${heightRows * slotH - 4}px`;
   block.innerHTML = `
     <div class="title">${p.symbol||sym(p.type)} ${esc(p.title||'')}</div>
     <div class="meta">${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${p.durationHours}u</div>
+    <div class="resize-h" title="Sleep om duur aan te passen"></div>
   `;
 
-  // Hover tooltip
+  // ==== Tooltip ====
   block.addEventListener('mouseenter', (ev)=>{
     const tip = document.getElementById('evt-tip'); if(!tip) return;
-    const due = p.dueDate ? toDate(p.dueDate).toLocaleDateString('nl-BE') : '—';
+    const dueSrc = p.dueDate || backlog.find(b=> b.id===p.itemId)?.dueDate || null;
+    const due = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
     tip.innerHTML = `<div class="t">${esc(p.title||'')}</div>
       <div class="m">${esc(p.subjectName||'')} • ${p.type} • ${p.durationHours}u</div>
       <div class="m">Tegen: ${due}</div>`;
@@ -710,20 +803,16 @@ function renderCalendar(){
   block.addEventListener('mouseleave', ()=>{
     const tip = document.getElementById('evt-tip'); if(tip) tip.style.display = 'none';
   });
+  function positionTip(ev, tip){ tip.style.left = (ev.clientX+12)+'px'; tip.style.top=(ev.clientY+12)+'px'; }
 
-  function positionTip(ev, tip){
-    const x = ev.clientX + 12, y = ev.clientY + 12;
-    tip.style.left = x + 'px'; tip.style.top = y + 'px';
-  }
-
-  // Klik = verwijderen (zoals je had)
+  // ==== Klik = verwijderen (zoals voorheen) ====
   block.addEventListener('click', async ()=>{
     if(!currentUser){ alert('Log eerst in.'); return; }
     if(!confirm('Deze planning verwijderen?')) return;
     await deleteDoc(doc(db,'plans', p.id));
   });
 
-  // Drag to move
+  // ==== Drag to move (zoals je had) ====
   block.setAttribute('draggable', 'true');
   block.addEventListener('dragstart', (e)=>{
     e.dataTransfer.effectAllowed = 'move';
@@ -735,8 +824,48 @@ function renderCalendar(){
     document.body.classList.remove('dragging-event');
   });
 
+  // ==== Resize (onderrand) ====
+  const handle = block.querySelector('.resize-h');
+  handle.addEventListener('dragstart', e=> e.preventDefault()); // geen HTML5 drag
+  handle.addEventListener('mousedown', (e)=>{
+    e.stopPropagation(); e.preventDefault();
+    document.body.classList.add('resizing-event');
+    block.classList.add('resizing');
+
+    const startY = e.clientY;
+    const startPx = block.offsetHeight;
+    const maxRows = Math.max(1, totalRows - rowsFromTop); // niet voorbij onderkant
+
+    function onMove(ev){
+      const dy = ev.clientY - startY;
+      let rows = Math.round((startPx + dy) / slotH);
+      rows = clamp(rows, 1, maxRows);
+      block.style.height = `${rows * slotH - 4}px`;
+      // live meta updaten
+      const newDur = Math.max(0.5, rows / 2);
+      const meta = block.querySelector('.meta');
+      if (meta) meta.textContent = `${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${newDur}u`;
+    }
+    function onUp(){
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.classList.remove('resizing-event');
+      block.classList.remove('resizing');
+      const finalRows = Math.round((block.offsetHeight + 4) / slotH);
+      const newDur = Math.max(0.5, finalRows / 2);
+      // bewaar
+      updateDoc(doc(db,'plans', p.id), { durationHours: newDur }).catch(err=>{
+        console.error('resize save error:', err);
+        alert('Kon nieuwe duur niet bewaren: ' + (err?.message||err));
+      });
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
   col.appendChild(block);
 }
+
 
   /* ───────────────────── Firestore streams ───────────────────── */
   function bindStreams(){

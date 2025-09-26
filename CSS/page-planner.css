@@ -82,7 +82,7 @@
 }
 
 /* Responsive */
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
   .planner-page .page {
     grid-template-columns: 1fr;
   }
@@ -116,8 +116,8 @@
 /* ====== Paginalay-out ====== */
 .planner-page .page {
   display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 1rem;
+  grid-template-columns: minmax(60vw, 65fr) minmax(320px, 35fr);
+  column-gap: 1.2rem;
 }
 .rightcol {
   min-width: 320px;
@@ -314,4 +314,23 @@
 }
 #evt-tip .m {
   opacity: 0.85;
+}
+
+/* Resize handle onderaan elk event */
+.event .resize-h {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 2px;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.35);
+  cursor: ns-resize;
+  opacity: 0.9;
+}
+.event.resizing {
+  cursor: ns-resize;
+}
+body.resizing-event * {
+  user-select: none !important;
 }

@@ -46,6 +46,8 @@
             <span>—</span>
             <input id="printEnd" type="date" />
             <button id="printList" class="primary">🖨️ Afdruk (lijst)</button>
+            <button id="quickPlanBtn" class="ghost">➕ Snel plannen</button>
+
           </div>
         </section>
 
@@ -167,6 +169,55 @@
   </div>
   <div class="modal-footer">
     <button class="ghost" data-modal-close="modal-subjects">Sluiten</button>
+  </div>
+</div>
+
+<!-- Snel plannen -->
+<div id="modal-quick" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-quick-title" hidden>
+  <div class="modal-header">
+    <h3 id="modal-quick-title">Snel plannen</h3>
+    <button class="modal-close" data-modal-close="modal-quick" aria-label="Sluiten">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <label for="qp-title">Titel</label>
+      <input id="qp-title" placeholder="bv. Basket training" />
+
+      <span id="qp-type-label" class="form-label">Type</span>
+      <input id="qp-type" type="hidden" value="andere" />
+      <div class="type-group" role="group" aria-labelledby="qp-type-label">
+        <button type="button" class="type-btn" data-type="taak">📝 Taak</button>
+        <button type="button" class="type-btn" data-type="toets">🧪 Toets</button>
+        <button type="button" class="type-btn is-active" data-type="andere">📚 Andere</button>
+      </div>
+
+      <label for="qp-start">Van (datum)</label>
+      <input id="qp-start" type="date" />
+
+      <label for="qp-end">Tot (datum)</label>
+      <input id="qp-end" type="date" />
+
+      <span class="form-label">Weekdagen</span>
+      <div class="weekdays" style="display:flex;gap:.4rem;flex-wrap:wrap;">
+        <label><input type="checkbox" class="qp-dow" value="1" checked> ma</label>
+        <label><input type="checkbox" class="qp-dow" value="2"> di</label>
+        <label><input type="checkbox" class="qp-dow" value="3"> wo</label>
+        <label><input type="checkbox" class="qp-dow" value="4"> do</label>
+        <label><input type="checkbox" class="qp-dow" value="5"> vr</label>
+        <label><input type="checkbox" class="qp-dow" value="6"> za</label>
+        <label><input type="checkbox" class="qp-dow" value="0"> zo</label>
+      </div>
+
+      <label for="qp-time">Tijd</label>
+      <input id="qp-time" type="time" value="18:00" step="1800" />
+
+      <label for="qp-dur">Duur (uren)</label>
+      <input id="qp-dur" type="number" min="0.5" step="0.5" value="1.5" />
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button id="qp-save" class="primary">💾 Inplannen</button>
+    <button class="ghost" data-modal-close="modal-quick">Annuleren</button>
   </div>
 </div>
 
