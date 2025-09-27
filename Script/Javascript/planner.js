@@ -19,6 +19,7 @@ const pad  = (n)=> String(n).padStart(2,"0");
 const div  = (cls)=>{ const el=document.createElement("div"); if(cls) el.className=cls; return el; };
 const esc  = (s="")=> s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 const safeParse = (s)=> { try{ return JSON.parse(s); } catch{ return null; } };
+function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
 
 function toDate(maybeTs){
   if (maybeTs instanceof Date) return maybeTs;
@@ -35,6 +36,24 @@ function startOfWeek(d){
   x.setHours(0, 0, 0, 0);
   return x;
 }
+async function cleanupExpiredBacklog(){
+  if(!currentUser) return;
+  try{
+    const cutoff = startOfDay(new Date()); // 00:00 vandaag → alles met dueDate < vandaag is “dag na deadline”
+    const qExp = query(
+      collection(db,'backlog'),
+      where('uid','==', currentUser.uid),
+      where('dueDate','<', cutoff)       // items zonder dueDate worden niet gematcht
+    );
+    const snap = await getDocs(qExp);
+    if (!snap.empty){
+      await Promise.all(snap.docs.map(d => deleteDoc(doc(db,'backlog', d.id))));
+    }
+  }catch(err){
+    console.error('cleanupExpiredBacklog error', err);
+  }
+}
+
 
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 function fmtDate(d){ return d.toLocaleDateString('nl-BE',{weekday:'short', day:'2-digit', month:'2-digit'}); }
@@ -526,7 +545,15 @@ document.addEventListener("click", (ev) => {
       const li = win.document.createElement('div'); li.className='item';
 const typeLabel = (p.type||'').toUpperCase();
 const symb = p.symbol || sym(p.type);
-li.textContent = `${symb} [${typeLabel}] ${d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})} • ${p.title} – ${p.subjectName} [${p.durationHours}u]`;
+
+// deadline: neem uit plan; zo niet, pak het bijhorende backlog-item (itemId)
+const dueSrc = p.dueDate || backlog.find(b => b.id === p.itemId)?.dueDate || null;
+const dueStr = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
+
+li.textContent =
+  `${symb} [${typeLabel}] ${d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})} • `
++ `${p.title} – ${p.subjectName} [${p.durationHours}u] • tegen ${dueStr}`;
+
       root.appendChild(li);
     });
 
@@ -551,6 +578,10 @@ li.textContent = `${symb} [${typeLabel}] ${d.toLocaleTimeString('nl-BE',{hour:'2
     authDiv && (authDiv.style.display='none');
     appDiv  && (appDiv.style.display='block');
     bindStreams();
+    cleanupExpiredBacklog();                // meteen één keer
+if (window._backlogCleanupTimer) clearInterval(window._backlogCleanupTimer);
+window._backlogCleanupTimer = setInterval(cleanupExpiredBacklog, 6*60*60*1000); // elke 6 uur
+
     renderWeek();
   });
 
