@@ -28,11 +28,14 @@ function toDate(maybeTs){
 }
 function startOfWeek(d){
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const day = (x.getDay()+6)%7; // ma=0
-  x.setDate(x.getDate()-day);
-  x.setHours(0,0,0,0);
+  // JS: getDay() => 0=zo, 1=ma, …, 6=za
+  // We willen: 0=za, 1=zo, …, 6=vr  → offset = (getDay()+1) % 7
+  const day = (x.getDay() + 1) % 7;
+  x.setDate(x.getDate() - day);
+  x.setHours(0, 0, 0, 0);
   return x;
 }
+
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 function fmtDate(d){ return d.toLocaleDateString('nl-BE',{weekday:'short', day:'2-digit', month:'2-digit'}); }
 function toISODate(d){ return d.toISOString().slice(0,10); }
