@@ -74,6 +74,8 @@
             <div style="display:flex; gap:.5rem;">
               <button id="manageSubjectsBtn" class="ghost">Vakken beheren</button>
               <button id="newBacklogBtn" class="primary">＋ NIEUW</button>
+              <button id="filterBtn" class="ghost">Filter</button>
+
             </div>
           </div>
           <div id="backlogGroups" class="backlog-groups" aria-live="polite"></div>
@@ -265,6 +267,45 @@
   <div class="modal-footer">
     <button id="plan-note-save" class="primary">💾 Bewaar</button>
     <button class="ghost" data-modal-close="modal-plan-note">Annuleren</button>
+  </div>
+</div>
+
+<div id="modal-filter" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-filter-title" hidden>
+  <div class="modal-header">
+    <h3 id="modal-filter-title">Backlog filter</h3>
+    <button class="modal-close" data-modal-close="modal-filter" aria-label="Sluiten">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <label for="f-text">Zoektekst (titel/onderwerp)</label>
+      <input id="f-text" placeholder="bv. G3, hoofdstuk, …" />
+
+      <label for="f-subject">Vak</label>
+      <select id="f-subject">
+        <option value="">(alle vakken)</option>
+      </select>
+
+      <span id="f-type-label" class="form-label">Type</span>
+      <input id="f-type" type="hidden" value="" />
+      <div class="type-group" role="group" aria-labelledby="f-type-label">
+        <button type="button" class="type-btn" data-type="">Alle</button>
+        <button type="button" class="type-btn" data-type="taak">📝 Taak</button>
+        <button type="button" class="type-btn" data-type="toets">🧪 Toets</button>
+        <button type="button" class="type-btn" data-type="andere">📚 Andere</button>
+      </div>
+
+      <label for="f-from">Deadline vanaf</label>
+      <input id="f-from" type="date" />
+      <label for="f-to">Deadline t/m</label>
+      <input id="f-to" type="date" />
+    </div>
+  </div>
+  <div class="modal-footer" style="justify-content:space-between;">
+    <button id="f-clear" class="ghost">Filter wissen</button>
+    <div>
+      <button class="ghost" data-modal-close="modal-filter">Sluiten</button>
+      <button id="f-apply" class="primary">Toepassen</button>
+    </div>
   </div>
 </div>
 

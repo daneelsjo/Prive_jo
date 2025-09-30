@@ -353,3 +353,8 @@ body.resizing-event * {
   outline: 2px solid var(--primary, #2196f3);
   outline-offset: -2px;
 }
+#filterBtn.is-active {
+  background: var(--primary, #2196f3);
+  color: white;
+  border-color: var(--primary, #2196f3);
+}

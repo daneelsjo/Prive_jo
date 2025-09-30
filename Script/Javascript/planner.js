@@ -20,11 +20,17 @@ const div  = (cls)=>{ const el=document.createElement("div"); if(cls) el.classNa
 const esc  = (s="")=> s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 const safeParse = (s)=> { try{ return JSON.parse(s); } catch{ return null; } };
 
+
 // ==== VIEW STATE & HELPERS (bovenaan zetten) ====
 let viewMode = 'week';          // 'week' | 'day'
 let dayDate  = new Date();      // actieve dag in day-view
 let weekTitleEl = null;
 let calRootEl   = null;
+let backlogFilter = { text:'', subjectId:'', type:'', from:null, to:null };
+
+
+function addMinutes(d, m){ const x=new Date(d); x.setMinutes(x.getMinutes()+m); return x; }
+function fmtTime(d){ return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
 
 
 function startOfDay(d){
@@ -178,13 +184,18 @@ function placeEvent(p){
   // --- Tooltip ---
   block.addEventListener('mouseenter', (ev)=>{
     const tip = document.getElementById('evt-tip'); if(!tip) return;
+
     const dueSrc = p.dueDate || backlog.find(b=> b.id===p.itemId)?.dueDate || null;
-    const due    = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
-    let tipHtml = `<div class="t">${esc(p.title||'')}</div>
-      <div class="m">${esc(p.subjectName||'')} • ${p.type} • ${p.durationHours}u</div>
-      <div class="m">Tegen: ${due}</div>`;
-    if (p.note && String(p.note).trim()) tipHtml += `<div class="m">Opmerking: ${esc(p.note)}</div>`;
-    tip.innerHTML = tipHtml;
+const due    = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
+const end    = addMinutes(start, Math.round((p.durationHours||1)*60));
+let tipHtml = `<div class="t">${esc(p.title||'')}</div>
+  <div class="m">${esc(p.subjectName||'')} • ${p.type}</div>
+  <div class="m">${fmtTime(start)}–${fmtTime(end)}</div>
+  <div class="m">Tegen: ${due}</div>`;
+if (p.note && String(p.note).trim()) tipHtml += `<div class="m">Opmerking: ${esc(p.note)}</div>`;
+tip.innerHTML = tipHtml;
+
+   
     tip.style.display = 'block';
     tip.style.left = (ev.clientX+12)+'px';
     tip.style.top  = (ev.clientY+12)+'px';
@@ -804,6 +815,67 @@ const PALETTE = [
   bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderView(); if(currentUser) refreshPlans(); });
   bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderView(); if(currentUser) refreshPlans(); });
 
+  // Filter-klik: open modal + vul vakkenlijst
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#filterBtn')) return;
+  // subjects in select
+  const sel = document.getElementById('f-subject');
+  if (sel){
+    const v = backlogFilter.subjectId || '';
+    sel.innerHTML = `<option value="">(alle vakken)</option>` + subjects.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    sel.value = v;
+  }
+  // overige velden
+  const fTxt = document.getElementById('f-text'); if (fTxt) fTxt.value = backlogFilter.text || '';
+  const fType= document.getElementById('f-type'); if (fType) fType.value = backlogFilter.type || '';
+  document.querySelectorAll('#modal-filter .type-btn').forEach(b=>{
+    b.classList.toggle('is-active', b.dataset.type === (backlogFilter.type||''));
+  });
+  const fFrom= document.getElementById('f-from'); fFrom && (fFrom.value = backlogFilter.from ? toISODate(backlogFilter.from) : '');
+  const fTo  = document.getElementById('f-to');   fTo   && (fTo.value   = backlogFilter.to   ? toISODate(backlogFilter.to)   : '');
+
+  window.Modal?.open ? Modal.open('modal-filter') : document.getElementById('modal-filter')?.removeAttribute('hidden');
+});
+
+// filter type-knoppen
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('#modal-filter .type-btn'); if(!btn) return;
+  const group = btn.closest('.type-group');
+  group.querySelectorAll('.type-btn').forEach(b=> b.classList.remove('is-active'));
+  btn.classList.add('is-active');
+  const hidden = document.getElementById('f-type'); if (hidden) hidden.value = btn.dataset.type || '';
+});
+
+// toepassen
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#f-apply')) return;
+  backlogFilter.text = (document.getElementById('f-text')?.value || '').trim().toLowerCase();
+  backlogFilter.subjectId = document.getElementById('f-subject')?.value || '';
+  backlogFilter.type = document.getElementById('f-type')?.value || '';
+  const from = document.getElementById('f-from')?.value || '';
+  const to   = document.getElementById('f-to')?.value   || '';
+  backlogFilter.from = from ? new Date(from) : null;
+  backlogFilter.to   = to   ? new Date(to)   : null;
+
+  // knopkleur
+  const active = !!(backlogFilter.text || backlogFilter.subjectId || backlogFilter.type || backlogFilter.from || backlogFilter.to);
+  document.getElementById('filterBtn')?.classList.toggle('is-active', active);
+
+  // sluiten + render
+  window.Modal?.close ? Modal.close('modal-filter') : document.getElementById('modal-filter')?.setAttribute('hidden','');
+  renderBacklog();
+});
+
+// wissen
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#f-clear')) return;
+  backlogFilter = { text:'', subjectId:'', type:'', from:null, to:null };
+  document.getElementById('filterBtn')?.classList.remove('is-active');
+  window.Modal?.close ? Modal.close('modal-filter') : document.getElementById('modal-filter')?.setAttribute('hidden','');
+  renderBacklog();
+});
+
+
   document.addEventListener('keydown', async (e)=>{
   if(e.key !== 'Delete' || !selectedPlanId) return;
   if(!currentUser){ alert('Log eerst in.'); return; }
@@ -1128,17 +1200,17 @@ document.addEventListener("click", (ev) => {
         root.appendChild(h);
       }
       const li = win.document.createElement('div'); li.className='item';
-const typeLabel = (p.type||'').toUpperCase();
 const symb = p.symbol || sym(p.type);
-
-// deadline: neem uit plan; zo niet, pak het bijhorende backlog-item (itemId)
+const typeLabel = (p.type||'').toUpperCase();
+const start = toDate(p.start);
+const end   = addMinutes(start, Math.round((p.durationHours||1)*60));
 const dueSrc = p.dueDate || backlog.find(b => b.id === p.itemId)?.dueDate || null;
 const dueStr = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
-const noteStr = p.note && String(p.note).trim() ? ` • opm: ${p.note}` : '';   // ← NIEUW
+const noteStr = p.note && String(p.note).trim() ? ` • opm: ${p.note}` : '';
 
 li.textContent =
-  `${symb} [${typeLabel}] ${d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})} • `
-+ `${p.title} – ${p.subjectName} [${p.durationHours}u] • tegen ${dueStr}${noteStr}`;
+  `${symb} [${typeLabel}] ${fmtTime(start)}–${fmtTime(end)} • `
++ `${p.title} – ${p.subjectName} • tegen ${dueStr}${noteStr}`;
 
 
       root.appendChild(li);
@@ -1253,6 +1325,9 @@ function renderSubjectsManager(){
   const palRoot = document.getElementById("sub-palette");
   const previewDot  = document.querySelector("#sub-color-preview .dot");
   const previewText = document.getElementById("sub-color-text");
+  const items = applyBacklogFilter(backlog.filter(b=>!b.done)); // indien je done verbergt
+// … groepeer/render met 'items' i.p.v. 'backlog'
+
 
   if (palRoot && previewDot && previewText){
     palRoot.innerHTML = "";
@@ -1275,6 +1350,27 @@ function renderSubjectsManager(){
       palRoot.appendChild(b);
     });
   }
+}
+
+function applyBacklogFilter(list){
+  return list.filter(it=>{
+    // tekst
+    if (backlogFilter.text){
+      const t = `${it.title||''} ${it.subjectName||''}`.toLowerCase();
+      if (!t.includes(backlogFilter.text)) return false;
+    }
+    // vak
+    if (backlogFilter.subjectId && it.subjectId !== backlogFilter.subjectId) return false;
+    // type
+    if (backlogFilter.type && it.type !== backlogFilter.type) return false;
+    // deadlines
+    if (backlogFilter.from && (!it.dueDate || toDate(it.dueDate) < startOfDay(backlogFilter.from))) return false;
+    if (backlogFilter.to){
+      const endDay = new Date(startOfDay(backlogFilter.to)); endDay.setDate(endDay.getDate()+1); // t/m
+      if (!it.dueDate || toDate(it.dueDate) >= endDay) return false;
+    }
+    return true;
+  });
 }
 
 
