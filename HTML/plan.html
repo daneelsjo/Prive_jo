@@ -31,39 +31,39 @@
   <!-- AUTH -->
   <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
 
-  <!-- gedeelde header -->
-  <div data-include="../partials/header.html"></div>
-
   <!-- APP -->
   <div id="app" style="display:none;">
     <div class="page">
       <main class="content">
         <!-- Weekkop met navigatie en print -->
-        <section class="card headbar">
-          <div class="week-nav">
-            <button id="prevWeek" class="ghost">◀ Vorige periode</button>
-            <h2 id="weekTitle">Week</h2>
-            <button id="nextWeek" class="ghost">Volgende  periode ▶</button>
-          </div>
-          <div class="printbar">
-            <h4>Print lijst geplande items van</h4>
-            <input id="printStart" type="date" />
-            <span>—</span>
-            <input id="printEnd" type="date" />
-            <button id="printList" class="primary">🖨️</button>
+       <div class="planner-toolbar card">
+  <div class="tb-row tb-title">
+    <button id="prevWeek" class="btn ghost">◀ Vorige periode</button>
+    <h2 id="weekTitle">Week zaterdag 27/09 – vrijdag 03/10</h2>
+    <button id="nextWeek" class="btn ghost">Volgende periode ▶</button>
+  </div>
 
-            <div class="view-switch" style="display:flex;gap:.5rem;align-items:center;">
+  <div class="tb-row tb-print">
+    <div class="tb-label">Print lijst geplande items van</div>
+    <div class="tb-inputs">
+      <input id="printFrom" type="text" placeholder="dd / mm / jjjj">
+      <span class="sep">—</span>
+      <input id="printTo"   type="text" placeholder="dd / mm / jjjj">
+      <button id="printList" class="btn primary">
+        <span class="ico">🖨</span> Afdruk (lijst)
+      </button>
+    </div>
+  </div>
 
-              <br>
-              <h4>Weergave:</h4>
-  <button id="viewWeek" class="ghost is-active">Week</button>
-  <button id="viewDay"  class="ghost">Dag</button>
-  <input id="dayPicker" type="date" style="display:none;" />
+  <div class="tb-row tb-view">
+    <div class="tb-label">Weergave:</div>
+    <div class="segmented">
+      <button id="viewWeek" class="seg is-active">Week</button>
+      <button id="viewDay"  class="seg">Dag</button>
+    </div>
+  </div>
 </div>
 
-
-          </div>
-        </section>
 
         <!-- Kalender -->
         <div class="card calender-card">

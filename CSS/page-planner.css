@@ -352,3 +352,120 @@ body.resizing-event * {
 .muted {
   opacity: 0.7;
 }
+
+/* ===== Planner header / toolbar ===== */
+.planner-toolbar{
+  margin-bottom: 1rem;
+  padding: .9rem 1rem;
+}
+
+.planner-toolbar .tb-row{
+  display: grid;
+  align-items: center;
+  gap: .75rem 1rem;
+  margin-bottom: .6rem;
+}
+.planner-toolbar .tb-row:last-child{ margin-bottom: 0; }
+
+/* Titelrij: 3 kolommen met titel gecentreerd */
+.planner-toolbar .tb-title{
+  grid-template-columns: auto 1fr auto;
+}
+.planner-toolbar .tb-title h2{
+  margin: 0;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+/* Print rij: label links, inputs + knop rechts */
+.planner-toolbar .tb-print{
+  grid-template-columns: auto 1fr;
+}
+
+/* View rij: label + segmenten */
+.planner-toolbar .tb-view{
+  grid-template-columns: auto 1fr;
+}
+
+/* Labels */
+.planner-toolbar .tb-label{
+  opacity: .85;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Inputs en scheidingstreepje */
+.planner-toolbar .tb-inputs{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.planner-toolbar input[type="text"],
+.planner-toolbar input[type="date"]{
+  height: 38px;
+  padding: 0 .6rem;
+  border-radius: .55rem;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.04);
+  color: inherit;
+  min-width: 11rem;
+}
+.planner-toolbar .sep{
+  opacity: .55;
+  user-select: none;
+}
+
+/* Buttons */
+.btn{
+  height: 38px;
+  padding: 0 .8rem;
+  border-radius: .6rem;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.06);
+  color: inherit;
+  cursor: pointer;
+}
+.btn.ghost:hover{ background: rgba(255,255,255,.1); }
+.btn.primary{
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.btn.primary .ico{ margin-right: .4rem; }
+
+/* Segmented toggle */
+.segmented{
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: .6rem;
+  overflow: hidden;
+  width: max-content;
+}
+.segmented .seg{
+  padding: .45rem .9rem;
+  background: rgba(255,255,255,.04);
+  border: 0;
+  cursor: pointer;
+}
+.segmented .seg + .seg{ border-left: 1px solid var(--border); }
+.segmented .seg.is-active{
+  background: var(--primary);
+  color: #fff;
+}
+
+/* Responsief: stapel alles netjes onder elkaar */
+@media (max-width: 900px){
+  .planner-toolbar .tb-title{
+    grid-template-columns: 1fr;
+    row-gap: .5rem;
+  }
+  .planner-toolbar .tb-title h2{ text-align: left; }
+  .planner-toolbar .tb-title button{ justify-self: start; }
+  .planner-toolbar .tb-print,
+  .planner-toolbar .tb-view{
+    grid-template-columns: 1fr;
+  }
+  .planner-toolbar .tb-label{ margin-bottom: .25rem; }
+}
