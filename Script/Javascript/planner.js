@@ -31,8 +31,6 @@ function addMinutes(d, m){ const x = new Date(d); x.setMinutes(x.getMinutes()+m)
 function fmtTime(d){ return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 
 
-function addMinutes(d, m){ const x=new Date(d); x.setMinutes(x.getMinutes()+m); return x; }
-function fmtTime(d){ return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
 
 
 function startOfDay(d){
