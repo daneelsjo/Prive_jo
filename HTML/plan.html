@@ -244,22 +244,22 @@
     </div>
   </div>
 
-  <!-- Opmerking bij gepland blok -->
-  <div id="modal-note" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-note-title" hidden>
-    <div class="modal-header">
-      <h3 id="modal-note-title">Opmerking</h3>
-      <button class="modal-close" data-modal-close="modal-note" aria-label="Sluiten">✕</button>
-    </div>
-    <div class="modal-body">
-      <input id="note-plan-id" type="hidden" />
-      <label for="note-text" class="form-label">Opmerking voor dit gepland moment</label>
-      <textarea id="note-text" rows="5" placeholder="bv. vandaag samenvatting bekijken…"></textarea>
-    </div>
-    <div class="modal-footer">
-      <button id="note-save" class="primary">💾 Bewaar</button>
-      <button class="ghost" data-modal-close="modal-note">Annuleren</button>
-    </div>
+ <!-- Opmerking bij gepland blok (unieke IDs, geen conflict met notes) -->
+<div id="modal-plan-note" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-plan-note-title" hidden>
+  <div class="modal-header">
+    <h3 id="modal-plan-note-title">Opmerking</h3>
+    <button class="modal-close" data-modal-close="modal-plan-note" aria-label="Sluiten">✕</button>
   </div>
+  <div class="modal-body">
+    <input id="plan-note-id" type="hidden" />
+    <label for="plan-note-text" class="form-label">Opmerking voor dit gepland moment</label>
+    <textarea id="plan-note-text" rows="5" placeholder="bv. vandaag samenvatting bekijken…"></textarea>
+  </div>
+  <div class="modal-footer">
+    <button id="plan-note-save" class="primary">💾 Bewaar</button>
+    <button class="ghost" data-modal-close="modal-plan-note">Annuleren</button>
+  </div>
+</div>
 
 
 

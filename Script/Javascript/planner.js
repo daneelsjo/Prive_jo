@@ -154,10 +154,10 @@ document.addEventListener("focusin", (ev)=>{
 });
 // Opmerking bewaren
 document.addEventListener('click', async (e)=>{
-  if(!e.target.closest('#note-save')) return;
+  if(!e.target.closest('#plan-note-save')) return;
   if(!currentUser){ alert('Log eerst in.'); return; }
-  const id = document.getElementById('note-plan-id')?.value || '';
-  const txt = document.getElementById('note-text')?.value || '';
+  const id  = document.getElementById('plan-note-id')?.value || '';
+  const txt = document.getElementById('plan-note-text')?.value || '';
   if(!id) return;
   try{
     await updateDoc(doc(db,'plans', id), { note: txt.trim() || null });
@@ -165,8 +165,9 @@ document.addEventListener('click', async (e)=>{
     console.error('note save error', err);
     alert('Kon opmerking niet bewaren: ' + (err?.message||err));
   }
-  window.Modal?.close ? Modal.close('modal-note') : document.getElementById('modal-note')?.setAttribute('hidden','');
+  window.Modal?.close ? Modal.close('modal-plan-note') : document.getElementById('modal-plan-note')?.setAttribute('hidden','');
 });
+
 
 
 
@@ -1027,14 +1028,15 @@ block.addEventListener('click', async (e)=>{
   // --- Opmerking (dblclick) + indicator ---
   if (p.note && String(p.note).trim()) block.classList.add('has-note');
   block.addEventListener('dblclick', ()=>{
-    if(!currentUser){ alert('Log eerst in.'); return; }
-    const idEl = document.getElementById('note-plan-id');
-    const ta   = document.getElementById('note-text');
-    if (idEl) idEl.value = p.id;
-    if (ta)   ta.value = p.note ? String(p.note) : '';
-    if (window.Modal?.open) Modal.open('modal-note');
-    else document.getElementById('modal-note')?.removeAttribute('hidden');
-  });
+  if(!currentUser){ alert('Log eerst in.'); return; }
+  const idEl = document.getElementById('plan-note-id');
+  const ta   = document.getElementById('plan-note-text');
+  if (idEl) idEl.value = p.id;
+  if (ta)   ta.value = p.note ? String(p.note) : '';
+  if (window.Modal?.open) Modal.open('modal-plan-note');
+  else document.getElementById('modal-plan-note')?.removeAttribute('hidden');
+});
+
 
   col.appendChild(block);
 }
