@@ -23,6 +23,9 @@ const safeParse = (s)=> { try{ return JSON.parse(s); } catch{ return null; } };
 // ==== VIEW STATE & HELPERS (bovenaan zetten) ====
 let viewMode = 'week';          // 'week' | 'day'
 let dayDate  = new Date();      // actieve dag in day-view
+let weekTitleEl = null;
+let calRootEl   = null;
+
 
 function startOfDay(d){
   const x = new Date(d);
@@ -42,21 +45,21 @@ function getPeriodRange(){
   return { start: s, end: e, days: 7 };
 }
 
-// Belangrijk: function declaration (gehoist), GEEN const renderView = () => {…}
 function renderView(){
-  const { start, days } = getPeriodRange();
+  const { start } = getPeriodRange();
 
   if (viewMode === 'day') {
     const t = start.toLocaleDateString('nl-BE', { weekday:'long', day:'2-digit', month:'2-digit' });
-    weekTitle && (weekTitle.textContent = `Dag – ${t}`);
+    if (weekTitleEl) weekTitleEl.textContent = `Dag – ${t}`;
   } else {
     const t1 = start.toLocaleDateString('nl-BE', { weekday:'long', day:'2-digit', month:'2-digit' });
     const t2 = addDays(start,6).toLocaleDateString('nl-BE', { weekday:'long', day:'2-digit', month:'2-digit' });
-    weekTitle && (weekTitle.textContent = `Week ${t1} – ${t2}`);
+    if (weekTitleEl) weekTitleEl.textContent = `Week ${t1} – ${t2}`;
   }
 
-  renderCalendar(); // gebruikt getPeriodRange() intern voor # kolommen
+  renderCalendar();
 }
+
 
 
 function toDate(maybeTs){
@@ -181,8 +184,8 @@ let selectedPlanId = null;
 window.addEventListener("DOMContentLoaded", () => {
   const authDiv   = document.getElementById("auth");
   const appDiv    = document.getElementById("app");
-  const weekTitle = document.getElementById("weekTitle");
-  const calRoot   = document.getElementById("calendar");
+weekTitleEl = document.getElementById("weekTitle");
+calRootEl   = document.getElementById("calendar");
   const blSubjects= document.getElementById("bl-subjects");
   // Subject input: altijd volledige lijst tonen bij focus/klik
 document.addEventListener("focusin", (ev)=>{
@@ -917,32 +920,37 @@ function renderBacklogItem(it){
 }
 
 function renderCalendar(){
-  if(!calRoot) return;
+  if(!calRootEl) return;
 
-  calRoot.innerHTML = '';
+  const { start: periodStart, days: dayCount } = getPeriodRange();
+
+  calRootEl.innerHTML = '';
+
+  // Hoek + dagkoppen
   const headTime = div('col-head'); headTime.textContent = '';
-  calRoot.appendChild(headTime);
-  for(let d=0; d<7; d++){
-    const day = addDays(weekStart, d);
+  calRootEl.appendChild(headTime);
+  for(let d=0; d<dayCount; d++){
+    const day = addDays(periodStart, d);
     const h = div('col-head');
     h.textContent = day.toLocaleDateString('nl-BE',{weekday:'long', day:'2-digit', month:'2-digit'});
-    calRoot.appendChild(h);
+    calRootEl.appendChild(h);
   }
 
   const hStart = 7, hEnd = 22;
 
-  // tijdkolom (één label per uur, maar twee slots hoog)
+  // tijdkolom
   const tc = div('time-col');
   for(let h=hStart; h<hEnd; h++){
     const slot = div('time-slot'); slot.textContent = `${pad(h)}:00`; tc.appendChild(slot);
   }
-  calRoot.appendChild(tc);
+  calRootEl.appendChild(tc);
 
-  for(let d=0; d<7; d++){
+  // dagkolommen
+  for(let d=0; d<dayCount; d++){
     const col = div('day-col');
     col.dataset.day = String(d);
 
-    // Fallback: droppen op kolom → 07:00
+    // Fallback drop
     col.ondragover = (e)=>{ e.preventDefault(); };
     col.ondrop = async (e)=>{
       e.preventDefault();
@@ -952,32 +960,20 @@ function renderCalendar(){
 
       if(data.kind==='backlog'){
         const item = backlog.find(x=>x.id===data.id); if(!item) return;
-        const start = addDays(weekStart, d); start.setHours(hStart,0,0,0);
-        try{
-          await addDoc(collection(db,'plans'),{
-            itemId:item.id,
-            title:item.title,
-            type:item.type,
-            subjectId:item.subjectId,
-            subjectName:item.subjectName,
-            color:item.color,
-            symbol:item.symbol,
-            start,
-            durationHours:item.durationHours||1,
-            dueDate: item.dueDate || null,
-            note: null,
-            uid:currentUser.uid,
-            createdAt:new Date()
-          });
-        }catch(err){ console.error('plan add error (col drop):', err); alert('Kon niet plannen: '+(err?.message||err)); }
+        const start = addDays(periodStart, d); start.setHours(hStart,0,0,0);
+        await addDoc(collection(db,'plans'),{
+          itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
+          color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
+          uid:currentUser.uid,createdAt:new Date()
+        }).catch(err=>{ console.error(err); alert('Kon niet plannen: '+(err?.message||err)); });
       }else if(data.kind==='planmove'){
-        const start = addDays(weekStart, d); start.setHours(hStart,0,0,0);
-        try{ await updateDoc(doc(db,'plans', data.id), { start }); }
-        catch(err){ console.error('plan move error (col):', err); alert('Kon niet verplaatsen: '+(err?.message||err)); }
+        const start = addDays(periodStart, d); start.setHours(hStart,0,0,0);
+        await updateDoc(doc(db,'plans', data.id), { start })
+          .catch(err=>{ console.error(err); alert('Kon niet verplaatsen: '+(err?.message||err)); });
       }
     };
 
-    // 30-min dropzones
+    // 30-min slots
     for(let h=hStart; h<hEnd; h++){
       for(let m of [0,30]){
         const z = div('dropzone');
@@ -986,33 +982,22 @@ function renderCalendar(){
         z.ondragover = (e)=>{ e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
         z.ondragleave = ()=> z.removeAttribute('aria-dropeffect');
         z.ondrop = async (e)=>{
-          e.preventDefault();
-          e.stopPropagation();                  // voorkom dubbele add
+          e.preventDefault(); e.stopPropagation();
           z.removeAttribute('aria-dropeffect');
           if(!currentUser){ alert('Log in om te plannen.'); return; }
           const data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
           if(!data) return;
 
-          const start = addDays(weekStart, d);
+          const start = addDays(periodStart, d);
           start.setHours(parseInt(z.dataset.hour,10), parseInt(z.dataset.min,10), 0, 0);
 
           try{
             if(data.kind==='backlog'){
               const item = backlog.find(x=>x.id===data.id); if(!item) return;
               await addDoc(collection(db,'plans'),{
-                itemId:item.id,
-                title:item.title,
-                type:item.type,
-                subjectId:item.subjectId,
-                subjectName:item.subjectName,
-                color:item.color,
-                symbol:item.symbol,
-                start,
-                durationHours:item.durationHours||1,
-                dueDate: item.dueDate || null,
-                note: null,
-                uid:currentUser.uid,
-                createdAt:new Date()
+                itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
+                color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
+                uid:currentUser.uid,createdAt:new Date()
               });
             }else if(data.kind==='planmove'){
               await updateDoc(doc(db,'plans', data.id), { start });
@@ -1025,24 +1010,24 @@ function renderCalendar(){
         col.appendChild(z);
       }
     }
-    calRoot.appendChild(col);
+
+    calRootEl.appendChild(col);
   }
 
-  // events
+  // events tekenen
   if (Array.isArray(plans) && plans.length){
     plans.forEach(p=> placeEvent(p));
   }
 }
 
+
 function placeEvent(p){
-  const start = toDate(p.start);
- const { start: periodStart, days: dayCount } = getPeriodRange();
-const d = clamp(Math.floor((start - periodStart)/86400000), 0, dayCount-1);
+    const start = toDate(p.start);
+  const { start: periodStart, days: dayCount } = getPeriodRange();
+  const d = clamp(Math.floor((start - periodStart)/86400000), 0, dayCount-1);
 
-
-  // raster
   const hStart = 7, hEnd = 22;
-  const totalRows = (hEnd - hStart) * 2;                 // 30-min slots
+  const totalRows = (hEnd - hStart) * 2;
   const slotH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) || 28;
 
   const hour = start.getHours();
@@ -1050,9 +1035,8 @@ const d = clamp(Math.floor((start - periodStart)/86400000), 0, dayCount-1);
   const rowsFromTop = ((hour - hStart) * 2) + (mins >= 30 ? 1 : 0);
   const heightRows  = Math.max(1, Math.round((p.durationHours||1) * 2));
 
-  const cols = calRoot.querySelectorAll('.day-col');
+  const cols = calRootEl.querySelectorAll('.day-col');
   const col = cols[d]; if(!col) return;
-
   const block = div('event');
   const bg = p.color || '#2196F3';
   block.style.background = bg;
@@ -1213,9 +1197,10 @@ if (subjInputVisible){
 
   }
 
- function refreshPlans(){
+function refreshPlans(){
   const { start, end } = getPeriodRange();
-  onSnapshot(
+  if (window._plansUnsub) { window._plansUnsub(); window._plansUnsub = null; }
+  window._plansUnsub = onSnapshot(
     query(
       collection(db,'plans'),
       where('uid','==', currentUser.uid),
@@ -1229,5 +1214,6 @@ if (subjInputVisible){
     (err)=> console.error("plans stream error", err)
   );
 }
+
 
 });
