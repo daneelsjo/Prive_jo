@@ -1,88 +1,46 @@
+/* ==========================================================================
+   To-Do & Planner – Page CSS (clean)
+   ========================================================================== */
+
+/* ---------- Design tokens ---------- */
 :root {
-  --cal-h-start: 7;
-  --cal-h-end: 22;
-}
-.event .meta {
-  font-size: 0.75rem;
-  opacity: 0.85;
+  --slot-h: 28px; /* hoogte per 30 min */
+  --time-col-w: 80px; /* breedte tijdkolom */
+  --gap: 1.25rem;
+
+  /* basis kleuren/afgeleiden – verwacht dat je thema al var(--card/--border) zet */
+  --card: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.12);
+  --primary: #2196f3;
 }
 
-/* Backlog */
-.backlog .backlog-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* ---------- Page layout 75/25 ---------- */
+.planner-page {
+  width: min(1500px, 96vw);
+  margin-inline: auto; /* gelijke buitenmarges links/rechts */
 }
-.backlog-groups {
+
+.planner-page .page {
   display: grid;
-  gap: 0.6rem;
-}
-.bl-group {
-  border: 1px solid var(--border);
-  border-radius: 0.8rem;
-  overflow: hidden;
-}
-.bl-group .bl-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.6rem;
-  font-weight: 800;
-}
-.bl-group .bl-list {
-  padding: 0.4rem 0.5rem;
-  display: grid;
-  gap: 0.4rem;
-}
-.bl-item {
-  display: grid;
-  grid-template-columns: 24px 1fr auto;
-  gap: 0.45rem;
-  align-items: center;
-  padding: 0.35rem 0.45rem;
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  background: var(--card);
-}
-.bl-item[draggable="true"] {
-  cursor: grab;
-}
-.bl-sym {
-  font-size: 1rem;
-  text-align: center;
-}
-.bl-main {
-  line-height: 1.2;
-}
-.bl-main .t {
-  font-weight: 700;
-}
-.bl-main .sub {
-  font-size: 0.8rem;
-  opacity: 0.8;
-}
-.bl-actions {
-  display: flex;
-  gap: 0.3rem;
+  grid-template-columns: 3fr 1fr; /* 75% / 25% */
+  column-gap: var(--gap);
+  align-items: start;
 }
 
-/* Done strikethrough */
-.bl-item.done .bl-main .t {
-  text-decoration: line-through;
-  opacity: 0.7;
+.leftcol {
+  min-width: 0;
+} /* voorkom overflow in grid child */
+.rightcol {
+  min-width: 320px;
 }
 
-/* Small helpers */
-.badge {
-  display: inline-block;
-  padding: 0.05rem 0.4rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
-  font-size: 0.75rem;
-}
+.toprow,
+.header-card,
+.weekbar {
+  grid-column: 1 / -1;
+} /* header over beide kolommen */
 
-/* Responsive */
-@media (max-width: 1200px) {
+@media (max-width: 1100px) {
   .planner-page .page {
     grid-template-columns: 1fr;
   }
@@ -91,67 +49,36 @@
   }
 }
 
-/* Type buttons */
-.type-group {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.type-btn {
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
+/* ---------- Cards / util ---------- */
+.card {
   background: var(--card);
-  cursor: pointer;
-}
-.type-btn:hover {
-  outline: 2px solid #0002;
-  outline-offset: -2px;
-}
-.type-btn.is-active {
-  outline: 2px solid var(--primary, #2196f3);
-  border-color: var(--primary, #2196f3);
-}
-/* ====== Paginalay-out ====== */
-.planner-page .page {
-  display: grid;
-  grid-template-columns: minmax(60vw, 65fr) minmax(320px, 35fr);
-  column-gap: 1.2rem;
-}
-.rightcol {
-  min-width: 320px;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
 }
 
-/* ====== Kalender lay-out (dagen HORIZONTAAL) ====== */
-:root {
-  --slot-h: 40px; /* hoogte per uur */
-  --time-col-w: 80px; /* breedte tijdkolom */
-}
+/* ---------- Kalender: raster & koppen ---------- */
 .calendar {
   display: grid;
-  grid-template-columns: var(--time-col-w) repeat(7, 1fr);
+  grid-template-columns: var(--time-col-w) repeat(7, 1fr); /* dag-aantal wordt door JS ingesteld, maar raster is gelijk */
   gap: 0.25rem;
   user-select: none;
 }
 
-/* Koppen (1e rij) */
 .col-head {
   font-weight: 800;
-  padding: 0.4rem 0.5rem;
+  padding: 0.45rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   background: var(--card);
   text-transform: capitalize;
 }
 
-/* Tijdkolom (1e kolom, 2e rij t/m eind) */
 .time-col {
   grid-column: 1 / 2;
   display: grid;
 }
 .time-slot {
-  height: var(--slot-h);
+  height: calc(var(--slot-h) * 2); /* één label per uur, 2 rijen hoog (30m) */
   display: flex;
   align-items: flex-start;
   padding-top: 2px;
@@ -160,98 +87,15 @@
   opacity: 0.9;
 }
 
-/* Dagkolommen (kolom 2..8, 2e rij t/m eind) */
 .day-col {
-  position: relative; /* nodig voor absolute .event */
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: var(--card);
-  display: grid; /* de dropzones vormen de hoogte */
-}
-
-/* Dropzones per uur */
-.dropzone {
-  height: var(--slot-h);
-  border-top: 1px dashed transparent;
-}
-.dropzone:hover {
-  background: color-mix(in srgb, var(--primary, #2196f3) 6%, transparent);
-  border-top-color: color-mix(
-    in srgb,
-    var(--primary, #2196f3) 35%,
-    transparent
-  );
-}
-.dragging-backlog .dropzone {
-  border-top-color: color-mix(
-    in srgb,
-    var(--primary, #2196f3) 25%,
-    transparent
-  );
-}
-
-/* Gepland blok */
-.event {
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  border-radius: 0.5rem;
-  padding: 0.25rem 0.4rem;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-}
-.event .title {
-  font-weight: 800;
-  line-height: 1.1;
-}
-.event .meta {
-  font-size: 0.75rem;
-  opacity: 0.9;
-}
-
-/* Extra: tijdens slepen highlighten */
-[aria-dropeffect="move"] {
-  outline: 2px dashed
-    color-mix(in srgb, var(--primary, #2196f3) 55%, transparent);
-  outline-offset: -2px;
-}
-
-/* Optioneel: klein randje rond kalenderkaart */
-.content .card > .calendar {
-  margin-top: 0.25rem;
-}
-
-/* 30-minuten slots */
-:root {
-  --slot-h: 28px; /* hoogte per 30 min */
-  --time-col-w: 80px;
-}
-
-.calendar {
-  display: grid;
-  grid-template-columns: var(--time-col-w) repeat(7, 1fr);
-  gap: 0.25rem;
-  user-select: none;
-}
-.time-col {
-  display: grid;
-}
-.time-slot {
-  height: calc(var(--slot-h) * 2);
-  display: flex;
-  align-items: flex-start;
-  padding: 0.2rem 0.35rem;
-  font-size: 0.9rem;
-  opacity: 0.9;
-}
-
-.day-col {
-  position: relative;
+  position: relative; /* absolute events binnenin */
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   background: var(--card);
   display: grid;
 }
+
+/* Dropzones (30 min) */
 .dropzone {
   height: var(--slot-h);
   border-top: 1px dashed transparent;
@@ -261,22 +105,15 @@
   opacity: 0.9;
 }
 .dropzone:hover {
-  background: color-mix(in srgb, var(--primary, #2196f3) 6%, transparent);
-  border-top-color: color-mix(
-    in srgb,
-    var(--primary, #2196f3) 35%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  border-top-color: color-mix(in srgb, var(--primary) 35%, transparent);
 }
 .dragging-backlog .dropzone,
 .dragging-event .dropzone {
-  border-top-color: color-mix(
-    in srgb,
-    var(--primary, #2196f3) 25%,
-    transparent
-  );
+  border-top-color: color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
+/* ---------- Event blok ---------- */
 .event {
   position: absolute;
   left: 4px;
@@ -284,6 +121,7 @@
   border-radius: 0.5rem;
   padding: 0.25rem 0.4rem;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
   cursor: grab;
 }
 .event .title {
@@ -295,70 +133,13 @@
   opacity: 0.9;
 }
 
-/* tooltip */
-#evt-tip {
-  position: fixed;
-  z-index: 9999;
-  pointer-events: none;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
-  padding: 0.4rem 0.55rem;
-  font-size: 0.85rem;
-  display: none;
-}
-#evt-tip .t {
-  font-weight: 800;
-  margin-bottom: 0.15rem;
-}
-#evt-tip .m {
-  opacity: 0.85;
-}
-
-/* Resize handle onderaan elk event */
-.event .resize-h {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 2px;
-  height: 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.35);
-  cursor: ns-resize;
-  opacity: 0.9;
-}
-.event.resizing {
-  cursor: ns-resize;
-}
-body.resizing-event * {
-  user-select: none !important;
-}
-
-/* indicator dat een event een opmerking heeft */
-.event.has-note::after {
-  content: "📒";
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  font-size: 0.9rem;
-  opacity: 0.85;
-}
+/* geselecteerd */
 .event.is-selected {
   outline: 2px solid rgba(255, 255, 255, 0.55);
   outline-offset: -2px;
 }
 
-.view-switch .is-active {
-  outline: 2px solid var(--primary, #2196f3);
-  outline-offset: -2px;
-}
-#filterBtn.is-active {
-  background: var(--primary, #2196f3);
-  color: white;
-  border-color: var(--primary, #2196f3);
-}
-/* actieknoop op event */
+/* actions (delete) */
 .event .evt-actions {
   position: absolute;
   top: 4px;
@@ -381,51 +162,125 @@ body.resizing-event * {
   background: rgba(0, 0, 0, 0.38);
 }
 
-/* ====== Layout: 75% (agenda) / 25% (backlog) ====== */
-
-/* centrale breedte + gelijke buitenmarges links/rechts */
-.planner-page {
-  width: min(1500px, 96vw);
-  margin-inline: auto; /* gelijke marge links en rechts */
+/* note indicator */
+.event.has-note::after {
+  content: "📒";
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.9rem;
+  opacity: 0.85;
 }
 
-/* twee kolommen met vaste verhouding en consistente gap */
-.planner-page .page {
+/* resize handle onderaan */
+.event .resize-h {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 2px;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.35);
+  cursor: ns-resize;
+  opacity: 0.9;
+}
+.event.resizing {
+  cursor: ns-resize;
+}
+body.resizing-event * {
+  user-select: none !important;
+}
+
+/* ---------- Tooltip ---------- */
+#evt-tip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  display: none;
+}
+#evt-tip .t {
+  font-weight: 800;
+  margin-bottom: 0.15rem;
+}
+#evt-tip .m {
+  opacity: 0.85;
+}
+
+/* ---------- Backlog groepen rechts ---------- */
+.bl-group {
+  margin-bottom: 0.85rem;
+}
+.bl-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.6rem 0.6rem 0 0;
+  font-weight: 800;
+}
+.bl-list {
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 0.6rem 0.6rem;
+  background: var(--card);
+  padding: 0.5rem;
+}
+.bl-item {
   display: grid;
-  grid-template-columns: 3fr 1fr; /* 75% / 25% split */
-  column-gap: 1.25rem; /* zelfde ruimte als je cards */
-  align-items: start;
+  grid-template-columns: 24px 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  margin-bottom: 0.5rem;
+  background: rgba(0, 0, 0, 0.15);
+}
+.bl-item .bl-sym {
+  font-size: 1rem;
+  text-align: center;
+}
+.bl-item .bl-main .t {
+  font-weight: 700;
+}
+.bl-item .bl-main .sub {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+.bl-item .bl-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+.btn-icon.sm {
+  font-size: 0.9rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  cursor: pointer;
+}
+.btn-icon.sm.neutral {
+  background: rgba(76, 175, 80, 0.15);
+}
+.btn-icon.sm.danger {
+  background: rgba(244, 67, 54, 0.15);
 }
 
-/* links de agenda moet gewoon meerekken */
-.leftcol {
-  min-width: 0; /* voorkomt overflow door grid-items */
+/* ---------- Filter button active state ---------- */
+#filterBtn.is-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
 }
 
-/* rechts (backlog) vaste min-breedte */
-.rightcol {
-  min-width: 320px; /* blijft bruikbaar op smallere schermen */
-}
-
-/* topkaart (met weektitel/knoppen) netjes over beide kolommen */
-.toprow,
-.header-card,
-.weekbar {
-  grid-column: 1 / -1;
-}
-
-/* kalenderkaart laat wat ademen binnen links */
-.content .card.calendar-card {
-  /* of het element dat je kalender bevat */
-  width: 100%;
-}
-
-/* responsive: onder 1100px stapelen we onder elkaar */
-@media (max-width: 1100px) {
-  .planner-page .page {
-    grid-template-columns: 1fr;
-  }
-  .rightcol {
-    order: 2;
-  }
+/* ---------- Misc ---------- */
+.muted {
+  opacity: 0.7;
 }
