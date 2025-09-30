@@ -16,17 +16,17 @@
 
 /* ---------- Page layout 75/25 ---------- */
 .planner-page {
-  width: min(1500px, 96vw);
-  margin-inline: auto; /* gelijke buitenmarges links/rechts */
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-inline: var(--gap);
 }
-
 .planner-page .page {
   display: grid;
-  grid-template-columns: 3fr 1fr; /* 75% / 25% */
+  grid-template-columns: 3fr 1fr; /* 75 / 25 */
   column-gap: var(--gap);
   align-items: start;
 }
-
 .leftcol {
   min-width: 0;
 } /* voorkom overflow in grid child */
@@ -40,6 +40,9 @@
   grid-column: 1 / -1;
 } /* header over beide kolommen */
 
+.rightcol > .card {
+  width: 100%;
+}
 @media (max-width: 1100px) {
   .planner-page .page {
     grid-template-columns: 1fr;

@@ -193,7 +193,7 @@ onAuthStateChanged(auth, async (user) => {
 
   // ✔ Iedereen die niet de eigenaar is, blijft op plan.html
   if (user.uid !== ownerUid && !location.pathname.endsWith("/plan.html")) {
-    location.replace("/plan.html");
+    location.replace("../HTML/plan.html");
     return;
   }
 
