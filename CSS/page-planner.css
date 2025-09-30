@@ -336,10 +336,15 @@ body.resizing-event * {
 }
 
 /* indicator dat een event een opmerking heeft */
-.event.has-note::after{
+.event.has-note::after {
   content: "📒";
   position: absolute;
-  top: 4px; right: 6px;
-  font-size: .9rem;
-  opacity: .85;
+  top: 4px;
+  right: 6px;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+.event.is-selected {
+  outline: 2px solid rgba(255, 255, 255, 0.55);
+  outline-offset: -2px;
 }

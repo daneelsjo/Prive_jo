@@ -136,6 +136,8 @@ let subjects = []; // {id,name,color,uid}
 let backlog  = []; // {id,subjectId,subjectName,type,title,durationHours,dueDate,color,symbol,uid,done}
 let plans    = []; // {id,itemId,start,durationHours,uid}
 let weekStart = startOfWeek(new Date());
+let selectedPlanId = null;
+
 
 /* ───────────────────────── DOM na load ───────────────────────── */
 window.addEventListener("DOMContentLoaded", () => {
@@ -247,6 +249,16 @@ const PALETTE = [
   bind("#login-btn", "click", () => signInWithPopup(auth, provider));
   bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderWeek(); if(currentUser) refreshPlans(); });
   bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderWeek(); if(currentUser) refreshPlans(); });
+
+  document.addEventListener('keydown', async (e)=>{
+  if(e.key !== 'Delete' || !selectedPlanId) return;
+  if(!currentUser){ alert('Log eerst in.'); return; }
+  const el = document.querySelector('.event.is-selected');
+  if(!confirm('Geselecteerde planning verwijderen?')) return;
+  await deleteDoc(doc(db,'plans', selectedPlanId));
+  selectedPlanId = null;
+  if (el) el.classList.remove('is-selected');
+});
 
   // open snel-plannen
 document.addEventListener("click",(e)=>{
@@ -948,11 +960,20 @@ function placeEvent(p){
   });
 
   // --- Klik = verwijderen ---
-  block.addEventListener('click', async ()=>{
-    if(!currentUser){ alert('Log eerst in.'); return; }
-    if(!confirm('Deze planning verwijderen?')) return;
-    await deleteDoc(doc(db,'plans', p.id));
-  });
+ // --- Klik = selecteren; Alt+Klik = verwijderen ---
+block.addEventListener('click', async (e)=>{
+  // selecteer visueel
+  selectedPlanId = p.id;
+  document.querySelectorAll('.event.is-selected').forEach(el=> el.classList.remove('is-selected'));
+  block.classList.add('is-selected');
+
+  // alleen verwijderen als Alt (Option) is ingedrukt
+  if (!e.altKey) return;
+  if(!currentUser){ alert('Log eerst in.'); return; }
+  if(!confirm('Deze planning verwijderen?')) return;
+  await deleteDoc(doc(db,'plans', p.id));
+});
+
 
   // --- Drag to move ---
   block.setAttribute('draggable', 'true');
@@ -1017,6 +1038,8 @@ function placeEvent(p){
 
   col.appendChild(block);
 }
+
+
 
 
   /* ───────────────────── Firestore streams ───────────────────── */
