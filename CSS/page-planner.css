@@ -334,3 +334,12 @@
 body.resizing-event * {
   user-select: none !important;
 }
+
+/* indicator dat een event een opmerking heeft */
+.event.has-note::after{
+  content: "📒";
+  position: absolute;
+  top: 4px; right: 6px;
+  font-size: .9rem;
+  opacity: .85;
+}

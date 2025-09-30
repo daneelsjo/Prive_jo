@@ -150,6 +150,23 @@ document.addEventListener("focusin", (ev)=>{
   if(!input) return;
   openSubjectMenu();
 });
+// Opmerking bewaren
+document.addEventListener('click', async (e)=>{
+  if(!e.target.closest('#note-save')) return;
+  if(!currentUser){ alert('Log eerst in.'); return; }
+  const id = document.getElementById('note-plan-id')?.value || '';
+  const txt = document.getElementById('note-text')?.value || '';
+  if(!id) return;
+  try{
+    await updateDoc(doc(db,'plans', id), { note: txt.trim() || null });
+  }catch(err){
+    console.error('note save error', err);
+    alert('Kon opmerking niet bewaren: ' + (err?.message||err));
+  }
+  window.Modal?.close ? Modal.close('modal-note') : document.getElementById('modal-note')?.setAttribute('hidden','');
+});
+
+
 
 // Typen = filteren; lege input = volledige lijst
 document.addEventListener("input", (ev)=>{
@@ -296,6 +313,8 @@ document.addEventListener("click", async (e)=>{
       start: s,
       durationHours: dur,
       dueDate: null,
+        note: null,
+
       uid: currentUser.uid,
       createdAt: new Date()
     });
@@ -549,10 +568,12 @@ const symb = p.symbol || sym(p.type);
 // deadline: neem uit plan; zo niet, pak het bijhorende backlog-item (itemId)
 const dueSrc = p.dueDate || backlog.find(b => b.id === p.itemId)?.dueDate || null;
 const dueStr = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
+const noteStr = p.note && String(p.note).trim() ? ` • opm: ${p.note}` : '';   // ← NIEUW
 
 li.textContent =
   `${symb} [${typeLabel}] ${d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})} • `
-+ `${p.title} – ${p.subjectName} [${p.durationHours}u] • tegen ${dueStr}`;
++ `${p.title} – ${p.subjectName} [${p.durationHours}u] • tegen ${dueStr}${noteStr}`;
+
 
       root.appendChild(li);
     });
@@ -690,8 +711,8 @@ function renderBacklogItem(it){
       <div class="sub">${it.type} • ${it.durationHours||1}u${it.dueDate?` • tegen ${toDate(it.dueDate).toLocaleDateString('nl-BE')}`:''}</div>
     </div>
     <div class="bl-actions">
-      <button class="btn-icon sm edit"   title="Bewerken"   aria-label="Bewerken">✏️</button>
-      <button class="btn-icon sm neutral" title="Markeer klaar" aria-label="Markeer klaar">✓</button>
+      <button class="btn-icon sm edit"    title="Bewerken"       aria-label="Bewerken">✏️</button>
+      <button class="btn-icon sm neutral" title="Markeer klaar"  aria-label="Markeer klaar">✓</button>
       <button class="btn-icon sm danger"  title="Verwijderen"    aria-label="Verwijderen">🗑️</button>
     </div>
   `;
@@ -700,7 +721,7 @@ function renderBacklogItem(it){
   row.addEventListener('dragstart', (e)=>{
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/json', JSON.stringify({kind:'backlog', id: it.id}));
-    e.dataTransfer.setData('text/plain', JSON.stringify({kind:'backlog', id: it.id}));
+    e.dataTransfer.setData('text/plain',       JSON.stringify({kind:'backlog', id: it.id}));
     document.body.classList.add('dragging-backlog');
   });
   row.addEventListener('dragend', ()=> document.body.classList.remove('dragging-backlog'));
@@ -718,14 +739,14 @@ function renderBacklogItem(it){
     await deleteDoc(doc(db,'backlog', it.id));
   };
 
-  // ✏️ bewerken – gebruik unieke namen (geen idEl/prop die elders al bestaan)
+  // ✏️ bewerken
   row.querySelector('.edit').onclick = ()=>{
     if(!currentUser){ alert('Log eerst in.'); return; }
 
     const modalTitle = document.getElementById('modal-backlog-title');
     if (modalTitle) modalTitle.textContent = 'Item bewerken';
 
-    const blIdInput = document.getElementById('bl-id');        // <-- unieke naam
+    const blIdInput = document.getElementById('bl-id');
     if (blIdInput) blIdInput.value = it.id;
 
     const inSubject  = document.getElementById("bl-subject");
@@ -742,23 +763,19 @@ function renderBacklogItem(it){
     if (inDue)      inDue.value      = it.dueDate ? toISODate(toDate(it.dueDate)) : '';
     if (propagateChk) propagateChk.checked = true;
 
-    // knoppen visueel
     document.querySelectorAll("#modal-backlog .type-btn").forEach(b=>{
       b.classList.toggle("is-active", b.dataset.type === (it.type||'taak'));
     });
 
-    // subject chip + lijst
     setSubjectChip(it.subjectName||'', it.color||'');
     renderSubjectMenu('');
 
-    // open modal
     if (window.Modal?.open) Modal.open('modal-backlog');
     else document.getElementById('modal-backlog')?.removeAttribute('hidden');
   };
 
   return row;
 }
-
 
 function renderCalendar(){
   if(!calRoot) return;
@@ -786,12 +803,12 @@ function renderCalendar(){
     const col = div('day-col');
     col.dataset.day = String(d);
 
-    // Kolom fallback (als je tussen rijen dropt) => 07:00
+    // Fallback: droppen op kolom → 07:00
     col.ondragover = (e)=>{ e.preventDefault(); };
     col.ondrop = async (e)=>{
       e.preventDefault();
       if(!currentUser){ alert('Log in om te plannen.'); return; }
-      let data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
+      const data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
       if(!data) return;
 
       if(data.kind==='backlog'){
@@ -799,26 +816,24 @@ function renderCalendar(){
         const start = addDays(weekStart, d); start.setHours(hStart,0,0,0);
         try{
           await addDoc(collection(db,'plans'),{
-  itemId:item.id,
-  title:item.title,
-  type:item.type,
-  subjectId:item.subjectId,
-  subjectName:item.subjectName,
-  color:item.color,
-  symbol:item.symbol,
-  start,
-  durationHours:item.durationHours||1,
-  dueDate: item.dueDate || null,        // ← NIEUW
-  uid:currentUser.uid,
-  createdAt:new Date()
-});
-
+            itemId:item.id,
+            title:item.title,
+            type:item.type,
+            subjectId:item.subjectId,
+            subjectName:item.subjectName,
+            color:item.color,
+            symbol:item.symbol,
+            start,
+            durationHours:item.durationHours||1,
+            dueDate: item.dueDate || null,
+            note: null,
+            uid:currentUser.uid,
+            createdAt:new Date()
+          });
         }catch(err){ console.error('plan add error (col drop):', err); alert('Kon niet plannen: '+(err?.message||err)); }
       }else if(data.kind==='planmove'){
-        // verplaatsing naar 07:00 van die dag
-        const id = data.id;
         const start = addDays(weekStart, d); start.setHours(hStart,0,0,0);
-        try{ await updateDoc(doc(db,'plans', id), { start }); }
+        try{ await updateDoc(doc(db,'plans', data.id), { start }); }
         catch(err){ console.error('plan move error (col):', err); alert('Kon niet verplaatsen: '+(err?.message||err)); }
       }
     };
@@ -828,15 +843,15 @@ function renderCalendar(){
       for(let m of [0,30]){
         const z = div('dropzone');
         z.dataset.hour = String(h);
-        z.dataset.min = String(m);
+        z.dataset.min  = String(m);
         z.ondragover = (e)=>{ e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
         z.ondragleave = ()=> z.removeAttribute('aria-dropeffect');
         z.ondrop = async (e)=>{
           e.preventDefault();
-          e.stopPropagation(); // ⛔️ voorkom dat ook de kolom-drop vuurt (dubbele planning)
+          e.stopPropagation();                  // voorkom dubbele add
           z.removeAttribute('aria-dropeffect');
           if(!currentUser){ alert('Log in om te plannen.'); return; }
-          let data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
+          const data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
           if(!data) return;
 
           const start = addDays(weekStart, d);
@@ -846,8 +861,19 @@ function renderCalendar(){
             if(data.kind==='backlog'){
               const item = backlog.find(x=>x.id===data.id); if(!item) return;
               await addDoc(collection(db,'plans'),{
-                itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,color:item.color,symbol:item.symbol,
-                start,durationHours:item.durationHours||1,uid:currentUser.uid,createdAt:new Date()
+                itemId:item.id,
+                title:item.title,
+                type:item.type,
+                subjectId:item.subjectId,
+                subjectName:item.subjectName,
+                color:item.color,
+                symbol:item.symbol,
+                start,
+                durationHours:item.durationHours||1,
+                dueDate: item.dueDate || null,
+                note: null,
+                uid:currentUser.uid,
+                createdAt:new Date()
               });
             }else if(data.kind==='planmove'){
               await updateDoc(doc(db,'plans', data.id), { start });
@@ -863,7 +889,7 @@ function renderCalendar(){
     calRoot.appendChild(col);
   }
 
-  // events tekenen
+  // events
   if (Array.isArray(plans) && plans.length){
     plans.forEach(p=> placeEvent(p));
   }
@@ -873,71 +899,76 @@ function placeEvent(p){
   const start = toDate(p.start);
   const d = clamp(Math.floor((start - weekStart)/86400000), 0, 6);
 
-  // rasterconfig
+  // raster
   const hStart = 7, hEnd = 22;
-  const totalRows = (hEnd - hStart) * 2; // 30-min slots
+  const totalRows = (hEnd - hStart) * 2;                 // 30-min slots
   const slotH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) || 28;
 
   const hour = start.getHours();
   const mins = start.getMinutes();
   const rowsFromTop = ((hour - hStart) * 2) + (mins >= 30 ? 1 : 0);
-  const heightRows = Math.max(1, Math.round((p.durationHours||1) * 2)); // 0.5u = 1 rij
+  const heightRows  = Math.max(1, Math.round((p.durationHours||1) * 2));
 
   const cols = calRoot.querySelectorAll('.day-col');
   const col = cols[d]; if(!col) return;
 
   const block = div('event');
   const bg = p.color || '#2196F3';
-  block.style.background = bg; block.style.color = getContrast(bg);
-  block.style.top = `${rowsFromTop * slotH}px`;
-  block.style.height = `${heightRows * slotH - 4}px`;
+  block.style.background = bg;
+  block.style.color = getContrast(bg);
+  block.style.top   = `${rowsFromTop * slotH}px`;
+  block.style.height= `${heightRows * slotH - 4}px`;
   block.innerHTML = `
     <div class="title">${p.symbol||sym(p.type)} ${esc(p.title||'')}</div>
     <div class="meta">${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${p.durationHours}u</div>
     <div class="resize-h" title="Sleep om duur aan te passen"></div>
   `;
 
-  // ==== Tooltip ====
+  // --- Tooltip ---
   block.addEventListener('mouseenter', (ev)=>{
     const tip = document.getElementById('evt-tip'); if(!tip) return;
     const dueSrc = p.dueDate || backlog.find(b=> b.id===p.itemId)?.dueDate || null;
-    const due = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
-    tip.innerHTML = `<div class="t">${esc(p.title||'')}</div>
+    const due    = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
+    let tipHtml = `<div class="t">${esc(p.title||'')}</div>
       <div class="m">${esc(p.subjectName||'')} • ${p.type} • ${p.durationHours}u</div>
       <div class="m">Tegen: ${due}</div>`;
+    if (p.note && String(p.note).trim()) tipHtml += `<div class="m">Opmerking: ${esc(p.note)}</div>`;
+    tip.innerHTML = tipHtml;
     tip.style.display = 'block';
-    positionTip(ev, tip);
+    tip.style.left = (ev.clientX+12)+'px';
+    tip.style.top  = (ev.clientY+12)+'px';
   });
   block.addEventListener('mousemove', (ev)=>{
-    const tip = document.getElementById('evt-tip'); if(tip && tip.style.display==='block') positionTip(ev, tip);
+    const tip = document.getElementById('evt-tip'); if(!tip || tip.style.display!=='block') return;
+    tip.style.left = (ev.clientX+12)+'px';
+    tip.style.top  = (ev.clientY+12)+'px';
   });
   block.addEventListener('mouseleave', ()=>{
     const tip = document.getElementById('evt-tip'); if(tip) tip.style.display = 'none';
   });
-  function positionTip(ev, tip){ tip.style.left = (ev.clientX+12)+'px'; tip.style.top=(ev.clientY+12)+'px'; }
 
-  // ==== Klik = verwijderen (zoals voorheen) ====
+  // --- Klik = verwijderen ---
   block.addEventListener('click', async ()=>{
     if(!currentUser){ alert('Log eerst in.'); return; }
     if(!confirm('Deze planning verwijderen?')) return;
     await deleteDoc(doc(db,'plans', p.id));
   });
 
-  // ==== Drag to move (zoals je had) ====
+  // --- Drag to move ---
   block.setAttribute('draggable', 'true');
   block.addEventListener('dragstart', (e)=>{
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('application/json', JSON.stringify({kind:'planmove', id: p.id}));
-    e.dataTransfer.setData('text/plain', JSON.stringify({kind:'planmove', id: p.id}));
+    e.dataTransfer.setData('text/plain',       JSON.stringify({kind:'planmove', id: p.id}));
     document.body.classList.add('dragging-event');
   });
   block.addEventListener('dragend', ()=>{
     document.body.classList.remove('dragging-event');
   });
 
-  // ==== Resize (onderrand) ====
+  // --- Resize (onderrand) ---
   const handle = block.querySelector('.resize-h');
-  handle.addEventListener('dragstart', e=> e.preventDefault()); // geen HTML5 drag
+  handle.addEventListener('dragstart', e=> e.preventDefault());
   handle.addEventListener('mousedown', (e)=>{
     e.stopPropagation(); e.preventDefault();
     document.body.classList.add('resizing-event');
@@ -945,14 +976,13 @@ function placeEvent(p){
 
     const startY = e.clientY;
     const startPx = block.offsetHeight;
-    const maxRows = Math.max(1, totalRows - rowsFromTop); // niet voorbij onderkant
+    const maxRows = Math.max(1, totalRows - rowsFromTop);
 
     function onMove(ev){
       const dy = ev.clientY - startY;
       let rows = Math.round((startPx + dy) / slotH);
       rows = clamp(rows, 1, maxRows);
       block.style.height = `${rows * slotH - 4}px`;
-      // live meta updaten
       const newDur = Math.max(0.5, rows / 2);
       const meta = block.querySelector('.meta');
       if (meta) meta.textContent = `${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${newDur}u`;
@@ -964,7 +994,6 @@ function placeEvent(p){
       block.classList.remove('resizing');
       const finalRows = Math.round((block.offsetHeight + 4) / slotH);
       const newDur = Math.max(0.5, finalRows / 2);
-      // bewaar
       updateDoc(doc(db,'plans', p.id), { durationHours: newDur }).catch(err=>{
         console.error('resize save error:', err);
         alert('Kon nieuwe duur niet bewaren: ' + (err?.message||err));
@@ -972,6 +1001,18 @@ function placeEvent(p){
     }
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+  });
+
+  // --- Opmerking (dblclick) + indicator ---
+  if (p.note && String(p.note).trim()) block.classList.add('has-note');
+  block.addEventListener('dblclick', ()=>{
+    if(!currentUser){ alert('Log eerst in.'); return; }
+    const idEl = document.getElementById('note-plan-id');
+    const ta   = document.getElementById('note-text');
+    if (idEl) idEl.value = p.id;
+    if (ta)   ta.value = p.note ? String(p.note) : '';
+    if (window.Modal?.open) Modal.open('modal-note');
+    else document.getElementById('modal-note')?.removeAttribute('hidden');
   });
 
   col.appendChild(block);
