@@ -30,6 +30,11 @@ let backlogFilter = { text:'', subjectId:'', type:'', from:null, to:null };
 function addMinutes(d, m){ const x = new Date(d); x.setMinutes(x.getMinutes()+m); return x; }
 function fmtTime(d){ return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 
+// Wie is de eigenaar waarvan we de planner tonen?
+const OWNER_UID = "KNjbJuZV1MZMEUQKsViehVhW3832"; // ← jouw uid
+let ownerUid = null;   // effectief gebruikte eigenaar in queries
+let canWrite = true;   // mag de ingelogde user ook bewerken?
+
 
 
 
@@ -96,7 +101,7 @@ function renderCalendar(){
         await addDoc(collection(db,'plans'),{
           itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
           color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
-          uid:currentUser.uid,createdAt:new Date()
+          uid:ownerUid,createdAt:new Date()
         }).catch(err=>{ console.error(err); alert('Kon niet plannen: '+(err?.message||err)); });
       }else if(data.kind==='planmove'){
         const start = addDays(periodStart, d); start.setHours(hStart,0,0,0);
@@ -129,7 +134,7 @@ function renderCalendar(){
               await addDoc(collection(db,'plans'),{
                 itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
                 color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
-                uid:currentUser.uid,createdAt:new Date()
+                uid:ownerUid,createdAt:new Date()
               });
             }else if(data.kind==='planmove'){
               await updateDoc(doc(db,'plans', data.id), { start });
@@ -349,7 +354,7 @@ async function cleanupExpiredBacklog(){
     const cutoff = startOfDay(new Date()); // 00:00 vandaag → alles met dueDate < vandaag is “dag na deadline”
     const qExp = query(
       collection(db,'backlog'),
-      where('uid','==', currentUser.uid),
+      where('uid','==', ownerUid),
       where('dueDate','<', cutoff)       // items zonder dueDate worden niet gematcht
     );
     const snap = await getDocs(qExp);
@@ -520,7 +525,7 @@ function renderCalendar(){
         await addDoc(collection(db,'plans'),{
           itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
           color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
-          uid:currentUser.uid,createdAt:new Date()
+          uid:ownerUid,createdAt:new Date()
         }).catch(err=>{ console.error(err); alert('Kon niet plannen: '+(err?.message||err)); });
       }else if(data.kind==='planmove'){
         const start = addDays(periodStart, d); start.setHours(hStart,0,0,0);
@@ -553,7 +558,7 @@ function renderCalendar(){
               await addDoc(collection(db,'plans'),{
                 itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
                 color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
-                uid:currentUser.uid,createdAt:new Date()
+                uid:ownerUid,createdAt:new Date()
               });
             }else if(data.kind==='planmove'){
               await updateDoc(doc(db,'plans', data.id), { start });
@@ -970,7 +975,7 @@ document.addEventListener("click", async (e)=>{
       dueDate: null,
         note: null,
 
-      uid: currentUser.uid,
+      uid: ownerUid,
       createdAt: new Date()
     });
   }
@@ -1004,7 +1009,7 @@ document.addEventListener("click", async (ev) => {
 
   let subj = subjects.find(s => (s.name||"").toLowerCase() === name.toLowerCase());
   if (!subj){
-    await addDoc(collection(db, "subjects"), { name, color, uid: currentUser.uid });
+    await addDoc(collection(db, "subjects"), { name, color, uid: ownerUid });
   } else {
     // update naam/kleur indien gewijzigd
     const updates = {};
@@ -1085,7 +1090,7 @@ document.addEventListener("click", async (ev) => {
     // nieuw vak met default kleur
     const defaultColor = PALETTE[0];
     const ref = await addDoc(collection(db, "subjects"), {
-      name: subjNameRaw, color: defaultColor, uid: currentUser.uid
+      name: subjNameRaw, color: defaultColor, uid: ownerUid
     });
     subj = { id: ref.id, name: subjNameRaw, color: defaultColor };
   }
@@ -1101,7 +1106,7 @@ document.addEventListener("click", async (ev) => {
       dueDate: dueVal,
       color: subj.color,
       symbol: sym(typeVal),
-      uid: currentUser.uid,
+      uid: ownerUid,
       done: false,
       createdAt: new Date()
     });
@@ -1125,7 +1130,7 @@ document.addEventListener("click", async (ev) => {
         // haal alle plannen met dit itemId binnen de user
         const q = query(
           collection(db,'plans'),
-          where('uid','==', currentUser.uid),
+          where('uid','==', ownerUid),
           where('itemId','==', editingId)
         );
         const snap = await getDocs(q); // <-- zorg dat getDocs is geïmporteerd
@@ -1242,24 +1247,53 @@ li.textContent =
 renderView();
 
   /* ── Auth stream ── */
-  onAuthStateChanged(auth, (user)=>{
-    if(!user){
-      currentUser = null;
-      authDiv && (authDiv.style.display='block');
-      appDiv  && (appDiv.style.display='block'); // UI zichtbaar
-      renderView();
-      return;
-    }
-    currentUser = user;
-    authDiv && (authDiv.style.display='none');
-    appDiv  && (appDiv.style.display='block');
-    bindStreams();
-    cleanupExpiredBacklog();                // meteen één keer
-if (window._backlogCleanupTimer) clearInterval(window._backlogCleanupTimer);
-window._backlogCleanupTimer = setInterval(cleanupExpiredBacklog, 6*60*60*1000); // elke 6 uur
-
+ onAuthStateChanged(auth, async (user)=>{
+  if(!user){
+    currentUser = null;
+    ownerUid = null;
+    canWrite = false;
+    document.getElementById("auth")?.style && (document.getElementById("auth").style.display = "block");
+    document.getElementById("app") ?.style && (document.getElementById("app").style.display  = "block");
     renderView();
-  });
+    return;
+  }
+
+  currentUser = user;
+
+  // Standaard: eigenaar = zichzelf
+  ownerUid = user.uid;
+  canWrite = true;
+
+  // Check of user meelezer/schrijver is van jouw planner
+  try {
+    const shSnap = await getDocs(query(collection(db,"shares"))); // simpele fetch als je shares niet importeert elders
+    const myShare = (await import("./firebase-config.js")).getDoc
+      ? await (await import("./firebase-config.js")).getDoc(doc(db,"shares", OWNER_UID))
+      : null;
+
+    if (myShare && myShare.exists()) {
+      const data = myShare.data();
+      const canRead  = (data.read  || []).includes(user.uid);
+      const canWriteS= (data.write || []).includes(user.uid);
+      if (canRead && user.uid !== OWNER_UID) {
+        ownerUid = OWNER_UID;       // toon jouw data
+        canWrite = canWriteS;       // schrijfrecht volgens share
+      }
+    }
+  } catch(e){ console.warn("shares check", e); }
+
+  // UI (knoppen) vergrendelen bij read-only
+  document.getElementById("newBacklogBtn")?.toggleAttribute("disabled", !canWrite);
+  document.getElementById("manageSubjectsBtn")?.toggleAttribute("disabled", !canWrite);
+
+  // start streams
+  bindStreams();
+  cleanupExpiredBacklog();
+  if (window._backlogCleanupTimer) clearInterval(window._backlogCleanupTimer);
+  window._backlogCleanupTimer = setInterval(cleanupExpiredBacklog, 6*60*60*1000);
+
+  renderView();
+});
 
   /* ───────────────────── Renderers & Data ───────────────────── */
 // Weergave wisselen
@@ -1517,7 +1551,7 @@ function renderBacklogItem(it){
   function bindStreams(){
     
     onSnapshot(
-      query(collection(db,'subjects'), where('uid','==', currentUser.uid), orderBy('name','asc')),
+      query(collection(db,'subjects'), where('uid','==', ownerUid), orderBy('name','asc')),
       (snap)=>{
         subjects = snap.docs.map(d=>({id:d.id, ...d.data()}));
 renderSubjectsDatalist();
@@ -1539,7 +1573,7 @@ if (subjInputVisible){
     );
 
     onSnapshot(
-      query(collection(db,'backlog'), where('uid','==', currentUser.uid), orderBy('subjectName','asc')),
+      query(collection(db,'backlog'), where('uid','==', ownerUid), orderBy('subjectName','asc')),
       (snap)=>{
         backlog = snap.docs.map(d=>({id:d.id, ...d.data()}));
         renderBacklog();
@@ -1560,7 +1594,7 @@ function refreshPlans(){
   window._plansUnsub = onSnapshot(
     query(
       collection(db,'plans'),
-      where('uid','==', currentUser.uid),
+      where('uid','==', ownerUid),
       where('start','>=', start),
       where('start','<',  end)
     ),
