@@ -19,7 +19,16 @@ const pad  = (n)=> String(n).padStart(2,"0");
 const div  = (cls)=>{ const el=document.createElement("div"); if(cls) el.className=cls; return el; };
 const esc  = (s="")=> s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 const safeParse = (s)=> { try{ return JSON.parse(s); } catch{ return null; } };
-function startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
+
+// ==== VIEW STATE & HELPERS (bovenaan zetten) ====
+let viewMode = 'week';          // 'week' | 'day'
+let dayDate  = new Date();      // actieve dag in day-view
+
+function startOfDay(d){
+  const x = new Date(d);
+  x.setHours(0,0,0,0);
+  return x;
+}
 
 function getPeriodRange(){
   if (viewMode === 'day') {
@@ -31,6 +40,22 @@ function getPeriodRange(){
   const s = startOfWeek(weekStart);
   const e = new Date(s); e.setDate(e.getDate()+7);
   return { start: s, end: e, days: 7 };
+}
+
+// Belangrijk: function declaration (gehoist), GEEN const renderView = () => {…}
+function renderView(){
+  const { start, days } = getPeriodRange();
+
+  if (viewMode === 'day') {
+    const t = start.toLocaleDateString('nl-BE', { weekday:'long', day:'2-digit', month:'2-digit' });
+    weekTitle && (weekTitle.textContent = `Dag – ${t}`);
+  } else {
+    const t1 = start.toLocaleDateString('nl-BE', { weekday:'long', day:'2-digit', month:'2-digit' });
+    const t2 = addDays(start,6).toLocaleDateString('nl-BE', { weekday:'long', day:'2-digit', month:'2-digit' });
+    weekTitle && (weekTitle.textContent = `Week ${t1} – ${t2}`);
+  }
+
+  renderCalendar(); // gebruikt getPeriodRange() intern voor # kolommen
 }
 
 
@@ -150,9 +175,6 @@ let backlog  = []; // {id,subjectId,subjectName,type,title,durationHours,dueDate
 let plans    = []; // {id,itemId,start,durationHours,uid}
 let weekStart = startOfWeek(new Date());
 let selectedPlanId = null;
-let viewMode = 'week';          // 'week' | 'day'
-let dayDate  = new Date();      // actieve dag in 'day' view
-
 
 
 /* ───────────────────────── DOM na load ───────────────────────── */
