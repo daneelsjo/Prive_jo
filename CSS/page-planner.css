@@ -358,3 +358,74 @@ body.resizing-event * {
   color: white;
   border-color: var(--primary, #2196f3);
 }
+/* actieknoop op event */
+.event .evt-actions {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  display: flex;
+  gap: 4px;
+}
+.event .evt-del {
+  padding: 0 0.35rem;
+  height: 20px;
+  line-height: 18px;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.event .evt-del:hover {
+  background: rgba(0, 0, 0, 0.38);
+}
+
+/* ====== Layout: 75% (agenda) / 25% (backlog) ====== */
+
+/* centrale breedte + gelijke buitenmarges links/rechts */
+.planner-page {
+  width: min(1500px, 96vw);
+  margin-inline: auto; /* gelijke marge links en rechts */
+}
+
+/* twee kolommen met vaste verhouding en consistente gap */
+.planner-page .page {
+  display: grid;
+  grid-template-columns: 3fr 1fr; /* 75% / 25% split */
+  column-gap: 1.25rem; /* zelfde ruimte als je cards */
+  align-items: start;
+}
+
+/* links de agenda moet gewoon meerekken */
+.leftcol {
+  min-width: 0; /* voorkomt overflow door grid-items */
+}
+
+/* rechts (backlog) vaste min-breedte */
+.rightcol {
+  min-width: 320px; /* blijft bruikbaar op smallere schermen */
+}
+
+/* topkaart (met weektitel/knoppen) netjes over beide kolommen */
+.toprow,
+.header-card,
+.weekbar {
+  grid-column: 1 / -1;
+}
+
+/* kalenderkaart laat wat ademen binnen links */
+.content .card.calendar-card {
+  /* of het element dat je kalender bevat */
+  width: 100%;
+}
+
+/* responsive: onder 1100px stapelen we onder elkaar */
+@media (max-width: 1100px) {
+  .planner-page .page {
+    grid-template-columns: 1fr;
+  }
+  .rightcol {
+    order: 2;
+  }
+}

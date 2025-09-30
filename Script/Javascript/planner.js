@@ -27,6 +27,8 @@ let dayDate  = new Date();      // actieve dag in day-view
 let weekTitleEl = null;
 let calRootEl   = null;
 let backlogFilter = { text:'', subjectId:'', type:'', from:null, to:null };
+function addMinutes(d, m){ const x = new Date(d); x.setMinutes(x.getMinutes()+m); return x; }
+function fmtTime(d){ return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 
 
 function addMinutes(d, m){ const x=new Date(d); x.setMinutes(x.getMinutes()+m); return x; }
@@ -175,31 +177,39 @@ function placeEvent(p){
   block.style.color = getContrast(bg);
   block.style.top   = `${rowsFromTop * slotH}px`;
   block.style.height= `${heightRows * slotH - 4}px`;
-  block.innerHTML = `
-    <div class="title">${p.symbol||sym(p.type)} ${esc(p.title||'')}</div>
-    <div class="meta">${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${p.durationHours}u</div>
-    <div class="resize-h" title="Sleep om duur aan te passen"></div>
-  `;
+block.innerHTML = `
+  <div class="evt-actions"><button class="evt-del" title="Verwijderen">🗑</button></div>
+  <div class="title">${p.symbol||sym(p.type)} ${esc(p.title||'')}</div>
+  <div class="meta">${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${p.durationHours}u</div>
+  <div class="resize-h" title="Sleep om duur aan te passen"></div>
+`;
+
 
   // --- Tooltip ---
-  block.addEventListener('mouseenter', (ev)=>{
-    const tip = document.getElementById('evt-tip'); if(!tip) return;
+ block.addEventListener('mouseenter', (ev)=>{
+  const tip = document.getElementById('evt-tip'); if(!tip) return;
+  const dueSrc = p.dueDate || backlog.find(b=> b.id===p.itemId)?.dueDate || null;
+  const due    = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
+  const end    = addMinutes(start, Math.round((p.durationHours||1)*60));
+  let tipHtml = `<div class="t">${esc(p.title||'')}</div>
+    <div class="m">${esc(p.subjectName||'')} • ${p.type}</div>
+    <div class="m">${fmtTime(start)}–${fmtTime(end)}</div>
+    <div class="m">Tegen: ${due}</div>`;
+  if (p.note && String(p.note).trim()) tipHtml += `<div class="m">Opmerking: ${esc(p.note)}</div>`;
+  tip.innerHTML = tipHtml;
+  tip.style.display = 'block';
+  tip.style.left = (ev.clientX+12)+'px';
+  tip.style.top  = (ev.clientY+12)+'px';
+});
+block.addEventListener('mousemove', (ev)=>{
+  const tip = document.getElementById('evt-tip'); if(!tip || tip.style.display!=='block') return;
+  tip.style.left = (ev.clientX+12)+'px';
+  tip.style.top  = (ev.clientY+12)+'px';
+});
+block.addEventListener('mouseleave', ()=>{
+  const tip = document.getElementById('evt-tip'); if(tip) tip.style.display = 'none';
+});
 
-    const dueSrc = p.dueDate || backlog.find(b=> b.id===p.itemId)?.dueDate || null;
-const due    = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
-const end    = addMinutes(start, Math.round((p.durationHours||1)*60));
-let tipHtml = `<div class="t">${esc(p.title||'')}</div>
-  <div class="m">${esc(p.subjectName||'')} • ${p.type}</div>
-  <div class="m">${fmtTime(start)}–${fmtTime(end)}</div>
-  <div class="m">Tegen: ${due}</div>`;
-if (p.note && String(p.note).trim()) tipHtml += `<div class="m">Opmerking: ${esc(p.note)}</div>`;
-tip.innerHTML = tipHtml;
-
-   
-    tip.style.display = 'block';
-    tip.style.left = (ev.clientX+12)+'px';
-    tip.style.top  = (ev.clientY+12)+'px';
-  });
   block.addEventListener('mousemove', (ev)=>{
     const tip = document.getElementById('evt-tip'); if(!tip || tip.style.display!=='block') return;
     tip.style.left = (ev.clientX+12)+'px';
@@ -223,6 +233,15 @@ block.addEventListener('click', async (e)=>{
   if(!confirm('Deze planning verwijderen?')) return;
   await deleteDoc(doc(db,'plans', p.id));
 });
+
+const delBtn = block.querySelector('.evt-del');
+delBtn.addEventListener('click', async (e)=>{
+  e.preventDefault(); e.stopPropagation();
+  if(!currentUser){ alert('Log eerst in.'); return; }
+  if(!confirm('Deze planning verwijderen?')) return;
+  await deleteDoc(doc(db,'plans', p.id));
+});
+
 
 
   // --- Drag to move ---
