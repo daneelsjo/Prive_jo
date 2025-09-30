@@ -1325,9 +1325,6 @@ function renderSubjectsManager(){
   const palRoot = document.getElementById("sub-palette");
   const previewDot  = document.querySelector("#sub-color-preview .dot");
   const previewText = document.getElementById("sub-color-text");
-  const items = applyBacklogFilter(backlog.filter(b=>!b.done)); // indien je done verbergt
-// … groepeer/render met 'items' i.p.v. 'backlog'
-
 
   if (palRoot && previewDot && previewText){
     palRoot.innerHTML = "";
@@ -1373,34 +1370,52 @@ function applyBacklogFilter(list){
   });
 }
 
+function renderBacklog(){
+  const container = document.getElementById("backlogGroups");
+  if(!container) return;
 
-  function renderBacklog(){
-    const container = document.getElementById("backlogGroups");
-    if(!container) return;
+  // 👉 enkel de backlog filteren (niet de kalender/plans)
+  const source = applyBacklogFilter(backlog.filter(x => !x.done));
 
-    const groups = new Map();
-    backlog.filter(x=>!x.done).forEach(item=>{
-      const key = item.subjectId||'_none';
-      if(!groups.has(key)) groups.set(key, { subjectName:item.subjectName||'—', color:item.color||'#ccc', items:[] });
-      groups.get(key).items.push(item);
-    });
-
-    container.innerHTML = '';
-    for(const [,grp] of groups){
-      const wrap = document.createElement('div');
-      wrap.className = 'bl-group';
-      const fg = getContrast(grp.color);
-      wrap.innerHTML = `
-        <div class="bl-title" style="background:${grp.color};color:${fg};">
-          <span>${esc(grp.subjectName)}</span>
-        </div>
-        <div class="bl-list"></div>
-      `;
-      const list = wrap.querySelector('.bl-list');
-      grp.items.forEach(it=> list.appendChild(renderBacklogItem(it)) );
-      container.appendChild(wrap);
+  // groepen per vak opbouwen, maar alleen met items die door de filter komen
+  const groups = new Map();
+  source.forEach(item=>{
+    const key = item.subjectId || '_none';
+    if(!groups.has(key)){
+      groups.set(key, {
+        subjectName: item.subjectName || '—',
+        color: item.color || '#ccc',
+        items: []
+      });
     }
+    groups.get(key).items.push(item);
+  });
+
+  container.innerHTML = '';
+
+  if (source.length === 0){
+    container.innerHTML = `<div class="muted" style="padding:.75rem;">Geen items voor deze filter…</div>`;
+    return;
   }
+
+  for (const [,grp] of groups){
+    // sla lege groepen (door filter) over
+    if (!grp.items.length) continue;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'bl-group';
+    const fg = getContrast(grp.color);
+    wrap.innerHTML = `
+      <div class="bl-title" style="background:${grp.color};color:${fg};">
+        <span>${esc(grp.subjectName)}</span>
+      </div>
+      <div class="bl-list"></div>
+    `;
+    const list = wrap.querySelector('.bl-list');
+    grp.items.forEach(it => list.appendChild(renderBacklogItem(it)));
+    container.appendChild(wrap);
+  }
+}
 
 function renderBacklogItem(it){
   const row = document.createElement('div');
