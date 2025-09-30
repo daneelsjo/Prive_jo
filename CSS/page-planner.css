@@ -81,7 +81,55 @@
   display: grid;
   grid-template-columns: var(--time-col-w) repeat(7, 1fr); /* dag-aantal wordt door JS ingesteld, maar raster is gelijk */
   gap: 0.25rem;
-  user-select: none;
+  user-select: none;/* ====== Sticky + onafhankelijke scroll ====== */
+
+/* Links: alleen de kalender scrolt; bovenste kaart (week/print/…) blijft staan */
+.planner-page .leftcol .calendar-card{
+  /* hoogte: hele viewport minus wat marge; pas zo nodig aan */
+  height: calc(100dvh - 280px);
+  min-height: 320px;
+  overflow: auto;            /* eigen scrollbar voor het raster */
+}
+
+/* Dagenkoppen blijven zichtbaar terwijl je door het raster scrolt */
+.planner-page .leftcol .calendar .col-head{
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--card);
+  /* een subtiele onderrand zodat de sticky-kop loskomt van het raster */
+  box-shadow: 0 2px 0 0 var(--border);
+}
+
+/* Rechts: backlog krijgt eigen scrollbar onder de knoppenbalk */
+.planner-page .rightcol > .card{
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 2 * var(--gap));
+  min-height: 360px;
+}
+
+/* eerste child in de backlog-card is je kop met "Backlog (vakken)" + knoppen */
+.planner-page .rightcol > .card > :first-child{
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: inherit;      /* dezelfde kleur als de kaart */
+  border-bottom: 1px solid var(--border);
+}
+
+/* de lijsten zelf scollen onder de vaste kop */
+#backlogGroups{
+  overflow: auto;
+  min-height: 0;            /* noodzakelijk binnen flex-column */
+}
+
+/* optioneel: iets kleinere buitenmarges zodat de kalender links wat meer ruimte krijgt */
+.planner-page{
+  --gap: 1rem;               /* ruimte tussen kolommen én aan de zijkanten */
+  padding-inline: var(--gap);
+}
+
 }
 
 .col-head {
