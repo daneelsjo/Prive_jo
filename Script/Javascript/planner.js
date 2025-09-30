@@ -19,7 +19,20 @@ const pad  = (n)=> String(n).padStart(2,"0");
 const div  = (cls)=>{ const el=document.createElement("div"); if(cls) el.className=cls; return el; };
 const esc  = (s="")=> s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 const safeParse = (s)=> { try{ return JSON.parse(s); } catch{ return null; } };
-function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+function startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
+
+function getPeriodRange(){
+  if (viewMode === 'day') {
+    const s = startOfDay(dayDate);
+    const e = new Date(s); e.setDate(e.getDate()+1);
+    return { start: s, end: e, days: 1 };
+  }
+  // week (za–vr)
+  const s = startOfWeek(weekStart);
+  const e = new Date(s); e.setDate(e.getDate()+7);
+  return { start: s, end: e, days: 7 };
+}
+
 
 function toDate(maybeTs){
   if (maybeTs instanceof Date) return maybeTs;
@@ -137,6 +150,9 @@ let backlog  = []; // {id,subjectId,subjectName,type,title,durationHours,dueDate
 let plans    = []; // {id,itemId,start,durationHours,uid}
 let weekStart = startOfWeek(new Date());
 let selectedPlanId = null;
+let viewMode = 'week';          // 'week' | 'day'
+let dayDate  = new Date();      // actieve dag in 'day' view
+
 
 
 /* ───────────────────────── DOM na load ───────────────────────── */
@@ -179,6 +195,53 @@ document.addEventListener("input", (ev)=>{
   renderSubjectMenu(val);              // filter
   if(val === "") openSubjectMenu();    // leeg => toon alles
 });
+
+// Weergave wisselen
+document.addEventListener('click', (e)=>{
+  if (e.target.closest('#viewWeek')) {
+    viewMode = 'week';
+    document.getElementById('viewWeek')?.classList.add('is-active');
+    document.getElementById('viewDay') ?.classList.remove('is-active');
+    document.getElementById('dayPicker').style.display = 'none';
+    renderView();
+    if(currentUser) refreshPlans();
+  }
+  if (e.target.closest('#viewDay')) {
+    viewMode = 'day';
+    document.getElementById('viewDay') ?.classList.add('is-active');
+    document.getElementById('viewWeek')?.classList.remove('is-active');
+    // dagpicker default op vandaag
+    const dp = document.getElementById('dayPicker');
+    if (dp){
+      dp.style.display = '';
+      dp.value = startOfDay(dayDate).toISOString().slice(0,10);
+    }
+    renderView();
+    if(currentUser) refreshPlans();
+  }
+});
+
+// Dag kiezen
+document.addEventListener('input', (e)=>{
+  const dp = e.target.closest('#dayPicker');
+  if (!dp) return;
+  dayDate = new Date(dp.value);
+  renderView();
+  if(currentUser) refreshPlans();
+});
+
+// Navigatieknoppen: vorige/volgende
+document.getElementById('prevWeek')?.addEventListener('click', ()=>{
+  if (viewMode === 'day') { dayDate.setDate(dayDate.getDate()-1); }
+  else { weekStart = addDays(weekStart,-7); }
+  renderView(); if(currentUser) refreshPlans();
+});
+document.getElementById('nextWeek')?.addEventListener('click', ()=>{
+  if (viewMode === 'day') { dayDate.setDate(dayDate.getDate()+1); }
+  else { weekStart = addDays(weekStart, 7); }
+  renderView(); if(currentUser) refreshPlans();
+});
+
 
 // Optie aanklikken
 document.addEventListener("click", (ev)=>{
@@ -597,7 +660,7 @@ li.textContent =
   });
 
   /* ── Eerste render: grid altijd zichtbaar ── */
-  renderWeek();
+renderView();
 
   /* ── Auth stream ── */
   onAuthStateChanged(auth, (user)=>{
@@ -620,11 +683,52 @@ window._backlogCleanupTimer = setInterval(cleanupExpiredBacklog, 6*60*60*1000); 
   });
 
   /* ───────────────────── Renderers & Data ───────────────────── */
-  function renderWeek(){
-    const end = addDays(weekStart,6);
-    weekTitle && (weekTitle.textContent = `Week ${fmtDate(weekStart)} – ${fmtDate(end)}`);
-    renderCalendar();
+// Weergave wisselen
+document.addEventListener('click', (e)=>{
+  if (e.target.closest('#viewWeek')) {
+    viewMode = 'week';
+    document.getElementById('viewWeek')?.classList.add('is-active');
+    document.getElementById('viewDay') ?.classList.remove('is-active');
+    document.getElementById('dayPicker').style.display = 'none';
+    renderView();
+    if(currentUser) refreshPlans();
   }
+  if (e.target.closest('#viewDay')) {
+    viewMode = 'day';
+    document.getElementById('viewDay') ?.classList.add('is-active');
+    document.getElementById('viewWeek')?.classList.remove('is-active');
+    // dagpicker default op vandaag
+    const dp = document.getElementById('dayPicker');
+    if (dp){
+      dp.style.display = '';
+      dp.value = startOfDay(dayDate).toISOString().slice(0,10);
+    }
+    renderView();
+    if(currentUser) refreshPlans();
+  }
+});
+
+// Dag kiezen
+document.addEventListener('input', (e)=>{
+  const dp = e.target.closest('#dayPicker');
+  if (!dp) return;
+  dayDate = new Date(dp.value);
+  renderView();
+  if(currentUser) refreshPlans();
+});
+
+// Navigatieknoppen: vorige/volgende
+document.getElementById('prevWeek')?.addEventListener('click', ()=>{
+  if (viewMode === 'day') { dayDate.setDate(dayDate.getDate()-1); }
+  else { weekStart = addDays(weekStart,-7); }
+  renderView(); if(currentUser) refreshPlans();
+});
+document.getElementById('nextWeek')?.addEventListener('click', ()=>{
+  if (viewMode === 'day') { dayDate.setDate(dayDate.getDate()+1); }
+  else { weekStart = addDays(weekStart, 7); }
+  renderView(); if(currentUser) refreshPlans();
+});
+
 
   function renderSubjectsDatalist(){
     if(!blSubjects) return;
@@ -910,7 +1014,9 @@ function renderCalendar(){
 
 function placeEvent(p){
   const start = toDate(p.start);
-  const d = clamp(Math.floor((start - weekStart)/86400000), 0, 6);
+ const { start: periodStart, days: dayCount } = getPeriodRange();
+const d = clamp(Math.floor((start - periodStart)/86400000), 0, dayCount-1);
+
 
   // raster
   const hStart = 7, hEnd = 22;
@@ -1085,20 +1191,21 @@ if (subjInputVisible){
 
   }
 
-  function refreshPlans(){
-    const end = addDays(weekStart, 7);
-    onSnapshot(
-      query(
-        collection(db,'plans'),
-        where('uid','==', currentUser.uid),
-        where('start','>=', weekStart),
-        where('start','<',  end)
-      ),
-      (snap)=>{
-plans = snap.docs.map(d=>({id:d.id, ...d.data(), start: toDate(d.data().start)}));
-        renderCalendar();
-      },
-      (err)=> console.error("plans stream error", err)
-    );
-  }
+ function refreshPlans(){
+  const { start, end } = getPeriodRange();
+  onSnapshot(
+    query(
+      collection(db,'plans'),
+      where('uid','==', currentUser.uid),
+      where('start','>=', start),
+      where('start','<',  end)
+    ),
+    (snap)=>{
+      plans = snap.docs.map(d=>({id:d.id, ...d.data(), start: toDate(d.data().start)}));
+      renderCalendar();
+    },
+    (err)=> console.error("plans stream error", err)
+  );
+}
+
 });

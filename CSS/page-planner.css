@@ -348,3 +348,8 @@ body.resizing-event * {
   outline: 2px solid rgba(255, 255, 255, 0.55);
   outline-offset: -2px;
 }
+
+.view-switch .is-active {
+  outline: 2px solid var(--primary, #2196f3);
+  outline-offset: -2px;
+}
