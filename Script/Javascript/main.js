@@ -188,13 +188,14 @@ if (loginBtn) {
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
-  const ownerUid = "KNjbJuZV1MZMEUQKsViehVhW3832";
-  const sh = await getDoc(doc(db,"shares", ownerUid));
-  const isShared = sh.exists() && (sh.data().read || []).includes(user.uid);
-  if (isShared && !location.pathname.endsWith("/plan.html")) {
-    location.replace("/plan.html");
-  }
 
+  const ownerUid = "KNjbJuZV1MZMEUQKsViehVhW3832"; // <-- jouw UID
+
+  // ✔ Iedereen die niet de eigenaar is, blijft op plan.html
+  if (user.uid !== ownerUid && !location.pathname.endsWith("/plan.html")) {
+    location.replace("/plan.html");
+    return;
+  }
 
 
   currentUser = user;

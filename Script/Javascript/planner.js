@@ -1247,46 +1247,26 @@ li.textContent =
 renderView();
 
   /* ── Auth stream ── */
- onAuthStateChanged(auth, async (user)=>{
-  if(!user){
+onAuthStateChanged(auth, async (user)=>{
+  if (!user) {
     currentUser = null;
     ownerUid = null;
     canWrite = false;
-    document.getElementById("auth")?.style && (document.getElementById("auth").style.display = "block");
-    document.getElementById("app") ?.style && (document.getElementById("app").style.display  = "block");
     renderView();
     return;
   }
 
   currentUser = user;
 
-  // Standaard: eigenaar = zichzelf
-  ownerUid = user.uid;
-  canWrite = true;
+  // ✔ Toon ALTIJD de planner van de eigenaar
+  ownerUid = "KNjbJuZV1MZMEUQKsViehVhW3832";   // <-- jouw UID
+  // ✔ Alleen de eigenaar mag schrijven
+  canWrite = (user.uid === ownerUid);
 
-  // Check of user meelezer/schrijver is van jouw planner
-  try {
-    const shSnap = await getDocs(query(collection(db,"shares"))); // simpele fetch als je shares niet importeert elders
-    const myShare = (await import("./firebase-config.js")).getDoc
-      ? await (await import("./firebase-config.js")).getDoc(doc(db,"shares", OWNER_UID))
-      : null;
-
-    if (myShare && myShare.exists()) {
-      const data = myShare.data();
-      const canRead  = (data.read  || []).includes(user.uid);
-      const canWriteS= (data.write || []).includes(user.uid);
-      if (canRead && user.uid !== OWNER_UID) {
-        ownerUid = OWNER_UID;       // toon jouw data
-        canWrite = canWriteS;       // schrijfrecht volgens share
-      }
-    }
-  } catch(e){ console.warn("shares check", e); }
-
-  // UI (knoppen) vergrendelen bij read-only
+  // UI vergrendelen bij read-only
   document.getElementById("newBacklogBtn")?.toggleAttribute("disabled", !canWrite);
   document.getElementById("manageSubjectsBtn")?.toggleAttribute("disabled", !canWrite);
 
-  // start streams
   bindStreams();
   cleanupExpiredBacklog();
   if (window._backlogCleanupTimer) clearInterval(window._backlogCleanupTimer);
