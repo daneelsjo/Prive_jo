@@ -187,12 +187,15 @@ if (loginBtn) {
 }
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    currentUser = null;
-    if (appDiv) appDiv.style.display = "none";
-    if (authDiv) authDiv.style.display = "block";
-    return;
+  if (!user) return;
+  const ownerUid = "KNjbJuZV1MZMEUQKsViehVhW3832";
+  const sh = await getDoc(doc(db,"shares", ownerUid));
+  const isShared = sh.exists() && (sh.data().read || []).includes(user.uid);
+  if (isShared && !location.pathname.endsWith("/plan.html")) {
+    location.replace("/plan.html");
   }
+
+
 
   currentUser = user;
   if (authDiv) authDiv.style.display = "none";
