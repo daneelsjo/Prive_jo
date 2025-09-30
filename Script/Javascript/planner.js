@@ -311,8 +311,8 @@ const PALETTE = [
 
   /* ── UI wiring ── */
   bind("#login-btn", "click", () => signInWithPopup(auth, provider));
-  bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderWeek(); if(currentUser) refreshPlans(); });
-  bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderWeek(); if(currentUser) refreshPlans(); });
+  bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderView(); if(currentUser) refreshPlans(); });
+  bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderView(); if(currentUser) refreshPlans(); });
 
   document.addEventListener('keydown', async (e)=>{
   if(e.key !== 'Delete' || !selectedPlanId) return;
@@ -668,7 +668,7 @@ renderView();
       currentUser = null;
       authDiv && (authDiv.style.display='block');
       appDiv  && (appDiv.style.display='block'); // UI zichtbaar
-      renderWeek();
+      renderView();
       return;
     }
     currentUser = user;
@@ -679,7 +679,7 @@ renderView();
 if (window._backlogCleanupTimer) clearInterval(window._backlogCleanupTimer);
 window._backlogCleanupTimer = setInterval(cleanupExpiredBacklog, 6*60*60*1000); // elke 6 uur
 
-    renderWeek();
+    renderView();
   });
 
   /* ───────────────────── Renderers & Data ───────────────────── */
