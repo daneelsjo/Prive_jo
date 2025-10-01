@@ -35,6 +35,26 @@ const OWNER_UID = "KNjbJuZV1MZMEUQKsViehVhW3832"; // ← jouw uid
 let ownerUid = null;   // effectief gebruikte eigenaar in queries
 let canWrite = true;   // mag de ingelogde user ook bewerken?
 
+const AUTO_FILTER_BACKLOG = true;
+
+// We onthouden wat de laatste gerenderde periode was
+let lastPeriodStart = null;
+let lastPeriodEnd   = null;
+
+function applyAutoBacklogFilterForPeriod(){
+  if (!AUTO_FILTER_BACKLOG || !lastPeriodStart) return;
+
+  // Stel filter in: toon enkel deadlines vanaf het begin van de periode
+  backlogFilter.from = startOfDay(lastPeriodStart);
+  backlogFilter.to   = null;           // geen bovengrens: alles vanaf periode-start
+
+  // Knopkleur: filter actief
+  const fb = document.getElementById('filterBtn');
+  if (fb) fb.classList.add('is-active');
+
+  // Herteken de backlog met de nieuwe filter
+  renderBacklog();
+}
 
 
 
@@ -57,9 +77,13 @@ function getPeriodRange(){
 }
 
 function renderCalendar(){
+
+
   if(!calRootEl) return;
 
   const { start: periodStart, days: dayCount } = getPeriodRange();
+    lastPeriodStart = start;
+lastPeriodEnd   = end;
 
   calRootEl.innerHTML = '';
 
@@ -329,6 +353,7 @@ function renderView(){
   }
 
   renderCalendar();
+  applyAutoBacklogFilterForPeriod(); 
 }
 
 
@@ -870,12 +895,16 @@ document.addEventListener('input', (e)=>{
 document.getElementById('prevWeek')?.addEventListener('click', ()=>{
   if (viewMode === 'day') { dayDate.setDate(dayDate.getDate()-1); }
   else { weekStart = addDays(weekStart,-7); }
-  renderView(); if(currentUser) refreshPlans();
+  renderView();
+  applyAutoBacklogFilterForPeriod();
+  if(currentUser) refreshPlans();
 });
 document.getElementById('nextWeek')?.addEventListener('click', ()=>{
   if (viewMode === 'day') { dayDate.setDate(dayDate.getDate()+1); }
   else { weekStart = addDays(weekStart, 7); }
-  renderView(); if(currentUser) refreshPlans();
+  renderView();
+  applyAutoBacklogFilterForPeriod();
+  if(currentUser) refreshPlans();
 });
 
 
