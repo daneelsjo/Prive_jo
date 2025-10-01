@@ -950,6 +950,13 @@ const PALETTE = [
   bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderView(); if(currentUser) refreshPlans(); });
   bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderView(); if(currentUser) refreshPlans(); });
   
+  // Type kiezen in backlog-modal (werkt met segmented .seg knoppen)
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('#modal-backlog .segmented .seg');
+  if (!btn) return;
+  setTypeButtons(btn.dataset.type);     // zet hidden #bl-type en active class
+});
+
 
 
   // Filter-klik: open modal + vul vakkenlijst
@@ -1575,39 +1582,12 @@ function renderBacklogItem(it){
   };
 
   // ✏️ bewerken
-  row.querySelector('.edit').onclick = ()=>{
-    if(!currentUser){ alert('Log eerst in.'); return; }
+  // ✏️ bewerken (gebruik de centrale open-functie)
+row.querySelector('.edit').onclick = ()=>{
+  if(!currentUser){ alert('Log eerst in.'); return; }
+  openBacklogModalEdit(it);
+};
 
-    const modalTitle = document.getElementById('modal-backlog-title');
-    if (modalTitle) modalTitle.textContent = 'Item bewerken';
-
-    const blIdInput = document.getElementById('bl-id');
-    if (blIdInput) blIdInput.value = it.id;
-
-    const inSubject  = document.getElementById("bl-subject");
-    const inType     = document.getElementById("bl-type");
-    const inTitle    = document.getElementById("bl-title");
-    const inDuration = document.getElementById("bl-duration");
-    const inDue      = document.getElementById("bl-due");
-    const propagateChk = document.getElementById('bl-propagate');
-
-    if (inSubject)  inSubject.value  = it.subjectName || '';
-    if (inTitle)    inTitle.value    = it.title || '';
-    if (inType)     inType.value     = it.type || 'taak';
-    if (inDuration) inDuration.value = (it.durationHours||1);
-    if (inDue)      inDue.value      = it.dueDate ? toISODate(toDate(it.dueDate)) : '';
-    if (propagateChk) propagateChk.checked = true;
-
-    document.querySelectorAll("#modal-backlog .type-btn").forEach(b=>{
-      b.classList.toggle("is-active", b.dataset.type === (it.type||'taak'));
-    });
-
-    setSubjectChip(it.subjectName||'', it.color||'');
-    renderSubjectMenu('');
-
-    if (window.Modal?.open) Modal.open('modal-backlog');
-    else document.getElementById('modal-backlog')?.removeAttribute('hidden');
-  };
 
   return row;
 }
