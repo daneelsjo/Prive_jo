@@ -40,21 +40,23 @@ const AUTO_FILTER_BACKLOG = true;
 // We onthouden wat de laatste gerenderde periode was
 let lastPeriodStart = null;
 let lastPeriodEnd   = null;
-
 function applyAutoBacklogFilterForPeriod(){
   if (!AUTO_FILTER_BACKLOG || !lastPeriodStart) return;
 
-  // Stel filter in: toon enkel deadlines vanaf het begin van de periode
+  // Filter: toon enkel deadlines vanaf begin van de huidige periode
   backlogFilter.from = startOfDay(lastPeriodStart);
-  backlogFilter.to   = null;           // geen bovengrens: alles vanaf periode-start
+  backlogFilter.to   = null;
 
-  // Knopkleur: filter actief
+  // Knop visueel actief
   const fb = document.getElementById('filterBtn');
   if (fb) fb.classList.add('is-active');
 
-  // Herteken de backlog met de nieuwe filter
-  renderBacklog();
+  // Hertekenen – roep de versie aan die door DOMContentLoaded is “geëxporteerd”
+  if (typeof window.renderBacklog === 'function') {
+    window.renderBacklog();
+  }
 }
+
 
 
 
@@ -404,12 +406,7 @@ function toISODate(dt){
   return `${y}-${m}-${da}`;
 }
 
-// 15 vaste kleuren (globaal gebruiken)
-const PALETTE = [
-  "#2196F3","#3F51B5","#00BCD4","#4CAF50","#8BC34A",
-  "#FFC107","#FF9800","#FF5722","#E91E63","#9C27B0",
-  "#795548","#607D8B","#009688","#673AB7","#F44336"
-];
+
 
 /* ───────── Backlog-modal helpers (globaal) ───────── */
 function showError(id, msg){
@@ -1342,6 +1339,8 @@ function renderBacklog(){
     container.appendChild(wrap);
   }
 }
+window.renderBacklog = renderBacklog;
+
 
 function renderBacklogItem(it){
   const row = document.createElement('div');
