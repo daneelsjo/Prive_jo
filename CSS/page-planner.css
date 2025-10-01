@@ -469,3 +469,28 @@ body.resizing-event * {
   }
   .planner-toolbar .tb-label{ margin-bottom: .25rem; }
 }
+
+/* ----- Backlog form layout ----- */
+.bl-form{ display:grid; gap:.55rem; }
+.bl-form .row{ display:flex; align-items:center; gap:.5rem; }
+
+.form-label{ font-weight:700; opacity:.9; }
+.form-label.req::after{ content:" *"; color:#ff6b6b; }
+
+#bl-subject{ height:38px; padding:0 .6rem; border-radius:.55rem;
+  border:1px solid var(--border); background:rgba(255,255,255,.05); color:inherit; min-width:14rem; }
+#bl-title, #bl-duration, #bl-due{ height:38px; padding:0 .6rem; border-radius:.55rem;
+  border:1px solid var(--border); background:rgba(255,255,255,.05); color:inherit; }
+
+.swatch{ width:24px; height:24px; border-radius:.45rem; border:1px solid var(--border); }
+
+.segmented{ display:inline-flex; border:1px solid var(--border); border-radius:.6rem; overflow:hidden; width:max-content; }
+.segmented .seg{ padding:.45rem .9rem; background:rgba(255,255,255,.05); border:0; cursor:pointer; }
+.segmented .seg + .seg{ border-left:1px solid var(--border); }
+.segmented .seg.is-active{ background:var(--primary); color:#fff; }
+
+.error{ color:#ff8a8a; font-size:.85rem; min-height:1em; }
+.hint{ opacity:.7; font-size:.85rem; }
+
+/* invalid highlight */
+.is-invalid{ border-color:#ff6b6b !important; box-shadow:0 0 0 2px rgba(255,107,107,.15); }
