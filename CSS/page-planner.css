@@ -539,3 +539,42 @@ input[type="date"]{
 
 /* opties iets meer lucht */
 #bl-subject option{ padding:.35rem .6rem; }
+
+/* ===== Examen – extra opvallend ===== */
+
+/* Backlog pills */
+.bl-item.type-examen{
+  border-width: 2px;
+  border-color: #ffd54f !important;          /* amber */
+  box-shadow: 0 0 0 2px rgba(255,213,79,.25), 0 8px 18px rgba(0,0,0,.22);
+  position: relative;
+}
+.bl-item.type-examen::before{
+  content: "EXAMEN";
+  position: absolute; top: -10px; right: 8px;
+  font-size: .65rem; letter-spacing: .12em;
+  background: #ffd54f; color: #262626;
+  padding: .1rem .35rem; border-radius: .35rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+
+/* Kalenderblokken */
+.event.type-examen{
+  border: 2px solid #ffd54f !important;
+  box-shadow:
+    0 0 0 2px rgba(255,213,79,.25),
+    0 10px 24px rgba(0,0,0,.28);
+}
+.event.type-examen .title{
+  text-transform: none;
+}
+.event.type-examen .evt-actions .evt-del{
+  border-color: rgba(255,213,79,.6);
+  background: rgba(38,38,38,.4);
+}
+
+/* Optioneel: subtiele "highlight strip" onderaan */
+.event.type-examen .resize-h{
+  background: #ffd54f;
+  opacity: .95;
+}
