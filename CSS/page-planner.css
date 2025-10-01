@@ -578,3 +578,42 @@ input[type="date"]{
   background: #ffd54f;
   opacity: .95;
 }
+/* Kalender-event: delete-knop alleen tonen op hover/selected en rechtsboven plaatsen */
+.event{ position: absolute; }               /* zekerheid: absoluut gepositioneerd */
+.event .evt-actions{
+  position: absolute;
+  top: 6px;
+  right: 6px;                               /* ← stonden links; naar rechts verplaatsen */
+  left: auto;
+  opacity: 0;                               /* standaard onzichtbaar */
+  pointer-events: none;                     /* geen klik-vangers zolang onzichtbaar */
+  transition: opacity .15s ease;
+}
+.event:hover .evt-actions,
+.event.is-selected .evt-actions{
+  opacity: 1;                               /* tonen bij hover of selectie */
+  pointer-events: auto;
+}
+.event .evt-del{
+  font-size: 14px;
+  line-height: 1;
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(20,20,20,.35);
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+.event .evt-del:hover{
+  background: rgba(20,20,20,.55);
+}
+
+/* (optioneel) het notitie-icoon rechts blijft zichtbaar */
+.event.has-note::after{
+  content: "🗒";
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  opacity: .9;
+  font-size: 16px;
+}
