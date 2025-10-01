@@ -411,9 +411,11 @@ function validateBacklog(){
 function setTypeButtons(type){
   const hidden = document.getElementById('bl-type');
   if (hidden) hidden.value = type || '';
-  document
-    .querySelectorAll('#modal-backlog .segmented .seg')
-    .forEach(b => b.classList.toggle('is-active', b.dataset.type === (type||'')));
+  document.querySelectorAll('#modal-backlog .segmented .seg').forEach(b=>{
+    const active = b.dataset.type === (type||'');
+    b.classList.toggle('is-active', active);
+    b.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
 }
 
 /* vakken in de select vullen + kleur tonen (opties gekleurd) */
@@ -517,7 +519,7 @@ function openBacklogModalNew(){
   const h = document.getElementById('bl-titlebar'); if (h) h.textContent = 'Nieuw item';
   document.getElementById('bl-id').value = '';
   fillSubjectSelect('');
-  setTypeButtons('');
+  setTypeButtons('taak');
   document.getElementById('bl-title').value = '';
   document.getElementById('bl-duration').value = '1';
   document.getElementById('bl-due').value = '';
