@@ -233,6 +233,111 @@ delBtn.addEventListener('click', async (e)=>{
   col.appendChild(block);
 }
 
+function renderCalendar(){
+  if(!calRootEl) return;
+
+  // periode bijhouden → nodig voor auto-filter backlog
+  const { start: periodStart, end: periodEnd, days: dayCount } = getPeriodRange();
+  lastPeriodStart = periodStart;
+  lastPeriodEnd   = periodEnd;
+
+  calRootEl.innerHTML = '';
+
+  // hoekje linksboven + dagkoppen
+  const headTime = div('col-head'); headTime.textContent = '';
+  calRootEl.appendChild(headTime);
+  for(let d=0; d<dayCount; d++){
+    const day = addDays(periodStart, d);
+    const h = div('col-head');
+    h.textContent = day.toLocaleDateString('nl-BE',{weekday:'long', day:'2-digit', month:'2-digit'});
+    calRootEl.appendChild(h);
+  }
+
+  const hStart = 7, hEnd = 22;
+
+  // tijdkolom
+  const tc = div('time-col');
+  for(let h=hStart; h<hEnd; h++){
+    const slot = div('time-slot'); slot.textContent = `${pad(h)}:00`;
+    tc.appendChild(slot);
+  }
+  calRootEl.appendChild(tc);
+
+  // dagkolommen + dropzones (30 min)
+  for(let d=0; d<dayCount; d++){
+    const col = div('day-col');
+    col.dataset.day = String(d);
+
+    // fallback drop (bovenaan kolom)
+    col.ondragover = (e)=>{ e.preventDefault(); };
+    col.ondrop = async (e)=>{
+      e.preventDefault();
+      if(!currentUser){ alert('Log in om te plannen.'); return; }
+      const data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
+      if(!data) return;
+
+      if(data.kind==='backlog'){
+        const item = backlog.find(x=>x.id===data.id); if(!item) return;
+        const start = addDays(periodStart, d); start.setHours(hStart,0,0,0);
+        try{
+          await addDoc(collection(db,'plans'),{
+            itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
+            color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
+            uid:ownerUid,createdAt:new Date()
+          });
+        }catch(err){ console.error(err); alert('Kon niet plannen: '+(err?.message||err)); }
+      }else if(data.kind==='planmove'){
+        const start = addDays(periodStart, d); start.setHours(hStart,0,0,0);
+        try{ await updateDoc(doc(db,'plans', data.id), { start }); }
+        catch(err){ console.error(err); alert('Kon niet verplaatsen: '+(err?.message||err)); }
+      }
+    };
+
+    for(let h=hStart; h<hEnd; h++){
+      for(let m of [0,30]){
+        const z = div('dropzone');
+        z.dataset.hour = String(h);
+        z.dataset.min  = String(m);
+        z.ondragover = (e)=>{ e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
+        z.ondragleave = ()=> z.removeAttribute('aria-dropeffect');
+        z.ondrop = async (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          z.removeAttribute('aria-dropeffect');
+          if(!currentUser){ alert('Log in om te plannen.'); return; }
+          const data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
+          if(!data) return;
+
+          const start = addDays(periodStart, d);
+          start.setHours(parseInt(z.dataset.hour,10), parseInt(z.dataset.min,10), 0, 0);
+
+          try{
+            if(data.kind==='backlog'){
+              const item = backlog.find(x=>x.id===data.id); if(!item) return;
+              await addDoc(collection(db,'plans'),{
+                itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
+                color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
+                uid:ownerUid,createdAt:new Date()
+              });
+            }else if(data.kind==='planmove'){
+              await updateDoc(doc(db,'plans', data.id), { start });
+            }
+          }catch(err){
+            console.error('drop error:', err);
+            alert('Kon niet plannen/verplaatsen: ' + (err?.message||err));
+          }
+        };
+        col.appendChild(z);
+      }
+    }
+
+    calRootEl.appendChild(col);
+  }
+
+  // geplande events tekenen
+  if (Array.isArray(plans) && plans.length){
+    plans.forEach(p=> placeEvent(p));
+  }
+}
 
 
 
@@ -514,239 +619,6 @@ document.addEventListener('click', async (e)=>{
   }
   window.Modal?.close ? Modal.close('modal-plan-note') : document.getElementById('modal-plan-note')?.setAttribute('hidden','');
 });
-
-function renderCalendar(){
-  if(!calRootEl) return;
-
-  // ← onthoud de periode voor auto-filter backlog
-  const { start: periodStart, end: periodEnd, days: dayCount } = getPeriodRange();
-  lastPeriodStart = periodStart;
-  lastPeriodEnd   = periodEnd;
-
-  calRootEl.innerHTML = '';
-
-  // Hoek + dagkoppen
-  const headTime = div('col-head'); headTime.textContent = '';
-  calRootEl.appendChild(headTime);
-  for(let d=0; d<dayCount; d++){
-    const day = addDays(periodStart, d);
-    const h = div('col-head');
-    h.textContent = day.toLocaleDateString('nl-BE',{weekday:'long', day:'2-digit', month:'2-digit'});
-    calRootEl.appendChild(h);
-  }
-
-  const hStart = 7, hEnd = 22;
-
-  // tijdkolom
-  const tc = div('time-col');
-  for(let h=hStart; h<hEnd; h++){
-    const slot = div('time-slot'); slot.textContent = `${pad(h)}:00`; tc.appendChild(slot);
-  }
-  calRootEl.appendChild(tc);
-
-  // dagkolommen
-  for(let d=0; d<dayCount; d++){
-    const col = div('day-col');
-    col.dataset.day = String(d);
-
-    // Fallback drop
-    col.ondragover = (e)=>{ e.preventDefault(); };
-    col.ondrop = async (e)=>{
-      e.preventDefault();
-      if(!currentUser){ alert('Log in om te plannen.'); return; }
-      const data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
-      if(!data) return;
-
-      if(data.kind==='backlog'){
-        const item = backlog.find(x=>x.id===data.id); if(!item) return;
-        const start = addDays(periodStart, d); start.setHours(hStart,0,0,0);
-        await addDoc(collection(db,'plans'),{
-          itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
-          color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
-          uid:ownerUid,createdAt:new Date()
-        }).catch(err=>{ console.error(err); alert('Kon niet plannen: '+(err?.message||err)); });
-      }else if(data.kind==='planmove'){
-        const start = addDays(periodStart, d); start.setHours(hStart,0,0,0);
-        await updateDoc(doc(db,'plans', data.id), { start })
-          .catch(err=>{ console.error(err); alert('Kon niet verplaatsen: '+(err?.message||err)); });
-      }
-    };
-
-    // 30-min slots
-    for(let h=hStart; h<hEnd; h++){
-      for(let m of [0,30]){
-        const z = div('dropzone');
-        z.dataset.hour = String(h);
-        z.dataset.min  = String(m);
-        z.ondragover = (e)=>{ e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
-        z.ondragleave = ()=> z.removeAttribute('aria-dropeffect');
-        z.ondrop = async (e)=>{
-          e.preventDefault(); e.stopPropagation();
-          z.removeAttribute('aria-dropeffect');
-          if(!currentUser){ alert('Log in om te plannen.'); return; }
-          const data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
-          if(!data) return;
-
-          const start = addDays(periodStart, d);
-          start.setHours(parseInt(z.dataset.hour,10), parseInt(z.dataset.min,10), 0, 0);
-
-          try{
-            if(data.kind==='backlog'){
-              const item = backlog.find(x=>x.id===data.id); if(!item) return;
-              await addDoc(collection(db,'plans'),{
-                itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
-                color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
-                uid:ownerUid,createdAt:new Date()
-              });
-            }else if(data.kind==='planmove'){
-              await updateDoc(doc(db,'plans', data.id), { start });
-            }
-          }catch(err){
-            console.error('drop error:', err);
-            alert('Kon niet plannen/verplaatsen: ' + (err?.message||err));
-          }
-        };
-        col.appendChild(z);
-      }
-    }
-
-    calRootEl.appendChild(col);
-  }
-
-  // events tekenen
-  if (Array.isArray(plans) && plans.length){
-    plans.forEach(p=> placeEvent(p));
-  }
-}
-
-
-function placeEvent(p){
-  const start = toDate(p.start);
-  const { start: periodStart, days: dayCount } = getPeriodRange();
-  const d = clamp(Math.floor((start - periodStart)/86400000), 0, dayCount-1);
-
-  const hStart = 7, hEnd = 22;
-  const totalRows = (hEnd - hStart) * 2;
-  const slotH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) || 28;
-
-  const hour = start.getHours();
-  const mins = start.getMinutes();
-  const rowsFromTop = ((hour - hStart) * 2) + (mins >= 30 ? 1 : 0);
-  const heightRows  = Math.max(1, Math.round((p.durationHours||1) * 2));
-
-  const cols = calRootEl.querySelectorAll('.day-col');
-  const col = cols[d]; if(!col) return;
-
-  const block = div('event');
-  const bg = p.color || '#2196F3';
-  block.style.background = bg;
-  block.style.color = getContrast(bg);
-  block.style.top   = `${rowsFromTop * slotH}px`;
-  block.style.height= `${heightRows * slotH - 4}px`;
-  block.innerHTML = `
-    <div class="title">${p.symbol||sym(p.type)} ${esc(p.title||'')}</div>
-    <div class="meta">${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${p.durationHours}u</div>
-    <div class="resize-h" title="Sleep om duur aan te passen"></div>
-  `;
-
-  // tooltip
-  block.addEventListener('mouseenter', (ev)=>{
-    const tip = document.getElementById('evt-tip'); if(!tip) return;
-    const dueSrc = p.dueDate || backlog.find(b=> b.id===p.itemId)?.dueDate || null;
-    const due    = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
-    let tipHtml = `<div class="t">${esc(p.title||'')}</div>
-      <div class="m">${esc(p.subjectName||'')} • ${p.type} • ${p.durationHours}u</div>
-      <div class="m">Tegen: ${due}</div>`;
-    if (p.note && String(p.note).trim()) tipHtml += `<div class="m">Opmerking: ${esc(p.note)}</div>`;
-    tip.innerHTML = tipHtml;
-    tip.style.display = 'block';
-    tip.style.left = (ev.clientX+12)+'px';
-    tip.style.top  = (ev.clientY+12)+'px';
-  });
-  block.addEventListener('mousemove', (ev)=>{
-    const tip = document.getElementById('evt-tip'); if(!tip || tip.style.display!=='block') return;
-    tip.style.left = (ev.clientX+12)+'px';
-    tip.style.top  = (ev.clientY+12)+'px';
-  });
-  block.addEventListener('mouseleave', ()=>{
-    const tip = document.getElementById('evt-tip'); if(tip) tip.style.display = 'none';
-  });
-
-  // select / alt+klik delete
-  block.addEventListener('click', async (e)=>{
-    selectedPlanId = p.id;
-    document.querySelectorAll('.event.is-selected').forEach(el=> el.classList.remove('is-selected'));
-    block.classList.add('is-selected');
-
-    if (!e.altKey) return;
-    if(!currentUser){ alert('Log eerst in.'); return; }
-    if(!confirm('Deze planning verwijderen?')) return;
-    await deleteDoc(doc(db,'plans', p.id));
-  });
-
-  // move
-  block.setAttribute('draggable', 'true');
-  block.addEventListener('dragstart', (e)=>{
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/json', JSON.stringify({kind:'planmove', id: p.id}));
-    e.dataTransfer.setData('text/plain',       JSON.stringify({kind:'planmove', id: p.id}));
-    document.body.classList.add('dragging-event');
-  });
-  block.addEventListener('dragend', ()=> document.body.classList.remove('dragging-event'));
-
-  // resize
-  const handle = block.querySelector('.resize-h');
-  handle.addEventListener('dragstart', e=> e.preventDefault());
-  handle.addEventListener('mousedown', (e)=>{
-    e.stopPropagation(); e.preventDefault();
-    document.body.classList.add('resizing-event');
-    block.classList.add('resizing');
-
-    const startY = e.clientY;
-    const startPx = block.offsetHeight;
-    const maxRows = Math.max(1, totalRows - rowsFromTop);
-
-    function onMove(ev){
-      const dy = ev.clientY - startY;
-      let rows = Math.round((startPx + dy) / slotH);
-      rows = clamp(rows, 1, maxRows);
-      block.style.height = `${rows * slotH - 4}px`;
-      const newDur = Math.max(0.5, rows / 2);
-      const meta = block.querySelector('.meta');
-      if (meta) meta.textContent = `${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${newDur}u`;
-    }
-    function onUp(){
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-      document.body.classList.remove('resizing-event');
-      block.classList.remove('resizing');
-      const finalRows = Math.round((block.offsetHeight + 4) / slotH);
-      const newDur = Math.max(0.5, finalRows / 2);
-      updateDoc(doc(db,'plans', p.id), { durationHours: newDur }).catch(err=>{
-        console.error('resize save error:', err);
-        alert('Kon nieuwe duur niet bewaren: ' + (err?.message||err));
-      });
-    }
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  });
-
-  // opmerking (dblclick)
-  if (p.note && String(p.note).trim()) block.classList.add('has-note');
-  block.addEventListener('dblclick', ()=>{
-    if(!currentUser){ alert('Log eerst in.'); return; }
-    const idEl = document.getElementById('plan-note-id');
-    const ta   = document.getElementById('plan-note-text');
-    if (idEl) idEl.value = p.id;
-    if (ta)   ta.value = p.note ? String(p.note) : '';
-    if (window.Modal?.open) Modal.open('modal-plan-note');
-    else document.getElementById('modal-plan-note')?.removeAttribute('hidden');
-  });
-
-  col.appendChild(block);
-}
-
-
 
 
 // Typen = filteren; lege input = volledige lijst
@@ -1473,7 +1345,7 @@ function renderBacklog(){
 
 function renderBacklogItem(it){
   const row = document.createElement('div');
- row.className = `bl-item type-${(item.type||'').toLowerCase()}`;
+ row.className = `bl-item type-${(it.type||'').toLowerCase()}`;
 
   row.draggable = true;
   row.dataset.id = it.id;
