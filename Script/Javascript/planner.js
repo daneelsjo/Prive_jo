@@ -377,6 +377,67 @@ function toISODate(dt){
   return `${y}-${m}-${da}`;
 }
 
+// 15 vaste kleuren (globaal gebruiken)
+const PALETTE = [
+  "#2196F3","#3F51B5","#00BCD4","#4CAF50","#8BC34A",
+  "#FFC107","#FF9800","#FF5722","#E91E63","#9C27B0",
+  "#795548","#607D8B","#009688","#673AB7","#F44336"
+];
+
+/* ───────── Backlog-modal helpers (globaal) ───────── */
+function showError(id, msg){
+  const f = document.getElementById(id);
+  const e = document.querySelector(`.error[data-for="${id}"]`);
+  if (f) f.classList.toggle('is-invalid', !!msg);
+  if (e) e.textContent = msg || '';
+}
+
+function validateBacklog(){
+  let ok = true;
+  const subj = document.getElementById('bl-subject')?.value || '';
+  const type = document.getElementById('bl-type')?.value || '';
+  const title= (document.getElementById('bl-title')?.value || '').trim();
+  const due  = document.getElementById('bl-due')?.value || '';
+
+  if (!subj){ showError('bl-subject','Kies een vak.'); ok = false; } else showError('bl-subject','');
+  if (!type){ showError('bl-type','Kies een type.');   ok = false; } else showError('bl-type','');
+  if (!title){showError('bl-title','Geef een titel.'); ok = false; } else showError('bl-title','');
+  if (!due){  showError('bl-due','Kies een deadline.');ok = false; } else showError('bl-due','');
+
+  return ok;
+}
+
+/* type-segmenten actief zetten + hidden waarde schrijven */
+function setTypeButtons(type){
+  const hidden = document.getElementById('bl-type');
+  if (hidden) hidden.value = type || '';
+  document
+    .querySelectorAll('#modal-backlog .segmented .seg')
+    .forEach(b => b.classList.toggle('is-active', b.dataset.type === (type||'')));
+}
+
+/* vakken in de select vullen + kleur-swatch bijwerken */
+function fillSubjectSelect(selectedId){
+  const sel = document.getElementById('bl-subject');
+  const sw  = document.getElementById('bl-swatch');
+  if (!sel) return;
+
+  sel.innerHTML =
+    `<option value="">Kies een vak…</option>` +
+    subjects.map(s => `<option value="${s.id}" data-color="${s.color||''}">${esc(s.name)}</option>`).join('');
+
+  sel.value = selectedId || '';
+
+  const setSwatch = ()=>{
+    const opt = sel.selectedOptions[0];
+    const c = opt ? opt.dataset.color : '';
+    if (sw) sw.style.background = c || 'transparent';
+  };
+  sel.addEventListener('change', setSwatch, { once:false });
+  setSwatch();
+}
+
+
 function clearBacklogErrors(){
   ['bl-subject','bl-type','bl-title','bl-due'].forEach(id => showError(id,''));
 }
@@ -438,26 +499,16 @@ function closeSubjectMenu(){
   if(!menu) return;
   menu.hidden = true;
 }
+
 function openBacklogModalNew(){
   clearBacklogErrors();
-
-  // Titelbalk
-  const h = document.getElementById('bl-titlebar');
-  if (h) h.textContent = 'Nieuw item';
-
-  // Hidden ID leeg
+  const h = document.getElementById('bl-titlebar'); if (h) h.textContent = 'Nieuw item';
   document.getElementById('bl-id').value = '';
-
-  // Vakken dropdown vullen (geen selectie) + type knoppen leeg
   fillSubjectSelect('');
   setTypeButtons('');
-
-  // Velden resetten
   document.getElementById('bl-title').value = '';
   document.getElementById('bl-duration').value = '1';
   document.getElementById('bl-due').value = '';
-
-  // Open modal
   if (window.Modal?.open) Modal.open('modal-backlog');
   else document.getElementById('modal-backlog')?.removeAttribute('hidden');
 }
@@ -465,24 +516,13 @@ function openBacklogModalNew(){
 function openBacklogModalEdit(item){
   if (!item) return;
   clearBacklogErrors();
-
-  // Titelbalk
-  const h = document.getElementById('bl-titlebar');
-  if (h) h.textContent = 'Item bewerken';
-
-  // Hidden ID
+  const h = document.getElementById('bl-titlebar'); if (h) h.textContent = 'Item bewerken';
   document.getElementById('bl-id').value = item.id;
-
-  // Vakken dropdown + type knoppen voorselecteren
   fillSubjectSelect(item.subjectId || '');
   setTypeButtons(item.type || '');
-
-  // Overige velden
   document.getElementById('bl-title').value     = item.title || '';
   document.getElementById('bl-duration').value  = String(item.durationHours || 1);
   document.getElementById('bl-due').value       = item.dueDate ? toISODate(item.dueDate) : '';
-
-  // Open modal
   if (window.Modal?.open) Modal.open('modal-backlog');
   else document.getElementById('modal-backlog')?.removeAttribute('hidden');
 }
@@ -895,99 +935,7 @@ const PALETTE = [
   bind("#login-btn", "click", () => signInWithPopup(auth, provider));
   bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderView(); if(currentUser) refreshPlans(); });
   bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderView(); if(currentUser) refreshPlans(); });
-  document.addEventListener('click', (e)=>{
-  const btn = e.target.closest('#modal-backlog .segmented .seg'); if(!btn) return;
-  const g = btn.parentElement;
-  g.querySelectorAll('.seg').forEach(b=> b.classList.remove('is-active'));
-  btn.classList.add('is-active');
-  const hidden = document.getElementById('bl-type');
-  if (hidden) hidden.value = btn.dataset.type || '';
-});
-
-// util
-function showError(id, msg){
-  const f = document.getElementById(id);
-  const e = document.querySelector(`.error[data-for="${id}"]`);
-  if (f) f.classList.toggle('is-invalid', !!msg);
-  if (e) e.textContent = msg || '';
-}
-
-function validateBacklog(){
-  let ok = true;
-  const subj = document.getElementById('bl-subject').value;
-  const type = document.getElementById('bl-type').value;
-  const title= (document.getElementById('bl-title').value||'').trim();
-  const due  = document.getElementById('bl-due').value;
-
-  if (!subj){ showError('bl-subject','Kies een vak.'); ok = false; } else showError('bl-subject','');
-  if (!type){ showError('bl-type','Kies een type.'); ok = false; } else showError('bl-type','');
-  if (!title){ showError('bl-title','Geef een titel.'); ok = false; } else showError('bl-title','');
-  if (!due){ showError('bl-due','Kies een deadline.'); ok = false; } else showError('bl-due','');
-
-  return ok;
-}
-
-// submit
-document.getElementById('bl-form')?.addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  if (!canWrite){ alert('Lezen is toegestaan, wijzigen niet.'); return; }
-  if (!validateBacklog()) {
-    const first = document.querySelector('.is-invalid'); if (first) first.focus();
-    return;
-  }
-
-  const id    = document.getElementById('bl-id').value || '';
-  const subjId= document.getElementById('bl-subject').value;
-  const subj  = subjects.find(s=> s.id === subjId) || { name:'', color: PALETTE?.[0] || '#2196f3' };
-  const type  = document.getElementById('bl-type').value;
-  const title = (document.getElementById('bl-title').value||'').trim();
-  const dur   = parseFloat(document.getElementById('bl-duration').value || '1') || 1;
-  const due   = new Date(document.getElementById('bl-due').value);
-
-  const payload = {
-    uid: ownerUid,
-    subjectId: subjId,
-    subjectName: subj.name,
-    color: subj.color,
-    type, title,
-    durationHours: dur,
-    dueDate: due,
-    symbol: sym(type),
-    done: false,
-    updatedAt: new Date()
-  };
-
-  try{
-    if (id){
-      await updateDoc(doc(db,'backlog', id), payload);
-    } else {
-      payload.createdAt = new Date();
-      await addDoc(collection(db,'backlog'), payload);
-    }
-    Modal.close('modal-backlog');
-  }catch(err){
-    console.error('save backlog error', err);
-    alert('Kon item niet bewaren: ' + (err?.message||err));
-  }
-});
-
-function fillSubjectSelect(selectedId){
-  const sel = document.getElementById('bl-subject');
-  const sw  = document.getElementById('bl-swatch');
-  if (!sel) return;
-  sel.innerHTML = `<option value="">Kies een vak…</option>` +
-    subjects.map(s => `<option value="${s.id}" data-color="${s.color||''}">${esc(s.name)}</option>`).join('');
-  sel.value = selectedId || '';
-
-  // swatch kleuren
-  const setSwatch = ()=>{
-    const opt = sel.selectedOptions[0];
-    const c = opt ? opt.dataset.color : '';
-    if (sw) sw.style.background = c || 'transparent';
-  };
-  sel.addEventListener('change', setSwatch, { once:false });
-  setSwatch();
-}
+  
 
 
   // Filter-klik: open modal + vul vakkenlijst
