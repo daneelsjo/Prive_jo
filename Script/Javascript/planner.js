@@ -416,26 +416,38 @@ function setTypeButtons(type){
     .forEach(b => b.classList.toggle('is-active', b.dataset.type === (type||'')));
 }
 
-/* vakken in de select vullen + kleur-swatch bijwerken */
+/* vakken in de select vullen + kleur tonen (opties gekleurd) */
 function fillSubjectSelect(selectedId){
   const sel = document.getElementById('bl-subject');
   const sw  = document.getElementById('bl-swatch');
   if (!sel) return;
 
-  sel.innerHTML =
-    `<option value="">Kies een vak…</option>` +
-    subjects.map(s => `<option value="${s.id}" data-color="${s.color||''}">${esc(s.name)}</option>`).join('');
+  // Placeholder
+  let html = `<option value="">Kies een vak…</option>`;
 
+  // Elke optie krijgt zijn eigen achtergrond + contrasterende tekstkleur
+  html += subjects.map(s => {
+    const color = s.color || '#607D8B';
+    const fg    = getContrast(color);
+    return `<option value="${s.id}" data-color="${color}" style="background:${color};color:${fg};">
+              ${esc(s.name || '')}
+            </option>`;
+  }).join('');
+
+  sel.innerHTML = html;
   sel.value = selectedId || '';
 
-  const setSwatch = ()=>{
+  // Swatch naast de select laten meekleuren
+  const updateSwatch = ()=>{
     const opt = sel.selectedOptions[0];
-    const c = opt ? opt.dataset.color : '';
+    const c = opt ? (opt.dataset.color || '') : '';
     if (sw) sw.style.background = c || 'transparent';
   };
-  sel.addEventListener('change', setSwatch, { once:false });
-  setSwatch();
+  sel.removeEventListener('change', updateSwatch);
+  sel.addEventListener('change', updateSwatch);
+  updateSwatch();
 }
+
 
 
 function clearBacklogErrors(){
@@ -1153,118 +1165,86 @@ document.addEventListener("click", async (ev) => {
   renderSubjectsManager();
 });
 
-
-
-
-  // 🔧 Event delegation voor Save-knop (#bl-save), werkt ook als partials later laden
-
-  // ▼▼ Backlog item opslaan (modal) – volledige functie ▼▼
+// Backlog item opslaan (nieuw/bewerken)
 document.addEventListener("click", async (ev) => {
   const saveBtn = ev.target.closest("#bl-save");
   if (!saveBtn) return;
 
   if (!currentUser) { alert("Log eerst in."); return; }
+  if (!validateBacklog()) return;
 
-  // elementen ophalen
   const idEl       = document.getElementById("bl-id");
   const blSubject  = document.getElementById("bl-subject");
   const blType     = document.getElementById("bl-type");
   const blTitle    = document.getElementById("bl-title");
   const blDuration = document.getElementById("bl-duration");
   const blDue      = document.getElementById("bl-due");
-  const propEl     = document.getElementById("bl-propagate");
+  const propagate  = !!document.getElementById("bl-propagate")?.checked;
 
-  const editingId   = idEl?.value || "";               // leeg = nieuw
-  const subjNameRaw = (blSubject?.value || "").trim();
-  const typeVal     = blType?.value || "taak";
-  const titleVal    = (blTitle?.value || "").trim();
-  const durVal      = parseFloat(blDuration?.value) || 1;
-  const dueVal      = blDue?.value ? new Date(blDue.value) : null;
-  const propagate   = !!propEl?.checked;
+  // 🟢 NU: werken met subjectId
+  const subjectId = blSubject?.value || "";
+  const subj = subjects.find(s => s.id === subjectId);
+  if (!subj){ alert("Kies een geldig vak."); return; }
 
-  if (!subjNameRaw) { alert("Geef een vaknaam."); return; }
-  if (!titleVal)    { alert("Geef een titel/onderwerp."); return; }
+  const editingId = idEl?.value || "";          // leeg = nieuw
+  const typeVal   = blType?.value || "taak";
+  const titleVal  = (blTitle?.value || "").trim();
+  const durVal    = parseFloat(blDuration?.value) || 1;
+  const dueVal    = blDue?.value ? new Date(blDue.value) : null;
 
-  // subject zoeken/aanmaken
-  let subj = subjects.find(s => (s.name||"").toLowerCase() === subjNameRaw.toLowerCase());
-  if (!subj){
-    // nieuw vak met default kleur
-    const defaultColor = PALETTE[0];
-    const ref = await addDoc(collection(db, "subjects"), {
-      name: subjNameRaw, color: defaultColor, uid: ownerUid
-    });
-    subj = { id: ref.id, name: subjNameRaw, color: defaultColor };
-  }
+  const payload = {
+    uid: ownerUid,
+    subjectId: subj.id,
+    subjectName: subj.name,
+    color: subj.color,
+    type: typeVal,
+    title: titleVal,
+    durationHours: durVal,
+    dueDate: dueVal,
+    symbol: sym(typeVal),
+    done: false,
+    updatedAt: new Date()
+  };
 
-  if (!editingId) {
-    // ── NIEUW backlog-item
-    await addDoc(collection(db,"backlog"),{
-      subjectId: subj.id,
-      subjectName: subj.name,
-      type: typeVal,
-      title: titleVal,
-      durationHours: durVal,
-      dueDate: dueVal,
-      color: subj.color,
-      symbol: sym(typeVal),
-      uid: ownerUid,
-      done: false,
-      createdAt: new Date()
-    });
-  } else {
-    // ── UPDATE bestaand backlog-item
-    await updateDoc(doc(db,"backlog", editingId), {
-      subjectId: subj.id,
-      subjectName: subj.name,
-      type: typeVal,
-      title: titleVal,
-      durationHours: durVal,
-      dueDate: dueVal,
-      color: subj.color,
-      symbol: sym(typeVal),
-      updatedAt: new Date()
-    });
+  try{
+    if (!editingId) {
+      payload.createdAt = new Date();
+      await addDoc(collection(db,"backlog"), payload);
+    } else {
+      await updateDoc(doc(db,"backlog", editingId), payload);
 
-    // Optioneel: ook alle geplande blokken die op dit item gebaseerd zijn updaten
-    if (propagate){
-      try{
-        // haal alle plannen met dit itemId binnen de user
+      // Optioneel: geplande blokken die naar dit item verwijzen ook bijwerken
+      if (propagate){
         const q = query(
           collection(db,'plans'),
           where('uid','==', ownerUid),
           where('itemId','==', editingId)
         );
-        const snap = await getDocs(q); // <-- zorg dat getDocs is geïmporteerd
-        const updates = [];
-        snap.forEach(d=>{
-          updates.push(updateDoc(doc(db,'plans', d.id), {
+        const snap = await getDocs(q);
+        await Promise.all(snap.docs.map(d =>
+          updateDoc(doc(db,'plans', d.id), {
             title: titleVal,
             type: typeVal,
             subjectId: subj.id,
             subjectName: subj.name,
             color: subj.color,
             symbol: sym(typeVal),
-            // dueDate meenemen voor tooltip/afdruk
             dueDate: dueVal || null
-            // durationHours laten we staan: die is vaak per sessie aangepast
-          }));
-        });
-        await Promise.all(updates);
-      }catch(err){
-        console.error('propagate plans error', err);
-        alert('Geplande blokken konden niet allemaal geüpdatet worden.');
+          })
+        ));
       }
     }
+
+    // Sluit modal
+    window.Modal?.close ? Modal.close("modal-backlog")
+                        : document.getElementById("modal-backlog")?.setAttribute("hidden","");
+    if (idEl) idEl.value = "";
+
+  }catch(err){
+    console.error('save backlog error', err);
+    alert('Kon item niet bewaren: ' + (err?.message||err));
   }
-
-  // modal sluiten + reset
-  window.Modal?.close ? Modal.close("modal-backlog") : document.getElementById("modal-backlog")?.setAttribute("hidden","");
-  if (idEl) idEl.value = ""; // reset edit-state
-  const titleHdr = document.getElementById('modal-backlog-title');
-  if (titleHdr) titleHdr.textContent = 'Nieuw item';
 });
-
-
 
 
 document.addEventListener("click", (ev) => {

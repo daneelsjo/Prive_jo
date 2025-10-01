@@ -494,3 +494,6 @@ body.resizing-event * {
 
 /* invalid highlight */
 .is-invalid{ border-color:#ff6b6b !important; box-shadow:0 0 0 2px rgba(255,107,107,.15); }
+#bl-subject option{
+  padding:.35rem .6rem;
+}
